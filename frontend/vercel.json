@@ -1,0 +1,11 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@ehr_api_url",
+    "NEXT_PUBLIC_CREATOR_WHATSAPP": "@creator_whatsapp_number"
+  }
+}

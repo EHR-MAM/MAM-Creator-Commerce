@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --gold: #C9A84C;
+  --black: #111111;
+  --cream: #FAF7F2;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Mobile-first base — Ghana users are mostly on phones */
+* {
+  box-sizing: border-box;
+}
