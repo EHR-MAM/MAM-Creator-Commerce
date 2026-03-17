@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str  # postgresql+asyncpg://user:pass@host/db
 
+    # Supabase
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+
     # Auth
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
