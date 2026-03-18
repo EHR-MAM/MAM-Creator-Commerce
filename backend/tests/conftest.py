@@ -1,10 +1,4 @@
-"""Shared test fixtures for EHR Creator Commerce Platform test suite.
-
-Uses an in-memory SQLite database (via aiosqlite) so tests run without
-a live Supabase/Postgres connection. All models are created fresh for
-each test session.
-"""
-import pytest
+"""Shared test fixtures — in-memory SQLite, no live DB needed."""
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
@@ -12,10 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from app.core.database import Base, get_db
 from main import app
 
-# ─── In-memory SQLite for tests ──────────────────────────────────────────────
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+test_engine = create_async_engine(
+    TEST_DATABASE_URL,
+    echo=False,
+    connect_args={"check_same_thread": False},
+)
 TestSessionLocal = async_sessionmaker(
     test_engine, class_=AsyncSession, expire_on_commit=False
 )
@@ -38,7 +35,6 @@ async def db():
 
 @pytest_asyncio.fixture
 async def client(db: AsyncSession):
-    """HTTPX async client with DB dependency overridden to use test DB."""
     async def override_get_db():
         yield db
 
@@ -49,15 +45,10 @@ async def client(db: AsyncSession):
     app.dependency_overrides.clear()
 
 
-# ─── Auth helpers ─────────────────────────────────────────────────────────────
-
 async def _register_and_login(client: AsyncClient, email: str, password: str, role: str = "influencer") -> str:
-    """Register a user and return a JWT access token."""
     await client.post("/auth/register", json={
-        "email": email,
-        "password": password,
-        "name": f"Test {role.title()}",
-        "role": role,
+        "email": email, "password": password,
+        "name": f"Test {role.title()}", "role": role,
     })
     resp = await client.post("/auth/login", json={"email": email, "password": password})
     assert resp.status_code == 200, f"Login failed: {resp.text}"

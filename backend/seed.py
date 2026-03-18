@@ -10,7 +10,6 @@ Creates:
 - Christiana's first campaign
 """
 import asyncio
-import uuid
 from decimal import Decimal
 from app.core.database import AsyncSessionLocal
 from app.core.security import hash_password
@@ -190,8 +189,8 @@ async def seed():
         await db.commit()
         print(f"✓ Campaign created: {campaign.name}")
         print("\n=== SEED COMPLETE ===")
-        print(f"Admin login: airatpack@gmail.com / ChangeMe2025!")
-        print(f"Christiana login: uchik9935@gmail.com / ChangeMe2025!")
+        print("Admin login: airatpack@gmail.com / ChangeMe2025!")
+        print("Christiana login: uchik9935@gmail.com / ChangeMe2025!")
         print(f"Christiana influencer ID: {christiana.id}")
         print(f"Campaign ID: {campaign.id}")
         print("⚠️  Change all passwords after first login!")

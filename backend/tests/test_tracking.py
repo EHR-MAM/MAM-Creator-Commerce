@@ -65,7 +65,7 @@ async def test_redirect_increments_click(client: AsyncClient, influencer_token: 
         headers={"Authorization": f"Bearer {influencer_token}"},
     )
     links = links_resp.json()
-    matching = [l for l in links if l["code"] == code]
+    matching = [lnk for lnk in links if lnk["code"] == code]
     assert len(matching) == 1
     assert matching[0]["click_count"] == 1
 

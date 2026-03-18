@@ -4,17 +4,36 @@ from sqlalchemy import select
 from datetime import timedelta
 
 from app.core.database import get_db
-from app.core.security import verify_password, create_access_token
+from app.core.security import hash_password, verify_password, create_access_token
 from app.core.config import settings
 from app.core.deps import get_current_user
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse, UserMe
+from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserMe
 
 router = APIRouter()
 
 # Simple in-memory refresh token store for pilot
 # In production: store hashed refresh tokens in DB
 _refresh_tokens: dict[str, str] = {}
+
+
+@router.post("/register", status_code=201)
+async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == body.email))
+    if result.scalar_one_or_none():
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="Email already registered")
+    user = User(
+        name=body.name,
+        email=body.email,
+        role=body.role,
+        hashed_password=hash_password(body.password),
+        status="active",
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return {"id": str(user.id), "email": user.email, "role": user.role}
 
 
 @router.post("/login", response_model=TokenResponse)

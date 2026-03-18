@@ -151,7 +151,7 @@ async def redirect_link(
 ):
     """Public redirect endpoint. Logs click then sends viewer to storefront."""
     result = await db.execute(
-        select(TrackingLink).where(TrackingLink.code == code, TrackingLink.is_active == True)
+        select(TrackingLink).where(TrackingLink.code == code, TrackingLink.is_active)
     )
     link = result.scalar_one_or_none()
     if not link:

@@ -5,7 +5,6 @@ Run from C:\MAF\platform\backend\:  python seed_direct.py
 import psycopg2
 import bcrypt
 import uuid
-from decimal import Decimal
 
 # Using Supabase connection pooler (port 6543) — works through firewalls
 DB_URL = "postgresql://postgres.pmkvzwgizpropwjgpopp:ZqpWA76JiIuYfbIH@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
@@ -53,7 +52,8 @@ def run():
     print(f"✓ Influencer: @sweet200723  id={christiana_id}")
 
     # ── Vendor 1: Fashion ─────────────────────────────────────────────────
-    v1u = str(uuid.uuid4()); v1 = str(uuid.uuid4())
+    v1u = str(uuid.uuid4())
+    v1 = str(uuid.uuid4())
     cur.execute("INSERT INTO users (id,role,name,email,hashed_password,status) VALUES (%s,'vendor','Accra Style Hub','accastylehub@placeholder.com',%s,'active')",
                 (v1u, hp("ChangeMe2025!")))
     cur.execute("INSERT INTO vendors (id,user_id,business_name,location,contact_phone,fulfillment_sla_hours,status) VALUES (%s,%s,'Accra Style Hub','East Legon, Accra','+233200000001',48,'active')",
@@ -61,7 +61,8 @@ def run():
     print(f"✓ Vendor 1: Accra Style Hub  id={v1}")
 
     # ── Vendor 2: Hair ────────────────────────────────────────────────────
-    v2u = str(uuid.uuid4()); v2 = str(uuid.uuid4())
+    v2u = str(uuid.uuid4())
+    v2 = str(uuid.uuid4())
     cur.execute("INSERT INTO users (id,role,name,email,hashed_password,status) VALUES (%s,'vendor','Ghana Wig Queen','ghanawigsqueen@placeholder.com',%s,'active')",
                 (v2u, hp("ChangeMe2025!")))
     cur.execute("INSERT INTO vendors (id,user_id,business_name,location,contact_phone,fulfillment_sla_hours,status) VALUES (%s,%s,'Ghana Wig Queen','Spintex Road, Accra','+233200000002',72,'active')",
@@ -69,7 +70,8 @@ def run():
     print(f"✓ Vendor 2: Ghana Wig Queen  id={v2}")
 
     # ── Vendor 3: Accessories ─────────────────────────────────────────────
-    v3u = str(uuid.uuid4()); v3 = str(uuid.uuid4())
+    v3u = str(uuid.uuid4())
+    v3 = str(uuid.uuid4())
     cur.execute("INSERT INTO users (id,role,name,email,hashed_password,status) VALUES (%s,'vendor','Gold Coast Accessories','goldcoastacc@placeholder.com',%s,'active')",
                 (v3u, hp("ChangeMe2025!")))
     cur.execute("INSERT INTO vendors (id,user_id,business_name,location,contact_phone,fulfillment_sla_hours,status) VALUES (%s,%s,'Gold Coast Accessories','Osu, Accra','+233200000003',48,'active')",
@@ -120,8 +122,8 @@ def run():
 
     print(f"✓ Campaign created  id={campaign_id}")
     print("\n=== SEED COMPLETE ===")
-    print(f"Admin login:       airatpack@gmail.com  /  ChangeMe2025!")
-    print(f"Christiana login:  uchik9935@gmail.com  /  ChangeMe2025!")
+    print("Admin login:       airatpack@gmail.com  /  ChangeMe2025!")
+    print("Christiana login:  uchik9935@gmail.com  /  ChangeMe2025!")
     print(f"Christiana ID:     {christiana_id}")
     print(f"Campaign ID:       {campaign_id}")
     print("⚠  Change passwords after first login!")
