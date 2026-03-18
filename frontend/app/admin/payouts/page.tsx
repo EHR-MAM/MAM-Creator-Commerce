@@ -16,7 +16,7 @@ interface Commission {
   creator_amount: number;
   platform_amount: number;
   currency: string;
-  status: string;
+  commission_status: string;
   created_at: string;
 }
 
@@ -179,7 +179,7 @@ export default function AdminPayouts() {
                     <p className="text-xs text-gray-400">{new Date(c.created_at).toLocaleDateString()}</p>
                   </div>
                   <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full font-medium">
-                    {c.status}
+                    {c.commission_status}
                   </span>
                 </div>
               ))}

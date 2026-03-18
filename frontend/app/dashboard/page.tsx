@@ -98,8 +98,8 @@ export default function InfluencerDashboard() {
     );
   }
 
-  const pending = commissions.filter(c => c.status === "pending");
-  const paid = commissions.filter(c => c.status === "paid");
+  const pending = commissions.filter(c => c.commission_status === "pending");
+  const paid = commissions.filter(c => c.commission_status === "paid");
 
   return (
     <main className="min-h-screen bg-[#FAF7F2]">
