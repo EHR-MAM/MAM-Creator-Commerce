@@ -64,11 +64,14 @@ async def get_product(product_id: uuid.UUID, db: AsyncSession = Depends(get_db))
 @router.post("", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
 async def create_product(
     body: ProductCreate,
-    vendor_id: uuid.UUID = Query(..., description="Vendor this product belongs to"),
+    vendor_id: Optional[uuid.UUID] = Query(None, description="Vendor this product belongs to"),
     current_user: User = Depends(require_vendor),
     db: AsyncSession = Depends(get_db),
 ):
-    product = Product(vendor_id=vendor_id, **body.model_dump())
+    effective_vendor_id = vendor_id or body.vendor_id
+    if not effective_vendor_id:
+        raise HTTPException(status_code=422, detail="vendor_id required")
+    product = Product(vendor_id=effective_vendor_id, **{k: v for k, v in body.model_dump().items() if k != "vendor_id"})
     db.add(product)
     await db.commit()
     await db.refresh(product)

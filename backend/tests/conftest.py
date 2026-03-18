@@ -68,3 +68,20 @@ async def influencer_token(client: AsyncClient) -> str:
 @pytest_asyncio.fixture
 async def vendor_token(client: AsyncClient) -> str:
     return await _register_and_login(client, "vendor@test.com", "Vendor1234!", "vendor")
+
+
+@pytest_asyncio.fixture
+async def influencer_record(client: AsyncClient, influencer_token: str) -> dict:
+    """Create influencer profile for the test influencer user."""
+    resp = await client.post(
+        "/influencers",
+        json={"handle": "christiana_test", "platform_name": "tiktok", "audience_region": "Ghana"},
+        headers={"Authorization": f"Bearer {influencer_token}"},
+    )
+    # May already exist (409) - either way return what we have
+    if resp.status_code in (201, 409):
+        list_resp = await client.get("/influencers", headers={"Authorization": f"Bearer {influencer_token}"})
+        influencers = list_resp.json()
+        if isinstance(influencers, list) and influencers:
+            return influencers[0]
+    return resp.json()

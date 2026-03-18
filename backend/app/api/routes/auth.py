@@ -31,6 +31,15 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         status="active",
     )
     db.add(user)
+    await db.flush()
+
+    # Auto-create influencer record for influencer role
+    if body.role == "influencer":
+        from app.models.influencer import Influencer
+        handle = body.email.split("@")[0].replace(".", "_")
+        influencer = Influencer(user_id=user.id, handle=handle)
+        db.add(influencer)
+
     await db.commit()
     await db.refresh(user)
     return {"id": str(user.id), "email": user.email, "role": user.role}
@@ -89,4 +98,4 @@ async def logout(body: dict):
 
 @router.get("/me", response_model=UserMe)
 async def me(current_user: User = Depends(get_current_user)):
-    return current_user
+    return UserMe(id=str(current_user.id), role=current_user.role, name=current_user.name, email=current_user.email, status=current_user.status)

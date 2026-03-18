@@ -1,9 +1,10 @@
-from pydantic import BaseModel, UUID4
+from pydantic import BaseModel, UUID4, Field
 from decimal import Decimal
 from typing import Optional, List
 
 
 class ProductCreate(BaseModel):
+    vendor_id: Optional[UUID4] = None
     sku: str
     name: str
     description: Optional[str] = None
@@ -13,7 +14,7 @@ class ProductCreate(BaseModel):
     price: Decimal
     cost_basis: Optional[Decimal] = None
     currency: str = "GHS"
-    inventory_count: int = 0
+    inventory_count: int = Field(default=0, ge=0)
     media_urls: Optional[List[str]] = None
 
 

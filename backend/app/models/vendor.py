@@ -11,8 +11,8 @@ class Vendor(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     business_name: Mapped[str] = mapped_column(String(255), nullable=False)
     location: Mapped[str] = mapped_column(String(255), nullable=False)
-    contact_name: Mapped[str] = mapped_column(String(255))
-    contact_phone: Mapped[str] = mapped_column(String(50))
+    contact_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     fulfillment_sla_hours: Mapped[int] = mapped_column(Integer, default=72)
     status: Mapped[str] = mapped_column(
         Enum("active", "inactive", "suspended", name="vendor_status"),

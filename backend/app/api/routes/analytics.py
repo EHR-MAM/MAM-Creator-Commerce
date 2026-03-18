@@ -121,9 +121,10 @@ async def get_daily_trend(
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Daily event counts (storefront views + link clicks)
+    day_col = func.strftime("%Y-%m-%d", AnalyticsEvent.occurred_at).label("day")
     event_counts = await db.execute(
         select(
-            cast(AnalyticsEvent.occurred_at, Date).label("day"),
+            day_col,
             AnalyticsEvent.event_name,
             func.count(AnalyticsEvent.id).label("count"),
         )
@@ -131,8 +132,8 @@ async def get_daily_trend(
             AnalyticsEvent.occurred_at >= since,
             AnalyticsEvent.event_name.in_(["storefront.viewed", "link.clicked", "order.created"]),
         )
-        .group_by(cast(AnalyticsEvent.occurred_at, Date), AnalyticsEvent.event_name)
-        .order_by(cast(AnalyticsEvent.occurred_at, Date))
+        .group_by(day_col, AnalyticsEvent.event_name)
+        .order_by(day_col)
     )
     rows = event_counts.all()
 

@@ -54,7 +54,7 @@ class TrackingLinkOut(BaseModel):
     click_count: int
     is_active: bool
     created_at: datetime
-    short_url: str                            # convenience — full redirect URL
+    short_url: str = ""                       # convenience — full redirect URL
 
     class Config:
         from_attributes = True
