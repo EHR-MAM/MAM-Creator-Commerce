@@ -144,7 +144,7 @@ export default function VendorDashboard() {
       <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-xl p-8 shadow-sm w-full max-w-sm">
           <h1 className="text-xl font-bold mb-1">Vendor Login</h1>
-          <p className="text-sm text-gray-500 mb-6">EHR Creator Commerce Platform</p>
+          <p className="text-sm text-gray-500 mb-6">MAM — Micro-Affiliate Marketing</p>
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
           <form onSubmit={login} className="space-y-4">
             <input name="email" type="email" required placeholder="Vendor email"

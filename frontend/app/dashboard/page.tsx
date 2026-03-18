@@ -77,7 +77,7 @@ export default function InfluencerDashboard() {
           <div className="bg-[#C9A84C] rounded-lg p-3 mb-6 flex items-center gap-2">
             <span className="text-xl">🐎</span>
             <div>
-              <p className="text-xs font-bold text-black">EHR Creator Commerce</p>
+              <p className="text-xs font-bold text-black">MAM — Micro-Affiliate Marketing</p>
               <p className="text-xs text-black opacity-70">Creator Dashboard</p>
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function InfluencerDashboard() {
           <div>
             <p className="text-[#C9A84C] text-xs font-medium tracking-widest uppercase">Creator Dashboard</p>
             <h1 className="text-xl font-bold mt-1">Your Earnings</h1>
-            <p className="text-gray-400 text-xs mt-0.5">EHR Creator Commerce Platform</p>
+            <p className="text-gray-400 text-xs mt-0.5">MAM — Micro-Affiliate Marketing</p>
           </div>
           <Link href="/dashboard/links"
             className="text-[#C9A84C] text-sm font-medium border border-[#C9A84C]/40 px-3 py-1.5 rounded-lg hover:bg-[#C9A84C]/10 transition-colors">

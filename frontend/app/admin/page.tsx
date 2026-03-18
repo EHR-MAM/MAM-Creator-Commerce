@@ -111,7 +111,7 @@ export default function AdminOrders() {
       <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-xl p-8 shadow-sm w-full max-w-sm">
           <h1 className="text-xl font-bold mb-1">Admin Login</h1>
-          <p className="text-sm text-gray-500 mb-6">EHR Creator Commerce Platform</p>
+          <p className="text-sm text-gray-500 mb-6">MAM — Micro-Affiliate Marketing</p>
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
           <form onSubmit={login} className="space-y-4">
             <input name="email" type="email" required placeholder="Email" defaultValue="airatpack@gmail.com"
@@ -135,7 +135,7 @@ export default function AdminOrders() {
       <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="font-bold text-lg">Admin — Order Monitor</h1>
-          <p className="text-gray-400 text-xs mt-0.5">EHR Creator Commerce Platform</p>
+          <p className="text-gray-400 text-xs mt-0.5">MAM — Micro-Affiliate Marketing</p>
         </div>
         <div className="flex gap-3">
           <Link href="/admin/payouts" className="text-[#C9A84C] text-sm font-medium">Payouts</Link>
