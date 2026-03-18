@@ -1,27 +1,14 @@
 name: Deploy to kiva-1
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    # Manual deploy only - kiva-1 is behind NAT, no public SSH port
+    # To deploy: SSH to kiva-1 and run:
+    #   cd /home/kivamaster/projects/mam-platform && git pull && sudo systemctl restart mam-backend
 
 jobs:
-  deploy-backend:
-    name: Deploy Backend to kiva-1
+  placeholder:
+    name: Manual deploy only
     runs-on: ubuntu-latest
-
     steps:
-      - name: SSH deploy to kiva-1
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: 10.0.3.65
-          username: kivamaster
-          key: ${{ secrets.KIVA1_SSH_KEY }}
-          script: |
-            cd /home/kivamaster/projects/mam-platform
-            git pull origin main
-            cd backend
-            venv/bin/pip install -r requirements.txt -q
-            sudo systemctl restart mam-backend
-            sleep 3
-            curl -sf http://127.0.0.1:8200/health || exit 1
-            echo "Backend deploy OK"
+      - run: echo "Deployment is manual. SSH to kiva-1 and git pull."
