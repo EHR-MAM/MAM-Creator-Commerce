@@ -1,11 +1,24 @@
-// Influencer (Creator) Dashboard — earnings + commission summary (FE-11)
-// Route: /dashboard
-// Christiana logs in here to see her commissions, order counts, and payout history
+// Influencer Creator Dashboard — unified tabbed app shell (Sprint C)
+// Route: /dashboard  (basePath: /mam)
 "use client";
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
+import { TEMPLATES, type TemplateId } from "@/lib/templates";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface InfluencerProfile {
+  id: string;
+  handle: string;
+  platform_name: string;
+  status: string;
+  template_id: string;
+  bio: string | null;
+  avatar_url: string | null;
+  payout_method: string | null;
+}
 
 interface Commission {
   id: string;
@@ -14,6 +27,22 @@ interface Commission {
   currency: string;
   commission_status: string;
   calculated_at: string;
+}
+
+interface Order {
+  id: string;
+  status: string;
+  total: number;
+  subtotal: number;
+  currency: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email?: string;
+  delivery_address?: string;
+  size_variant?: string;
+  special_instructions?: string;
+  fulfillment_status: string;
+  created_at: string;
 }
 
 interface KPI {
@@ -25,175 +54,1120 @@ interface KPI {
   currency: string;
 }
 
-export default function InfluencerDashboard() {
-  const [token, setToken] = useState("");
-  const [authed, setAuthed] = useState(false);
-  const [commissions, setCommissions] = useState<Commission[]>([]);
-  const [kpi, setKpi] = useState<KPI | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+interface TrackingLink {
+  id: string;
+  code: string;
+  label: string;
+  click_count: number;
+  is_active: boolean;
+  created_at: string;
+  short_url: string;
+}
 
-  async function login(e: React.FormEvent) {
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+  category: string;
+  inventory_count: number;
+  status: string;
+  media_urls?: string[];
+}
+
+type Tab = "home" | "orders" | "catalog" | "links" | "store";
+
+// ─── Status helpers ────────────────────────────────────────────────────────────
+
+const ORDER_STATUS_STYLE: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700",
+  confirmed: "bg-blue-100 text-blue-700",
+  processing: "bg-purple-100 text-purple-700",
+  shipped: "bg-orange-100 text-orange-700",
+  delivered: "bg-green-100 text-green-700",
+  cancelled: "bg-gray-100 text-gray-500",
+};
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  processing: "Processing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
+
+// ─── Login Screen ──────────────────────────────────────────────────────────────
+
+function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+    setLoading(true);
+    const form = e.currentTarget;
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: (e.target as any).email.value, password: (e.target as any).password.value }),
+        body: JSON.stringify({
+          email: (form.elements.namedItem("email") as HTMLInputElement).value,
+          password: (form.elements.namedItem("password") as HTMLInputElement).value,
+        }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error("bad_creds");
       const data = await res.json();
-      setToken(data.access_token);
-      setAuthed(true);
+      sessionStorage.setItem("mam_creator_token", data.access_token);
+      onLogin(data.access_token);
     } catch {
-      setError("Login failed. Check your email and password.");
-    }
-  }
-
-  async function fetchData() {
-    setLoading(true);
-    try {
-      const [cRes, kpiRes] = await Promise.all([
-        fetch(`${API_URL}/commissions/me`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_URL}/reports/kpis/me`, { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-      if (cRes.ok) setCommissions(await cRes.json());
-      if (kpiRes.ok) setKpi(await kpiRes.json());
-    } catch {
-      setError("Failed to load dashboard data.");
+      setError("Incorrect email or password. Try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { if (authed) fetchData(); }, [authed]);
-
-  if (!authed) {
-    return (
-      <main className="min-h-screen bg-[#FAF7F2] flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl p-8 shadow-sm w-full max-w-sm">
-          {/* Book banner */}
-          <div className="bg-[#C9A84C] rounded-lg p-3 mb-6 flex items-center gap-2">
-            <span className="text-xl">🐎</span>
-            <div>
-              <p className="text-xs font-bold text-black">MAM — Micro-Affiliate Marketing</p>
-              <p className="text-xs text-black opacity-70">Creator Dashboard</p>
-            </div>
+  return (
+    <main className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        {/* Logo mark */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#C9A84C] rounded-2xl mb-4 shadow-lg">
+            <span className="text-2xl font-black text-black">M</span>
           </div>
-          <h1 className="text-xl font-bold mb-1">Creator Login</h1>
-          <p className="text-sm text-gray-500 mb-6">Track your earnings and orders</p>
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-          <form onSubmit={login} className="space-y-4">
-            <input name="email" type="email" required placeholder="Your email"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
-            <input name="password" type="password" required placeholder="Password"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
-            <button type="submit" className="w-full bg-black text-white py-3 rounded-xl font-bold text-sm">
-              Sign In
+          <h1 className="text-2xl font-black text-white tracking-tight">Creator Hub</h1>
+          <p className="text-gray-400 text-sm mt-1">MAM — Micro-Affiliate Marketing</p>
+        </div>
+
+        <div className="bg-[#1A1A1A] rounded-2xl p-6 border border-white/10">
+          {error && (
+            <div className="bg-red-900/40 border border-red-500/30 text-red-300 text-sm px-4 py-3 rounded-xl mb-5">
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs text-gray-400 font-medium block mb-1.5">Email</label>
+              <input
+                name="email"
+                type="email"
+                required
+                placeholder="you@example.com"
+                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 font-medium block mb-1.5">Password</label>
+              <input
+                name="password"
+                type="password"
+                required
+                placeholder="••••••••"
+                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#C9A84C] text-black py-3.5 rounded-xl font-bold text-sm mt-2 disabled:opacity-60 hover:bg-[#E8C97A] transition-colors"
+            >
+              {loading ? "Signing in…" : "Sign In"}
             </button>
           </form>
         </div>
-      </main>
-    );
-  }
 
-  const pending = commissions.filter(c => c.commission_status === "pending");
-  const paid = commissions.filter(c => c.commission_status === "paid");
+        <p className="text-center text-xs text-gray-600 mt-6">
+          Need access?{" "}
+          <a
+            href={`https://wa.me/13107763650?text=Hi%2C%20I%27m%20a%20creator%20and%20need%20my%20login%20details`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#C9A84C]"
+          >
+            WhatsApp us
+          </a>
+        </p>
+      </div>
+    </main>
+  );
+}
+
+// ─── Tab: Home ─────────────────────────────────────────────────────────────────
+
+function HomeTab({ kpi, commissions, profile }: { kpi: KPI | null; commissions: Commission[]; profile: InfluencerProfile | null }) {
+  const pendingCommission = commissions.filter(c => c.commission_status === "pending");
 
   return (
-    <main className="min-h-screen bg-[#FAF7F2]">
-      {/* Header */}
-      <div className="bg-black text-white px-4 py-5">
-        <div className="max-w-lg mx-auto">
-          <div>
-            <p className="text-[#C9A84C] text-xs font-medium tracking-widest uppercase">Creator Dashboard</p>
-            <h1 className="text-xl font-bold mt-1">Your Earnings</h1>
-            <p className="text-gray-400 text-xs mt-0.5">MAM — Micro-Affiliate Marketing</p>
-          </div>
-          <Link href="/dashboard/links"
-            className="text-[#C9A84C] text-sm font-medium border border-[#C9A84C]/40 px-3 py-1.5 rounded-lg hover:bg-[#C9A84C]/10 transition-colors">
-            🔗 Links
-          </Link>
-        </div>
+    <div className="space-y-5">
+      {/* Greeting */}
+      <div>
+        <p className="text-[#C9A84C] text-xs font-bold tracking-widest uppercase">Welcome back</p>
+        <h2 className="text-2xl font-black text-white mt-0.5">
+          @{profile?.handle || "creator"}
+        </h2>
+        <p className="text-gray-400 text-sm mt-0.5">Here's how your store is doing</p>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
+      {/* KPI grid */}
+      {kpi ? (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Orders</p>
+            <p className="text-3xl font-black text-white mt-1">{kpi.total_orders}</p>
+            <p className="text-xs text-gray-500 mt-1">{kpi.delivered_orders} delivered</p>
+          </div>
+          <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Earned</p>
+            <p className="text-3xl font-black text-[#C9A84C] mt-1">
+              {Number(kpi.total_influencer_earnings).toFixed(0)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">GHS</p>
+          </div>
+          <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Pending</p>
+            <p className="text-3xl font-black text-amber-400 mt-1">
+              {Number(kpi.pending_commission).toFixed(0)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">GHS — awaiting payout</p>
+          </div>
+          <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
+            <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Paid Out</p>
+            <p className="text-3xl font-black text-green-400 mt-1">
+              {Number(kpi.paid_out).toFixed(0)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">GHS total</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="bg-[#1A1A1A] rounded-2xl h-24 animate-pulse border border-white/8" />
+          ))}
+        </div>
+      )}
 
-        {/* KPI cards */}
-        {kpi ? (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-xl p-4 border border-gray-100">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Total Orders</p>
-              <p className="text-2xl font-bold mt-1">{kpi.total_orders}</p>
-              <p className="text-xs text-gray-400">{kpi.delivered_orders} delivered</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Total Earned</p>
-              <p className="text-2xl font-bold mt-1">GHS {Number(kpi.total_influencer_earnings).toFixed(2)}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Pending Payout</p>
-              <p className="text-2xl font-bold mt-1 text-yellow-600">GHS {Number(kpi.pending_commission).toFixed(2)}</p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100">
-              <p className="text-xs text-gray-400 uppercase tracking-wide">Paid Out</p>
-              <p className="text-2xl font-bold mt-1 text-green-600">GHS {Number(kpi.paid_out).toFixed(2)}</p>
-            </div>
+      {/* Pending commissions */}
+      {pendingCommission.length > 0 && (
+        <div className="bg-amber-900/20 border border-amber-500/30 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+            <p className="text-amber-400 text-sm font-bold">
+              {pendingCommission.length} commission{pendingCommission.length > 1 ? "s" : ""} pending payout
+            </p>
+          </div>
+          <p className="text-xs text-amber-400/70">
+            GHS {pendingCommission.reduce((s, c) => s + Number(c.influencer_amount), 0).toFixed(2)} will be sent to your MoMo after delivery confirmation
+          </p>
+        </div>
+      )}
+
+      {/* Commission history */}
+      <div>
+        <h3 className="text-sm font-bold text-white mb-3">Commission History</h3>
+        {commissions.length === 0 ? (
+          <div className="text-center py-8 bg-[#1A1A1A] rounded-2xl border border-white/8">
+            <p className="text-4xl mb-3">💰</p>
+            <p className="text-gray-400 text-sm">No commissions yet</p>
+            <p className="text-xs text-gray-600 mt-1">Commissions appear when orders are delivered</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {[0,1,2,3].map(i => (
-              <div key={i} className="bg-white rounded-xl p-4 border border-gray-100 h-20 animate-pulse" />
+          <div className="space-y-2">
+            {commissions.slice(0, 8).map(c => (
+              <div key={c.id} className="bg-[#1A1A1A] rounded-xl p-4 border border-white/8 flex justify-between items-center">
+                <div>
+                  <p className="text-xs font-mono text-gray-500">#{c.order_id.slice(0, 8).toUpperCase()}</p>
+                  <p className="text-xs text-gray-600 mt-0.5">{new Date(c.calculated_at).toLocaleDateString()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-white">GHS {Number(c.influencer_amount).toFixed(2)}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    c.commission_status === "paid" ? "bg-green-900/40 text-green-400 border border-green-500/30" :
+                    c.commission_status === "pending" ? "bg-amber-900/40 text-amber-400 border border-amber-500/30" :
+                    "bg-white/5 text-gray-400"
+                  }`}>
+                    {c.commission_status}
+                  </span>
+                </div>
+              </div>
             ))}
           </div>
         )}
+      </div>
 
-        {/* Commission history */}
+      {/* Payout info */}
+      <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#C9A84C]/20">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#C9A84C]/10 flex items-center justify-center shrink-0">
+            <span className="text-sm">📱</span>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white">MoMo Payouts</p>
+            <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+              Commissions are paid to your MTN MoMo number weekly after delivery confirmation.
+              Questions? <a href="https://wa.me/13107763650" target="_blank" rel="noopener noreferrer" className="text-[#C9A84C]">WhatsApp admin</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab: Orders ───────────────────────────────────────────────────────────────
+
+function OrdersTab({ orders }: { orders: Order[] }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const newCount = orders.filter(o => o.status === "pending").length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-base mb-3">Commission History</h2>
+          <h2 className="text-xl font-black text-white">Orders</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{orders.length} total</p>
+        </div>
+        {newCount > 0 && (
+          <span className="bg-red-500 text-white text-xs font-black px-2.5 py-1 rounded-full">
+            {newCount} NEW
+          </span>
+        )}
+      </div>
 
-          {loading ? (
-            <div className="text-center py-8 text-gray-400">Loading…</div>
-          ) : commissions.length === 0 ? (
-            <div className="text-center py-8 bg-white rounded-xl border border-gray-100">
-              <p className="text-gray-500">No commissions yet.</p>
-              <p className="text-sm text-gray-400 mt-1">Commissions appear when orders are delivered.</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {commissions.map(c => (
-                <div key={c.id} className="bg-white rounded-xl p-4 border border-gray-100 flex justify-between items-center">
-                  <div>
-                    <p className="text-xs font-mono text-gray-400">Order #{c.order_id.slice(0, 8)}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{new Date(c.calculated_at).toLocaleDateString()}</p>
+      {orders.length === 0 ? (
+        <div className="text-center py-12 bg-[#1A1A1A] rounded-2xl border border-white/8">
+          <p className="text-4xl mb-3">📦</p>
+          <p className="text-gray-400 text-sm">No orders yet</p>
+          <p className="text-xs text-gray-600 mt-1">Share your store link to get your first sale!</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {orders.map(o => {
+            const isNew = o.status === "pending";
+            const isOpen = expanded === o.id;
+
+            return (
+              <div
+                key={o.id}
+                className={`rounded-2xl border transition-all ${
+                  isNew
+                    ? "bg-amber-900/10 border-amber-500/30"
+                    : "bg-[#1A1A1A] border-white/8"
+                }`}
+              >
+                {/* Card header — always visible */}
+                <button
+                  onClick={() => setExpanded(isOpen ? null : o.id)}
+                  className="w-full text-left p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {isNew && (
+                          <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
+                        )}
+                        <p className="font-bold text-white text-sm truncate">
+                          {o.customer_name || "Customer"}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-500 font-mono">#{o.id.slice(0, 8).toUpperCase()}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">
+                        {new Date(o.created_at).toLocaleDateString("en-GH", { day: "numeric", month: "short" })}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-black text-white text-base">GHS {Number(o.total).toFixed(2)}</p>
+                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-1 ${ORDER_STATUS_STYLE[o.status] || "bg-white/5 text-gray-400"}`}>
+                        {ORDER_STATUS_LABEL[o.status] || o.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold">GHS {Number(c.influencer_amount).toFixed(2)}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      c.commission_status === "paid" ? "bg-green-100 text-green-800" :
-                      c.commission_status === "pending" ? "bg-yellow-100 text-yellow-800" :
-                      "bg-gray-100 text-gray-600"
-                    }`}>
-                      {c.commission_status}
+                  <div className="flex items-center justify-between mt-2">
+                    {o.size_variant ? (
+                      <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-lg">
+                        Size: {o.size_variant}
+                      </span>
+                    ) : <span />}
+                    <span className="text-xs text-gray-600">{isOpen ? "▲ Less" : "▼ Details"}</span>
+                  </div>
+                </button>
+
+                {/* Expanded details */}
+                {isOpen && (
+                  <div className="px-4 pb-4 border-t border-white/5 pt-3 space-y-3">
+                    {/* Contact */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-0.5">Phone</p>
+                        <a
+                          href={`tel:${o.customer_phone}`}
+                          className="text-sm text-[#C9A84C] font-medium"
+                        >
+                          {o.customer_phone || "—"}
+                        </a>
+                      </div>
+                      {o.customer_email && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-0.5">Email</p>
+                          <p className="text-sm text-gray-300 truncate">{o.customer_email}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Delivery address */}
+                    {o.delivery_address && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-0.5">Delivery Address</p>
+                        <p className="text-sm text-gray-300 leading-snug">{o.delivery_address}</p>
+                      </div>
+                    )}
+
+                    {/* Special instructions */}
+                    {o.special_instructions && (
+                      <div className="bg-amber-900/20 border border-amber-500/20 rounded-xl px-3 py-2">
+                        <p className="text-xs text-amber-400/70 mb-0.5">Customer note</p>
+                        <p className="text-sm text-amber-300">{o.special_instructions}</p>
+                      </div>
+                    )}
+
+                    {/* Order total breakdown */}
+                    <div className="bg-white/5 rounded-xl px-3 py-2 text-xs space-y-1">
+                      <div className="flex justify-between text-gray-400">
+                        <span>Subtotal</span>
+                        <span>GHS {Number(o.subtotal).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400">
+                        <span>Fulfillment</span>
+                        <span className="capitalize">{o.fulfillment_status}</span>
+                      </div>
+                      <div className="flex justify-between text-white font-bold pt-1 border-t border-white/10">
+                        <span>Total</span>
+                        <span>GHS {Number(o.total).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    {/* WhatsApp customer quick action */}
+                    {o.customer_phone && (
+                      <a
+                        href={`https://wa.me/${o.customer_phone.replace(/\D/g, "")}?text=Hi%20${encodeURIComponent(o.customer_name || "there")}%2C%20your%20order%20%23${o.id.slice(0, 8).toUpperCase()}%20is%20being%20processed.%20We%27ll%20update%20you%20soon!`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full bg-green-600/20 border border-green-500/30 text-green-400 text-sm font-semibold py-2.5 rounded-xl hover:bg-green-600/30 transition-colors"
+                      >
+                        <span className="text-base">💬</span>
+                        WhatsApp Customer
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Tab: Links ────────────────────────────────────────────────────────────────
+
+function LinksTab({ token }: { token: string }) {
+  const [links, setLinks] = useState<TrackingLink[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [label, setLabel] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  const fetchLinks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/tracking/links`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setLinks(await res.json());
+    } catch {
+      setError("Failed to load links.");
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { fetchLinks(); }, [fetchLinks]);
+
+  async function createLink(e: React.FormEvent) {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const res = await fetch(`${API_URL}/tracking/links`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ label: label || undefined }),
+      });
+      if (!res.ok) throw new Error();
+      setLabel("");
+      await fetchLinks();
+    } catch {
+      setError("Failed to create link.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function deactivateLink(id: string) {
+    try {
+      await fetch(`${API_URL}/tracking/links/${id}/deactivate`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchLinks();
+    } catch { /* silent */ }
+  }
+
+  function copyLink(url: string) {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(url);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
+
+  const totalClicks = links.reduce((s, l) => s + l.click_count, 0);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-black text-white">TikTok Links</h2>
+        <p className="text-xs text-gray-500 mt-0.5">Track which posts drive sales</p>
+      </div>
+
+      {/* Click counter */}
+      {totalClicks > 0 && (
+        <div className="bg-[#C9A84C]/10 border border-[#C9A84C]/20 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Total Clicks</p>
+            <p className="text-3xl font-black text-[#C9A84C]">{totalClicks.toLocaleString()}</p>
+          </div>
+          <p className="text-xs text-gray-500">{links.filter(l => l.is_active).length} active links</p>
+        </div>
+      )}
+
+      {/* How it works */}
+      <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
+        <p className="text-sm font-bold text-white mb-2">How it works</p>
+        <ol className="text-xs text-gray-400 space-y-1.5 list-decimal list-inside">
+          <li>Create a link for each TikTok post you promote</li>
+          <li>Put the short link in your TikTok bio or video caption</li>
+          <li>Every click is tracked — see which posts drive the most sales</li>
+        </ol>
+      </div>
+
+      {/* Create link */}
+      {error && <p className="text-red-400 text-xs">{error}</p>}
+      <form onSubmit={createLink} className="flex gap-2">
+        <input
+          value={label}
+          onChange={e => setLabel(e.target.value)}
+          placeholder="Label (e.g. TikTok Mar 15)"
+          className="flex-1 bg-[#1A1A1A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60"
+        />
+        <button
+          type="submit"
+          disabled={creating}
+          className="px-4 py-3 bg-[#C9A84C] text-black rounded-xl text-sm font-black shrink-0 disabled:opacity-50"
+        >
+          {creating ? "…" : "+ Add"}
+        </button>
+      </form>
+
+      {/* Links list */}
+      {loading ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map(i => <div key={i} className="h-16 bg-[#1A1A1A] rounded-2xl animate-pulse" />)}
+        </div>
+      ) : links.length === 0 ? (
+        <div className="text-center py-10 bg-[#1A1A1A] rounded-2xl border border-white/8">
+          <p className="text-4xl mb-3">🔗</p>
+          <p className="text-gray-400 text-sm">No links yet</p>
+          <p className="text-xs text-gray-600 mt-1">Create your first link above</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {links.map(link => (
+            <div
+              key={link.id}
+              className={`bg-[#1A1A1A] rounded-2xl p-4 border transition-opacity ${
+                link.is_active ? "border-white/8" : "border-white/4 opacity-50"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-white text-sm truncate">{link.label || "Untitled"}</p>
+                  <p className="text-xs text-gray-500 font-mono mt-0.5 truncate">{link.short_url}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-xs text-gray-400">
+                      <span className="font-black text-white">{link.click_count}</span> clicks
+                    </span>
+                    <span className="text-xs text-gray-600">
+                      {new Date(link.created_at).toLocaleDateString("en-GH", { day: "numeric", month: "short" })}
                     </span>
                   </div>
                 </div>
-              ))}
+                {link.is_active && (
+                  <div className="flex flex-col gap-1.5 shrink-0">
+                    <button
+                      onClick={() => copyLink(link.short_url)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                        copied === link.short_url
+                          ? "bg-green-900/40 text-green-400 border border-green-500/30"
+                          : "bg-[#C9A84C] text-black"
+                      }`}
+                    >
+                      {copied === link.short_url ? "Copied!" : "Copy"}
+                    </button>
+                    <button
+                      onClick={() => deactivateLink(link.id)}
+                      className="px-3 py-1.5 rounded-xl text-xs text-gray-500 border border-white/10"
+                    >
+                      Disable
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Tab: Catalog ──────────────────────────────────────────────────────────────
+
+function CatalogTab({ token }: { token: string }) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`${API_URL}/products/mine`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) setProducts(await res.json());
+        else setError("Could not load products.");
+      } catch {
+        setError("Network error.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [token]);
+
+  const STATUS_STYLE: Record<string, string> = {
+    active: "bg-green-900/40 text-green-400 border-green-500/30",
+    inactive: "bg-white/5 text-gray-400 border-white/10",
+    out_of_stock: "bg-red-900/30 text-red-400 border-red-500/20",
+  };
+
+  const CATEGORY_EMOJI: Record<string, string> = {
+    hair: "💆‍♀️", beauty: "💄", fashion: "👗", accessories: "💍",
+    skincare: "🧴", wellness: "🌿",
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-black text-white">My Catalog</h2>
+        <p className="text-xs text-gray-500 mt-0.5">Products assigned to your store</p>
+      </div>
+
+      {loading && (
+        <div className="space-y-3">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="h-20 bg-[#1A1A1A] rounded-2xl animate-pulse border border-white/8" />
+          ))}
+        </div>
+      )}
+
+      {error && <p className="text-red-400 text-sm">{error}</p>}
+
+      {!loading && products.length === 0 && (
+        <div className="text-center py-12 bg-[#1A1A1A] rounded-2xl border border-white/8">
+          <p className="text-4xl mb-3">🛍️</p>
+          <p className="text-gray-400 text-sm">No products yet</p>
+          <p className="text-xs text-gray-600 mt-1">Admin adds products to your campaign</p>
+        </div>
+      )}
+
+      {!loading && products.length > 0 && (
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              {products.filter(p => p.status === "active").length} active · {products.length} total
+            </span>
+          </div>
+          <div className="space-y-3">
+            {products.map(p => (
+              <div key={p.id} className="bg-[#1A1A1A] rounded-2xl border border-white/8 p-4 flex items-center gap-4">
+                {/* Thumbnail */}
+                <div className="w-14 h-14 rounded-xl bg-[#2A2A2A] flex items-center justify-center shrink-0 overflow-hidden">
+                  {p.media_urls && p.media_urls[0] ? (
+                    <img src={p.media_urls[0]} alt={p.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl">{CATEGORY_EMOJI[p.category] || "🛍️"}</span>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-white text-sm leading-tight line-clamp-2">{p.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 capitalize">{p.category}</p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="font-bold text-[#C9A84C] text-sm">
+                      {p.currency} {Number(p.price).toFixed(2)}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[p.status] || STATUS_STYLE.inactive}`}>
+                      {p.status === "out_of_stock" ? "Out of stock" : p.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stock */}
+                <div className="text-right shrink-0">
+                  <p className="text-xs text-gray-500">Stock</p>
+                  <p className={`font-bold text-sm ${p.inventory_count === 0 ? "text-red-400" : p.inventory_count <= 3 ? "text-amber-400" : "text-white"}`}>
+                    {p.inventory_count}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Products are managed by MAM admin. To request adding a new product, <a href="https://wa.me/13107763650" target="_blank" rel="noopener noreferrer" className="text-[#C9A84C]">WhatsApp admin</a>.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Tab: Store (template + bio + avatar) ──────────────────────────────────────
+
+function StoreTab({ token, profile, onProfileUpdate }: {
+  token: string;
+  profile: InfluencerProfile | null;
+  onProfileUpdate: (p: InfluencerProfile) => void;
+}) {
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateId>(
+    (profile?.template_id as TemplateId) || "glow"
+  );
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
+
+  const [bio, setBio] = useState(profile?.bio || "");
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState("");
+
+  // Sync when profile loads
+  useEffect(() => {
+    if (profile?.template_id) setSelectedTemplate(profile.template_id as TemplateId);
+    if (profile?.bio !== undefined) setBio(profile.bio || "");
+    if (profile?.avatar_url !== undefined) setAvatarUrl(profile.avatar_url || "");
+  }, [profile?.template_id, profile?.bio, profile?.avatar_url]);
+
+  async function saveTemplate() {
+    setSavingTemplate(true);
+    try {
+      const res = await fetch(`${API_URL}/influencers/me/template`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ template_id: selectedTemplate }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        onProfileUpdate(updated);
+        setTemplateSaved(true);
+        setTimeout(() => setTemplateSaved(false), 3000);
+      }
+    } catch { /* silent */ } finally {
+      setSavingTemplate(false);
+    }
+  }
+
+  async function saveProfileDetails() {
+    setSavingProfile(true);
+    setProfileError("");
+    try {
+      const res = await fetch(`${API_URL}/influencers/me/profile`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bio: bio || null,
+          avatar_url: avatarUrl || null,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        onProfileUpdate(updated);
+        setProfileSaved(true);
+        setTimeout(() => setProfileSaved(false), 3000);
+      } else {
+        setProfileError("Save failed. Try again.");
+      }
+    } catch {
+      setProfileError("Network error.");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  const handle = profile?.handle || "";
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-black text-white">My Store</h2>
+        <p className="text-xs text-gray-500 mt-0.5">Customize how customers see you</p>
+      </div>
+
+      {/* Store link */}
+      {handle && (
+        <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
+          <p className="text-xs text-gray-500 mb-1.5">Your store link</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-[#C9A84C] font-mono flex-1 truncate">
+              sensedirector.com/mam/{handle}
+            </p>
+            <button
+              onClick={() => navigator.clipboard.writeText(`https://sensedirector.com/mam/${handle}`)}
+              className="text-xs bg-[#C9A84C] text-black px-3 py-1.5 rounded-lg font-bold shrink-0"
+            >
+              Copy
+            </button>
+          </div>
+          <a
+            href={`${BASE}/${handle}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-center mt-3 text-xs text-gray-400 border border-white/10 rounded-xl py-2 hover:border-white/20 transition-colors"
+          >
+            View your store →
+          </a>
+        </div>
+      )}
+
+      {/* Theme picker */}
+      <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-bold text-white">Store Theme</p>
+            <p className="text-xs text-gray-500 mt-0.5">How your store looks to customers</p>
+          </div>
+          {handle && (
+            <a
+              href={`${BASE}/${handle}?t=${selectedTemplate}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-[#C9A84C] border border-[#C9A84C]/30 px-3 py-1.5 rounded-lg font-semibold"
+            >
+              Preview
+            </a>
           )}
         </div>
 
-        {/* Payout info */}
-        <div className="bg-[#C9A84C]/10 border border-[#C9A84C]/30 rounded-xl p-4">
-          <p className="text-sm font-semibold">Payout via MoMo</p>
-          <p className="text-xs text-gray-600 mt-1">
-            Commissions are paid to your MoMo number after order delivery is confirmed.
-            Payouts are processed weekly. Contact admin for any queries.
-          </p>
+        <div className="grid grid-cols-2 gap-3">
+          {Object.values(TEMPLATES).map(tmpl => {
+            const isSelected = selectedTemplate === tmpl.id;
+            const secondDot =
+              tmpl.id === "noir" ? "#1A1A1A" :
+              tmpl.id === "bloom" ? "#2D6A4F" :
+              tmpl.id === "kente" ? "#8B2500" : "#111111";
+
+            return (
+              <button
+                key={tmpl.id}
+                onClick={() => setSelectedTemplate(tmpl.id as TemplateId)}
+                className={`relative p-3.5 rounded-2xl border-2 text-left transition-all ${
+                  isSelected
+                    ? "border-[#C9A84C] bg-[#C9A84C]/8"
+                    : "border-white/8 bg-black/20 hover:border-white/20"
+                }`}
+              >
+                {/* Colour swatches */}
+                <div className="flex gap-1.5 mb-2.5">
+                  <div className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: tmpl.accentHex }} />
+                  <div className="w-5 h-5 rounded-full border border-white/20" style={{ backgroundColor: secondDot }} />
+                </div>
+                <p className="font-bold text-white text-sm">{tmpl.name}</p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-tight">{tmpl.tagline}</p>
+                {isSelected && (
+                  <div className="absolute top-2.5 right-2.5 w-5 h-5 bg-[#C9A84C] rounded-full flex items-center justify-center">
+                    <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
 
+        <button
+          onClick={saveTemplate}
+          disabled={savingTemplate}
+          className="w-full bg-[#C9A84C] text-black py-3 rounded-xl text-sm font-black disabled:opacity-50 hover:bg-[#E8C97A] transition-colors"
+        >
+          {savingTemplate ? "Saving…" : templateSaved ? "✓ Theme saved!" : "Save Theme"}
+        </button>
       </div>
+
+      {/* Bio + Avatar editing */}
+      <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8 space-y-4">
+        <div>
+          <p className="text-sm font-bold text-white">Profile Details</p>
+          <p className="text-xs text-gray-500 mt-0.5">Shown on your storefront</p>
+        </div>
+
+        {/* Avatar URL */}
+        <div>
+          <label className="text-xs text-gray-400 font-medium block mb-1.5">
+            Profile Photo URL
+          </label>
+          {avatarUrl && (
+            <div className="mb-2 flex justify-center">
+              <img
+                src={avatarUrl}
+                alt="Avatar preview"
+                className="w-16 h-16 rounded-full object-cover border-2 border-white/10"
+                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            </div>
+          )}
+          <input
+            type="url"
+            value={avatarUrl}
+            onChange={e => setAvatarUrl(e.target.value)}
+            placeholder="https://... (paste your photo link)"
+            className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors"
+          />
+          <p className="text-[10px] text-gray-600 mt-1">Tip: upload to Imgur or use your TikTok profile photo link</p>
+        </div>
+
+        {/* Bio */}
+        <div>
+          <label className="text-xs text-gray-400 font-medium block mb-1.5">
+            Bio <span className="text-gray-600">({bio.length}/200)</span>
+          </label>
+          <textarea
+            value={bio}
+            onChange={e => setBio(e.target.value.slice(0, 200))}
+            rows={3}
+            placeholder="Tell customers about yourself and what you sell..."
+            className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors resize-none"
+          />
+        </div>
+
+        {profileError && <p className="text-red-400 text-xs">{profileError}</p>}
+
+        <button
+          onClick={saveProfileDetails}
+          disabled={savingProfile}
+          className="w-full bg-[#C9A84C] text-black py-3 rounded-xl text-sm font-black disabled:opacity-50 hover:bg-[#E8C97A] transition-colors"
+        >
+          {savingProfile ? "Saving…" : profileSaved ? "✓ Profile saved!" : "Save Profile"}
+        </button>
+      </div>
+
+      {/* Account info (read-only) */}
+      {profile && (
+        <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8 space-y-3">
+          <p className="text-sm font-bold text-white">Account Info</p>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <p className="text-gray-500 mb-0.5">Handle</p>
+              <p className="text-white font-medium">@{profile.handle}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 mb-0.5">Platform</p>
+              <p className="text-white font-medium capitalize">{profile.platform_name}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 mb-0.5">Status</p>
+              <p className={`font-medium capitalize ${profile.status === "active" ? "text-green-400" : "text-amber-400"}`}>
+                {profile.status}
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-500 mb-0.5">Payout</p>
+              <p className="text-white font-medium">{profile.payout_method || "MoMo"}</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-600 mt-2">
+            To change your handle or payout details, <a href="https://wa.me/13107763650" target="_blank" rel="noopener noreferrer" className="text-[#C9A84C]">contact admin</a>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Bottom Nav ────────────────────────────────────────────────────────────────
+
+function BottomNav({ tab, setTab, newOrderCount }: { tab: Tab; setTab: (t: Tab) => void; newOrderCount: number }) {
+  const items: { id: Tab; label: string; icon: string }[] = [
+    { id: "home", label: "Home", icon: "⬡" },
+    { id: "orders", label: "Orders", icon: "📦" },
+    { id: "catalog", label: "Catalog", icon: "🛍️" },
+    { id: "links", label: "Links", icon: "🔗" },
+    { id: "store", label: "Store", icon: "✦" },
+  ];
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#0A0A0A] border-t border-white/10 px-2 pb-safe">
+      <div className="max-w-lg mx-auto flex">
+        {items.map(item => (
+          <button
+            key={item.id}
+            onClick={() => setTab(item.id)}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-3 relative transition-colors ${
+              tab === item.id ? "text-[#C9A84C]" : "text-gray-600 hover:text-gray-400"
+            }`}
+          >
+            <span className="text-xl leading-none">{item.icon}</span>
+            <span className="text-[10px] font-bold tracking-wide uppercase">{item.label}</span>
+            {item.id === "orders" && newOrderCount > 0 && (
+              <span className="absolute top-2 right-1/4 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] font-black flex items-center justify-center">
+                {newOrderCount > 9 ? "9+" : newOrderCount}
+              </span>
+            )}
+            {tab === item.id && (
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-[#C9A84C] rounded-full" />
+            )}
+          </button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+// ─── Main App ──────────────────────────────────────────────────────────────────
+
+export default function InfluencerDashboard() {
+  const [token, setToken] = useState("");
+  const [authed, setAuthed] = useState(false);
+  const [tab, setTab] = useState<Tab>("home");
+  const [loading, setLoading] = useState(false);
+
+  const [profile, setProfile] = useState<InfluencerProfile | null>(null);
+  const [commissions, setCommissions] = useState<Commission[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [kpi, setKpi] = useState<KPI | null>(null);
+
+  // Restore token from sessionStorage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem("mam_creator_token");
+    if (saved) {
+      setToken(saved);
+      setAuthed(true);
+    }
+  }, []);
+
+  const fetchData = useCallback(async (t: string) => {
+    setLoading(true);
+    try {
+      const h = { Authorization: `Bearer ${t}` };
+      const [cRes, kpiRes, ordRes, meRes] = await Promise.all([
+        fetch(`${API_URL}/commissions/me`, { headers: h }),
+        fetch(`${API_URL}/analytics/reports/kpis/me`, { headers: h }),
+        fetch(`${API_URL}/orders/mine`, { headers: h }),
+        fetch(`${API_URL}/influencers/me`, { headers: h }),
+      ]);
+      if (cRes.ok) setCommissions(await cRes.json());
+      if (kpiRes.ok) setKpi(await kpiRes.json());
+      if (ordRes.ok) setOrders(await ordRes.json());
+      if (meRes.ok) setProfile(await meRes.json());
+    } catch { /* silent — partial data is fine */ } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (authed && token) fetchData(token);
+  }, [authed, token, fetchData]);
+
+  function handleLogin(t: string) {
+    setToken(t);
+    setAuthed(true);
+  }
+
+  function handleLogout() {
+    sessionStorage.removeItem("mam_creator_token");
+    setToken("");
+    setAuthed(false);
+    setProfile(null);
+    setCommissions([]);
+    setOrders([]);
+    setKpi(null);
+  }
+
+  if (!authed) return <LoginScreen onLogin={handleLogin} />;
+
+  const newOrderCount = orders.filter(o => o.status === "pending").length;
+
+  return (
+    <main className="min-h-screen bg-[#0A0A0A] pb-20">
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 bg-[#0A0A0A]/90 backdrop-blur border-b border-white/8 px-4 py-3">
+        <div className="max-w-lg mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-[#C9A84C] rounded-lg flex items-center justify-center">
+              <span className="text-xs font-black text-black">M</span>
+            </div>
+            <div>
+              <p className="text-white text-sm font-bold leading-none">Creator Hub</p>
+              {profile?.handle && (
+                <p className="text-gray-500 text-[10px] mt-0.5">@{profile.handle}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {loading && (
+              <div className="w-4 h-4 border-2 border-[#C9A84C]/30 border-t-[#C9A84C] rounded-full animate-spin" />
+            )}
+            <button
+              onClick={handleLogout}
+              className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab content */}
+      <div className="max-w-lg mx-auto px-4 py-6">
+        {tab === "home" && <HomeTab kpi={kpi} commissions={commissions} profile={profile} />}
+        {tab === "orders" && <OrdersTab orders={orders} />}
+        {tab === "catalog" && <CatalogTab token={token} />}
+        {tab === "links" && <LinksTab token={token} />}
+        {tab === "store" && (
+          <StoreTab
+            token={token}
+            profile={profile}
+            onProfileUpdate={setProfile}
+          />
+        )}
+      </div>
+
+      <BottomNav tab={tab} setTab={setTab} newOrderCount={newOrderCount} />
     </main>
   );
 }

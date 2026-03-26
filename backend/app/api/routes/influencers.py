@@ -6,7 +6,7 @@ from typing import Optional
 import uuid
 
 from app.core.database import get_db
-from app.core.deps import require_admin_or_operator
+from app.core.deps import require_admin_or_operator, get_current_user
 from app.core.security import hash_password
 from app.models.influencer import Influencer
 from app.models.user import User
@@ -38,9 +38,96 @@ class InfluencerOut(BaseModel):
     audience_region: str
     payout_method: Optional[str]
     status: str
+    template_id: Optional[str] = "glow"
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class TemplateUpdate(BaseModel):
+    template_id: str
+
+
+class ProfileUpdate(BaseModel):
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+@router.get("/me", response_model=InfluencerOut)
+async def get_my_influencer_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Influencer sees their own profile (handle, template, bio, etc.)"""
+    result = await db.execute(select(Influencer).where(Influencer.user_id == current_user.id))
+    influencer = result.scalar_one_or_none()
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer profile not found")
+    return influencer
+
+
+@router.patch("/me/template", response_model=InfluencerOut)
+async def update_my_template(
+    body: TemplateUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Influencer sets their storefront template."""
+    valid_templates = {"glow", "kente", "noir", "bloom"}
+    if body.template_id not in valid_templates:
+        raise HTTPException(status_code=400, detail=f"Invalid template. Choose from: {', '.join(valid_templates)}")
+
+    result = await db.execute(select(Influencer).where(Influencer.user_id == current_user.id))
+    influencer = result.scalar_one_or_none()
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer profile not found")
+
+    influencer.template_id = body.template_id
+    await db.commit()
+    await db.refresh(influencer)
+    return influencer
+
+
+@router.patch("/me/profile", response_model=InfluencerOut)
+async def update_my_profile(
+    body: ProfileUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Influencer updates their bio and/or avatar URL."""
+    result = await db.execute(select(Influencer).where(Influencer.user_id == current_user.id))
+    influencer = result.scalar_one_or_none()
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer profile not found")
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(influencer, field, value)
+
+    await db.commit()
+    await db.refresh(influencer)
+    return influencer
+
+
+@router.get("", response_model=list[InfluencerOut])
+async def list_influencers(
+    handle: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List influencers. If handle= provided, return the matching one (public storefront lookup)."""
+    query = select(Influencer)
+    if handle:
+        query = query.where(Influencer.handle == handle)
+    result = await db.execute(query)
+    influencers = result.scalars().all()
+    if handle and not influencers:
+        raise HTTPException(status_code=404, detail="Creator not found")
+    # Storefront lookup: return single object when filtering by handle
+    if handle and influencers:
+        return influencers
+    return influencers
 
 
 @router.post("", response_model=InfluencerOut, status_code=status.HTTP_201_CREATED)
