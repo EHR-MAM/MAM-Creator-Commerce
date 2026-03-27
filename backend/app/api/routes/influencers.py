@@ -113,17 +113,31 @@ async def update_my_profile(
 @router.get("", response_model=list[InfluencerOut])
 async def list_influencers(
     handle: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
 ):
-    """Public endpoint. List influencers or look up by handle for storefront."""
-    query = select(Influencer)
-    if handle:
-        query = query.where(Influencer.handle == handle)
-    result = await db.execute(query)
-    influencers = result.scalars().all()
-    if handle and not influencers:
+    """Public endpoint. Look up influencer by handle for storefront via Supabase REST."""
+    import httpx
+    from app.core.config import settings
+
+    if not handle:
+        raise HTTPException(status_code=400, detail="handle parameter required")
+
+    url = f"{settings.SUPABASE_URL}/rest/v1/influencers"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_KEY}",
+    }
+    params = {"handle": f"eq.{handle}", "select": "id,handle,platform_name,audience_region,payout_method,status,template_id,bio,avatar_url"}
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(url, headers=headers, params=params, timeout=10)
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail="Database unavailable")
+
+    data = resp.json()
+    if not data:
         raise HTTPException(status_code=404, detail="Creator not found")
-    return influencers
+    return data
 
 
 @router.post("", response_model=InfluencerOut, status_code=status.HTTP_201_CREATED)
