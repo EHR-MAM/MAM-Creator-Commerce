@@ -5,7 +5,8 @@ import AnalyticsCapture from "@/components/AnalyticsCapture";
 import StorefrontShell from "@/components/StorefrontShell";
 import { getTemplate, type TemplateId } from "@/lib/templates";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Server-side: use internal URL to avoid Cloudflare loopback; client-side uses public URL
+const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function getCreatorData(handle: string) {
   try {
