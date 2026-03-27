@@ -113,10 +113,9 @@ async def update_my_profile(
 @router.get("", response_model=list[InfluencerOut])
 async def list_influencers(
     handle: Optional[str] = None,
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List influencers. If handle= provided, return the matching one (public storefront lookup)."""
+    """Public endpoint. List influencers or look up by handle for storefront."""
     query = select(Influencer)
     if handle:
         query = query.where(Influencer.handle == handle)
@@ -124,9 +123,6 @@ async def list_influencers(
     influencers = result.scalars().all()
     if handle and not influencers:
         raise HTTPException(status_code=404, detail="Creator not found")
-    # Storefront lookup: return single object when filtering by handle
-    if handle and influencers:
-        return influencers
     return influencers
 
 
