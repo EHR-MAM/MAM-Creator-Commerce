@@ -223,7 +223,6 @@ export default function StorefrontShell({
               className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center font-black text-3xl shrink-0 shadow-2xl ring-2"
               style={{
                 backgroundColor: `${t.accentHex}22`,
-                ringColor: `${t.accentHex}60`,
                 border: `2px solid ${t.accentHex}`,
               }}
             >
