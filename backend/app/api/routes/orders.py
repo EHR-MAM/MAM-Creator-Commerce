@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
@@ -12,9 +12,11 @@ from app.models.product import Product
 from app.models.vendor import Vendor
 from app.models.commission import Commission
 from app.models.analytics import AnalyticsEvent
+from app.models.influencer import Influencer
 from app.models.user import User
 from app.schemas.order import OrderCreate, OrderOut
 from app.core.config import settings
+from app.services.notifications import send_order_notifications
 
 router = APIRouter()
 
@@ -33,6 +35,7 @@ VALID_TRANSITIONS = {
 @router.post("", response_model=OrderOut, status_code=status.HTTP_201_CREATED)
 async def create_order(
     body: OrderCreate,
+    background_tasks: BackgroundTasks,
     influencer_id: uuid.UUID,
     vendor_id: uuid.UUID,
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
@@ -67,6 +70,12 @@ async def create_order(
         delivery_fee=delivery_fee,
         total=total,
         source_channel=body.source_channel,
+        customer_name=body.customer_name,
+        customer_phone=body.customer_phone,
+        customer_email=body.customer_email,
+        delivery_address=body.delivery_address,
+        size_variant=body.size_variant,
+        special_instructions=body.special_instructions,
     )
     db.add(order)
     await db.flush()
@@ -93,6 +102,44 @@ async def create_order(
 
     await db.commit()
     await db.refresh(order)
+
+    # Resolve influencer handle for notification (non-blocking)
+    creator_handle = None
+    try:
+        inf_result = await db.execute(select(Influencer).where(Influencer.id == influencer_id))
+        influencer = inf_result.scalar_one_or_none()
+        if influencer:
+            creator_handle = influencer.handle
+    except Exception:
+        pass
+
+    # Build notification payload and fire in background — never blocks order response
+    notification_data = {
+        "order_id": str(order.id),
+        "customer_name": body.customer_name,
+        "customer_phone": body.customer_phone,
+        "customer_email": body.customer_email,
+        "delivery_address": body.delivery_address,
+        "special_instructions": body.special_instructions,
+        "items": [
+            {
+                "name": product.name,
+                "sku": product.sku,
+                "qty": quantity,
+                "size_variant": body.size_variant,
+                "line_total": float(line_total),
+            }
+            for product, quantity, line_total in order_items_data
+        ],
+        "subtotal": float(subtotal),
+        "delivery_fee": float(delivery_fee),
+        "total": float(total),
+        "creator_handle": creator_handle,
+        "influencer_id": str(influencer_id),
+        "source_channel": body.source_channel,
+    }
+    background_tasks.add_task(send_order_notifications, notification_data)
+
     return order
 
 
@@ -114,7 +161,24 @@ async def list_my_orders(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Vendor sees orders for their own vendor account."""
+    """
+    Influencers see orders attributed to them.
+    Vendors see orders for their vendor account.
+    """
+    if current_user.role == "influencer":
+        inf_result = await db.execute(select(Influencer).where(Influencer.user_id == current_user.id))
+        influencer = inf_result.scalar_one_or_none()
+        if not influencer:
+            return []
+        result = await db.execute(
+            select(Order)
+            .where(Order.influencer_id == influencer.id)
+            .order_by(Order.created_at.desc())
+            .limit(50)
+        )
+        return result.scalars().all()
+
+    # Vendor: sees their own orders
     vendor_result = await db.execute(select(Vendor).where(Vendor.user_id == current_user.id))
     vendor = vendor_result.scalar_one_or_none()
     if not vendor:

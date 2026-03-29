@@ -1,7 +1,6 @@
-// MAM Home — redirects to Christiana's storefront or shows platform landing
+// Root route: show the Yes MAM home/landing page
 import { redirect } from "next/navigation";
 
-// During pilot: redirect root to Christiana's storefront
 export default function Home() {
-  redirect("/sweet200723");
+  redirect("/home");
 }

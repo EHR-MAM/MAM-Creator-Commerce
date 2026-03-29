@@ -1,6 +1,6 @@
 """
 Standalone seed script using psycopg2 (no asyncpg required).
-Run from C:\MAF\platform\backend\:  python seed_direct.py
+Run from C:\MAM\platform\backend\:  python seed_direct.py
 """
 import psycopg2
 import bcrypt

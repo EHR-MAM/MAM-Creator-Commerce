@@ -18,5 +18,9 @@ class Influencer(Base):
         Enum("active", "inactive", "suspended", name="influencer_status"),
         default="active",
     )
+    # Storefront customisation (Sprint B)
+    template_id: Mapped[str | None] = mapped_column(String(50), default="glow")
+    bio: Mapped[str | None] = mapped_column(String(500))
+    avatar_url: Mapped[str | None] = mapped_column(String(500))
 
     user = relationship("User", foreign_keys=[user_id])
