@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,6 +17,9 @@ export const metadata: Metadata = {
     title: "Yes MAM — Ghana's Creator Commerce Platform",
     description: "Turn your TikTok followers into real income. Free creator stores. 18% commission.",
   },
+};
+
+export const viewport: Viewport = {
   themeColor: "#C9A84C",
 };
 
