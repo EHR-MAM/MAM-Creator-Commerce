@@ -28,6 +28,23 @@ function Reveal({ children, delay = 0, className = "" }: { children: React.React
   );
 }
 
+// ── Yes MAM SVG Logo ───────────────────────────────────────────────────────────
+function YesMAMLogo({ size = 36 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Yes MAM">
+      <defs>
+        <linearGradient id="logoGrad" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#A8832A"/>
+          <stop offset="0.5" stopColor="#C9A84C"/>
+          <stop offset="1" stopColor="#E8C97A"/>
+        </linearGradient>
+      </defs>
+      <rect width="36" height="36" rx="10" fill="url(#logoGrad)"/>
+      <path d="M10 8L18 19V28M18 19L26 8" stroke="#0A0A0A" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 // ── Nav ────────────────────────────────────────────────────────────────────────
 function Nav() {
   const [open, setOpen] = useState(false);
@@ -42,9 +59,9 @@ function Nav() {
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-[#0A0A0A]/95 backdrop-blur-md shadow-[0_2px_20px_rgba(0,0,0,0.5)]" : "bg-transparent"}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
         {/* Logo */}
-        <a href="/mam/home" className="flex items-center gap-2 group">
-          <div className="w-9 h-9 rounded-xl bg-gold-gradient flex items-center justify-center shadow-gold-sm group-hover:scale-105 transition-transform">
-            <span className="text-base font-black text-[#0A0A0A] tracking-tighter">Y</span>
+        <a href="/mam/home" className="flex items-center gap-2.5 group">
+          <div className="group-hover:scale-105 transition-transform drop-shadow-[0_2px_8px_rgba(201,168,76,0.4)]">
+            <YesMAMLogo size={36} />
           </div>
           <div className="leading-none">
             <span className="text-white font-black text-lg tracking-tight">Yes MAM</span>
@@ -354,7 +371,7 @@ export default function YesMAMHomePage() {
         <div className="absolute inset-0 bg-animated-gradient" />
 
         {/* Gold radial glow */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full bg-[#C9A84C]/8 blur-[100px] pointer-events-none" />
+        <div className="absolute top-1/3 right-0 w-[700px] h-[600px] rounded-full bg-[#C9A84C]/6 blur-[120px] pointer-events-none" />
 
         {/* Grid overlay */}
         <div
@@ -365,52 +382,110 @@ export default function YesMAMHomePage() {
           }}
         />
 
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-20 text-center">
-          {/* Eyebrow badge */}
-          <div className="animate-fade-in inline-flex items-center gap-2 glass-gold text-[#C9A84C] text-xs font-bold tracking-[0.15em] uppercase px-5 py-2 rounded-full mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] animate-pulse" />
-            Ghana's Creator Commerce Platform
-            <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] animate-pulse" />
-          </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
 
-          {/* Main headline */}
-          <h1 className="animate-fade-in delay-100 font-display text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black leading-[1.0] mb-6 tracking-tight">
-            <span className="block text-white">Your followers</span>
-            <span className="block text-shimmer">are your shop.</span>
-          </h1>
+            {/* LEFT — Text content */}
+            <div>
+              {/* Eyebrow badge */}
+              <div className="animate-fade-in inline-flex items-center gap-2 glass-gold text-[#C9A84C] text-xs font-bold tracking-[0.15em] uppercase px-5 py-2 rounded-full mb-8">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] animate-pulse" />
+                Ghana&apos;s Creator Commerce Platform
+              </div>
 
-          {/* Sub */}
-          <p className="animate-fade-in delay-200 text-lg md:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed mb-10">
-            Yes MAM gives Ghana's TikTok creators a stunning, branded store in minutes.
-            Your audience browses, orders, and pays on delivery —
-            while you <strong className="text-white">earn 18% on every sale.</strong>
-          </p>
+              {/* Main headline */}
+              <h1 className="animate-fade-in delay-100 font-display text-5xl sm:text-6xl md:text-6xl lg:text-7xl font-black leading-[1.0] mb-6 tracking-tight">
+                <span className="block text-white">Your followers</span>
+                <span className="block text-shimmer">are your shop.</span>
+              </h1>
 
-          {/* CTAs */}
-          <div className="animate-fade-in delay-300 flex flex-col sm:flex-row gap-3 justify-center mb-12">
-            <a
-              href="#creator-signup"
-              className="group bg-gold-gradient text-[#0A0A0A] font-black px-8 py-4 rounded-2xl text-base hover:opacity-90 transition-all shadow-gold hover:shadow-[0_0_32px_rgba(201,168,76,0.5)] hover:-translate-y-0.5 duration-200"
-            >
-              Start your free store →
-            </a>
-            <a
-              href="/mam/sweet200723"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass border border-white/15 text-white font-semibold px-8 py-4 rounded-2xl text-base hover:border-[#C9A84C]/40 transition-all hover:-translate-y-0.5 duration-200"
-            >
-              See Christiana's store ↗
-            </a>
-          </div>
+              {/* Sub */}
+              <p className="animate-fade-in delay-200 text-lg text-white/50 max-w-lg leading-relaxed mb-10">
+                Yes MAM gives Ghana&apos;s TikTok creators a stunning, branded store in minutes.
+                Your audience browses, orders, pays on delivery —
+                you <strong className="text-white">earn 18% on every sale.</strong>
+              </p>
 
-          {/* Trust badges */}
-          <div className="animate-fade-in delay-400 flex flex-wrap justify-center gap-4 text-xs text-white/35 font-medium">
-            {["Free to start", "No coding needed", "Pay on delivery", "MTN MoMo accepted", "Accra delivery"].map(b => (
-              <span key={b} className="flex items-center gap-1.5">
-                <span className="text-[#C9A84C]">✓</span> {b}
-              </span>
-            ))}
+              {/* CTAs */}
+              <div className="animate-fade-in delay-300 flex flex-col sm:flex-row gap-3 mb-10">
+                <a
+                  href="#creator-signup"
+                  className="group bg-gold-gradient text-[#0A0A0A] font-black px-8 py-4 rounded-2xl text-base hover:opacity-90 transition-all shadow-gold hover:shadow-[0_0_32px_rgba(201,168,76,0.5)] hover:-translate-y-0.5 duration-200 text-center"
+                >
+                  Start your free store →
+                </a>
+                <a
+                  href="/mam/sweet200723"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="glass border border-white/15 text-white font-semibold px-8 py-4 rounded-2xl text-base hover:border-[#C9A84C]/40 transition-all hover:-translate-y-0.5 duration-200 text-center"
+                >
+                  See a live store ↗
+                </a>
+              </div>
+
+              {/* Trust badges */}
+              <div className="animate-fade-in delay-400 flex flex-wrap gap-4 text-xs text-white/35 font-medium">
+                {["Free to start", "No coding needed", "Pay on delivery", "MTN MoMo accepted"].map(b => (
+                  <span key={b} className="flex items-center gap-1.5">
+                    <span className="text-[#C9A84C]">✓</span> {b}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* RIGHT — Creator photo + floating store card */}
+            <div className="relative hidden md:block">
+              {/* Main creator photo */}
+              <div className="relative rounded-3xl overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.6)]" style={{ aspectRatio: "4/5" }}>
+                <img
+                  src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&q=80&auto=format&fit=crop"
+                  alt="Ghana TikTok creator"
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
+                {/* Gold overlay gradient at bottom */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-transparent to-transparent opacity-60" />
+                {/* Creator badge overlay */}
+                <div className="absolute bottom-5 left-5 right-5">
+                  <div className="glass-gold rounded-2xl px-4 py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-bold text-sm">@sweet200723</p>
+                      <p className="text-[#C9A84C] text-xs font-medium">10K followers · GH₵ 240 earned today</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-[#C9A84C] flex items-center justify-center">
+                      <span className="text-xs font-black text-[#0A0A0A]">✓</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating product card — top right */}
+              <div className="absolute -top-4 -right-4 glass rounded-2xl p-3 shadow-xl border border-white/10 w-36 animate-fade-in delay-500">
+                <div className="rounded-xl overflow-hidden mb-2" style={{ aspectRatio: "1/1" }}>
+                  <img
+                    src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=200&q=75&auto=format&fit=crop"
+                    alt="Fashion product"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <p className="text-white text-[11px] font-semibold leading-tight mb-1">Kente Wrap Dress</p>
+                <p className="text-[#C9A84C] text-xs font-black">GH₵ 185</p>
+              </div>
+
+              {/* Floating stat card — bottom left */}
+              <div className="absolute -bottom-4 -left-4 glass rounded-2xl p-4 shadow-xl border border-white/10 animate-fade-in delay-600">
+                <p className="text-3xl font-black text-shimmer mb-0.5">18%</p>
+                <p className="text-white/50 text-xs">commission per sale</p>
+                <div className="flex gap-1 mt-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-1.5 rounded-full bg-[#C9A84C]" style={{ width: `${[60,80,50,90,70][i]}%`, opacity: 0.7 + i * 0.06 }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -418,6 +493,47 @@ export default function YesMAMHomePage() {
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/20 animate-fade-in delay-600">
           <span className="text-xs tracking-widest uppercase font-medium">Scroll</span>
           <div className="w-px h-12 bg-gradient-to-b from-white/20 to-transparent" />
+        </div>
+      </section>
+
+      {/* ── PRODUCT PHOTO STRIP ──────────────────────────────────────────── */}
+      <section className="py-16 px-4 bg-[#0A0A0A] overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          <Reveal className="text-center mb-10">
+            <span className="text-[#C9A84C] text-xs font-bold tracking-[0.2em] uppercase block mb-2">Products on Yes MAM</span>
+            <h2 className="font-display text-3xl md:text-4xl font-black text-white">Ghana fashion. African beauty.</h2>
+          </Reveal>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { url: "https://images.unsplash.com/photo-1594938298603-c8148c4b4d0a?w=400&q=75&auto=format&fit=crop", label: "Ankara Dress", price: "GH₵ 185" },
+              { url: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&q=75&auto=format&fit=crop", label: "Makeup Set", price: "GH₵ 95" },
+              { url: "https://images.unsplash.com/photo-1560343090-f0409e92791a?w=400&q=75&auto=format&fit=crop", label: "Hair Bundle", price: "GH₵ 320" },
+              { url: "https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?w=400&q=75&auto=format&fit=crop", label: "Accessories Set", price: "GH₵ 75" },
+            ].map((p) => (
+              <Reveal key={p.label}>
+                <div className="rounded-2xl overflow-hidden relative group cursor-pointer">
+                  <div style={{ aspectRatio: "4/5" }}>
+                    <img
+                      src={p.url}
+                      alt={p.label}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/80 via-transparent to-transparent" />
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <p className="text-white text-sm font-bold">{p.label}</p>
+                    <p className="text-[#C9A84C] text-xs font-black">{p.price}</p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={200} className="text-center mt-8">
+            <a href="/mam/sweet200723" className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A84C] hover:text-[#E8C97A] transition-colors">
+              Browse all products in Christiana&apos;s store ↗
+            </a>
+          </Reveal>
         </div>
       </section>
 
@@ -614,14 +730,34 @@ export default function YesMAMHomePage() {
           </Reveal>
 
           <div className="grid md:grid-cols-3 gap-5">
-            <Testimonial
-              quote="I posted one video and got 3 orders the same day. My followers bought because they trust me. Yes MAM made it so easy."
-              name="Christiana Amankwaah"
-              role="TikTok Creator · @sweet200723 · Ghana"
-              initial="C"
-              accent="#C9A84C"
-              delay={0}
-            />
+            <Reveal delay={0}>
+              <div className="glass rounded-2xl border border-[#C9A84C]/20 hover:border-[#C9A84C]/40 transition-colors h-full flex flex-col overflow-hidden">
+                <div className="h-40 overflow-hidden relative">
+                  <img
+                    src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=500&q=75&auto=format&fit=crop&crop=top"
+                    alt="Christiana Amankwaah"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#111]/60" />
+                </div>
+                <div className="p-6 flex flex-col flex-1">
+                  <div className="flex gap-1 mb-4">
+                    {[...Array(5)].map((_, i) => <span key={i} className="text-[#C9A84C] text-sm">★</span>)}
+                  </div>
+                  <p className="text-white/70 leading-relaxed italic mb-5 flex-1">&ldquo;I posted one video and got 3 orders the same day. My followers bought because they trust me. Yes MAM made it so easy.&rdquo;</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border-2 border-[#C9A84C]/40">
+                      <img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=80&q=75&auto=format&fit=crop&crop=face" alt="Christiana" className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-white">Christiana Amankwaah</p>
+                      <p className="text-xs text-white/40">TikTok Creator · @sweet200723 · Ghana</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
             <Testimonial
               quote="Within the first week we had orders we couldn't have reached through our regular channels. The creator's audience is incredibly loyal."
               name="Accra Style Hub"
@@ -681,10 +817,8 @@ export default function YesMAMHomePage() {
           <div className="flex flex-col md:flex-row items-start justify-between gap-8 mb-8">
             {/* Brand */}
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-xl bg-gold-gradient flex items-center justify-center">
-                  <span className="text-sm font-black text-[#0A0A0A]">Y</span>
-                </div>
+              <div className="flex items-center gap-2.5 mb-3">
+                <YesMAMLogo size={32} />
                 <span className="font-black text-white text-lg">Yes MAM</span>
               </div>
               <p className="text-xs text-white/30 max-w-xs leading-relaxed">
