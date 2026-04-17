@@ -240,3 +240,78 @@ async def send_order_notifications(order_data: dict) -> None:
         order_data.get("order_id"),
         len(notify_numbers),
     )
+
+
+async def send_welcome_notification(user_data: dict) -> None:
+    """
+    Fire-and-forget welcome notification when a new influencer registers.
+    Sends:
+    1. WhatsApp welcome to the influencer (if phone known — skipped for signup since no phone yet)
+    2. WhatsApp alert to ops: "New creator registered"
+    3. Email receipt to the new user (if SMTP configured)
+
+    user_data keys: email, name, role, handle (influencer only)
+    """
+    name = user_data.get("name") or "Creator"
+    email = user_data.get("email", "")
+    handle = user_data.get("handle", "")
+    role = user_data.get("role", "influencer")
+
+    if role != "influencer":
+        return  # Welcome flow only for influencers for now
+
+    # Notify ops: new creator signed up
+    notify_numbers_raw = getattr(settings, "WHATSAPP_NOTIFY_NUMBERS", "") or ""
+    notify_numbers = [n.strip() for n in notify_numbers_raw.split(",") if n.strip()]
+
+    ops_message = (
+        f"🌟 *NEW CREATOR REGISTERED* — Yes MAM\n\n"
+        f"*Name:* {name}\n"
+        f"*Email:* {email}\n"
+        f"*Handle:* @{handle}\n"
+        f"*Store:* https://sensedirector.com/mam/{handle}\n\n"
+        f"Action: Add products, then contact {name} via email to activate their store."
+    )
+
+    tasks = [_send_whatsapp_twilio(num, ops_message) for num in notify_numbers]
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Send welcome email to the new influencer
+    if email and settings.SMTP_HOST:
+        def _send_welcome_email() -> None:
+            try:
+                store_url = f"https://sensedirector.com/mam/{handle}"
+                subject = f"Welcome to Yes MAM, {name}! Your store is live 🎉"
+                body = (
+                    f"Hi {name},\n\n"
+                    f"Welcome to Yes MAM — Africa's creator commerce platform!\n\n"
+                    f"Your store is live at:\n{store_url}\n\n"
+                    f"Log in to your creator dashboard at:\nhttps://sensedirector.com/mam/dashboard\n\n"
+                    f"Your login email: {email}\n\n"
+                    f"What's next:\n"
+                    f"1. Log in and complete your profile (add your bio and photo)\n"
+                    f"2. Browse your assigned products\n"
+                    f"3. Share your store link on TikTok, Instagram, or WhatsApp\n"
+                    f"4. Earn commissions on every sale — paid weekly to your MoMo!\n\n"
+                    f"Questions? WhatsApp us: +13107763650\n\n"
+                    f"— The Yes MAM Team"
+                )
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = subject
+                msg["From"] = settings.SMTP_USER or settings.NOTIFY_EMAIL
+                msg["To"] = email
+                msg.attach(MIMEText(body, "plain"))
+                with smtplib.SMTP(settings.SMTP_HOST, int(settings.SMTP_PORT or 587)) as smtp:
+                    smtp.starttls()
+                    if settings.SMTP_USER and settings.SMTP_PASSWORD:
+                        smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    smtp.sendmail(msg["From"], [email], msg.as_string())
+                logger.info("Welcome email sent to %s", email)
+            except Exception as exc:
+                logger.error("Welcome email failed for %s: %s", email, exc)
+
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _send_welcome_email)
+
+    logger.info("Welcome notification dispatched for new influencer %s (%s)", handle, email)
