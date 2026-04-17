@@ -315,3 +315,55 @@ async def send_welcome_notification(user_data: dict) -> None:
         await loop.run_in_executor(None, _send_welcome_email)
 
     logger.info("Welcome notification dispatched for new influencer %s (%s)", handle, email)
+
+
+async def send_order_status_notification(order_data: dict) -> None:
+    """
+    Fire-and-forget customer notification when an order status changes to
+    'shipped' or 'delivered'. Sends a WhatsApp message to the customer's phone.
+
+    order_data keys:
+        order_id, customer_name, customer_phone, new_status,
+        creator_handle (optional), product_name (optional)
+    """
+    customer_phone = order_data.get("customer_phone", "")
+    customer_name = order_data.get("customer_name", "Customer")
+    new_status = order_data.get("new_status", "")
+    order_id_short = str(order_data.get("order_id", ""))[:8].upper()
+    handle = order_data.get("creator_handle", "")
+    product_name = order_data.get("product_name", "your order")
+
+    if not customer_phone:
+        logger.warning("No customer phone — skipping order status notification for %s", order_id_short)
+        return
+
+    if new_status == "shipped":
+        message = (
+            f"📦 *Your MAM order is on its way!*\n\n"
+            f"Hi {customer_name},\n\n"
+            f"Great news — your order #{order_id_short} for *{product_name}* has been shipped "
+            f"and is on its way to you.\n\n"
+            f"Delivery usually takes 24–72 hours within Accra.\n\n"
+            f"Questions? WhatsApp us: +13107763650\n\n"
+            f"— Yes MAM"
+            + (f"\n_(via @{handle}'s store)_" if handle else "")
+        )
+    elif new_status == "delivered":
+        message = (
+            f"✅ *Order delivered!*\n\n"
+            f"Hi {customer_name},\n\n"
+            f"Your order #{order_id_short} for *{product_name}* has been marked as delivered. "
+            f"We hope you love it!\n\n"
+            f"If you have any issues, WhatsApp us: +13107763650\n\n"
+            f"— Yes MAM"
+            + (f"\n_(via @{handle}'s store)_" if handle else "")
+        )
+    else:
+        # Only notify on shipped + delivered
+        return
+
+    await _send_whatsapp_twilio(customer_phone, message)
+    logger.info(
+        "Order status notification sent to %s for order %s (status: %s)",
+        customer_phone, order_id_short, new_status,
+    )

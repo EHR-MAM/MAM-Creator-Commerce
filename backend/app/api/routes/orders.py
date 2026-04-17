@@ -16,7 +16,7 @@ from app.models.influencer import Influencer
 from app.models.user import User
 from app.schemas.order import OrderCreate, OrderOut
 from app.core.config import settings
-from app.services.notifications import send_order_notifications
+from app.services.notifications import send_order_notifications, send_order_status_notification
 
 router = APIRouter()
 
@@ -206,6 +206,7 @@ async def get_order(
 async def update_order_status(
     order_id: uuid.UUID,
     body: dict,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -267,4 +268,33 @@ async def update_order_status(
 
     await db.commit()
     await db.refresh(order)
+
+    # Notify customer via WhatsApp on shipped + delivered
+    if new_status in ("shipped", "delivered"):
+        # Grab influencer handle for the message
+        inf_handle = ""
+        if order.influencer_id:
+            inf_result = await db.execute(select(Influencer).where(Influencer.id == order.influencer_id))
+            inf = inf_result.scalar_one_or_none()
+            if inf:
+                inf_handle = inf.handle
+
+        # Grab first item name for context
+        items_result = await db.execute(
+            select(Product.name)
+            .join(OrderItem, OrderItem.product_id == Product.id)
+            .where(OrderItem.order_id == order.id)
+            .limit(1)
+        )
+        first_item_name = items_result.scalar_one_or_none() or "your item"
+
+        background_tasks.add_task(send_order_status_notification, {
+            "order_id": str(order.id),
+            "customer_name": order.customer_name,
+            "customer_phone": order.customer_phone,
+            "new_status": new_status,
+            "creator_handle": inf_handle,
+            "product_name": first_item_name,
+        })
+
     return order
