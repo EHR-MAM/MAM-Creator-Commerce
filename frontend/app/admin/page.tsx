@@ -414,30 +414,13 @@ export default function AdminPage() {
           <div className="space-y-6">
             <div>
               <h2 className="font-bold text-gray-900 mb-3">Creators ({creators.length})</h2>
-              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-50">
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Handle</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Name</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Platform</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {creators.map((c: any) => (
-                      <tr key={c.id} className="border-b border-gray-50 last:border-0">
-                        <td className="px-4 py-3 font-mono text-sm font-semibold">@{c.handle}</td>
-                        <td className="px-4 py-3">{c.display_name || "—"}</td>
-                        <td className="px-4 py-3 text-gray-400 capitalize">{c.platform || "—"}</td>
-                        <td className="px-4 py-3"><StatusBadge status={c.status || "active"} /></td>
-                      </tr>
-                    ))}
-                    {creators.length === 0 && (
-                      <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">No creators yet</td></tr>
-                    )}
-                  </tbody>
-                </table>
+              <div className="space-y-2">
+                {creators.length === 0 && (
+                  <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center text-gray-400">No creators yet</div>
+                )}
+                {creators.map((c: any) => (
+                  <CreatorRow key={c.id} creator={c} allProducts={products} token={token} h={h} />
+                ))}
               </div>
             </div>
             <AddCreatorForm onSubmit={(data) => createUser("influencer", data)} />
@@ -788,6 +771,145 @@ function OrderCard({ order: o, onAdvance }: { order: any; onAdvance: (id: string
               </button>
             )}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CreatorRow({ creator, allProducts, token, h }: {
+  creator: any;
+  allProducts: any[];
+  token: string;
+  h: Record<string, string>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [assigned, setAssigned] = useState<any[]>([]);
+  const [loadingCamp, setLoadingCamp] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function openPanel() {
+    if (open) { setOpen(false); return; }
+    setOpen(true);
+    setLoadingCamp(true);
+    setMsg("");
+    try {
+      // Get or create a default campaign for this influencer
+      const cpRes = await fetch(`${API}/campaigns/ensure-for-influencer`, {
+        method: "POST",
+        headers: h,
+        body: JSON.stringify({ influencer_id: creator.id, name: `${creator.handle} Default Campaign` }),
+      });
+      if (!cpRes.ok) { setMsg("Could not load campaign"); setLoadingCamp(false); return; }
+      const cp = await cpRes.json();
+      setCampaignId(cp.id);
+      // Load assigned products
+      const prRes = await fetch(`${API}/campaigns/${cp.id}/products`, { headers: h });
+      if (prRes.ok) setAssigned(await prRes.json());
+    } catch { setMsg("Network error"); }
+    setLoadingCamp(false);
+  }
+
+  async function assignProduct(productId: string) {
+    if (!campaignId) return;
+    setMsg("");
+    const res = await fetch(`${API}/campaigns/${campaignId}/products`, {
+      method: "POST",
+      headers: h,
+      body: JSON.stringify({ product_id: productId, featured_rank: 0 }),
+    });
+    if (res.ok) {
+      const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h });
+      if (prRes.ok) setAssigned(await prRes.json());
+      setMsg("Product assigned");
+    } else { setMsg("Failed to assign"); }
+  }
+
+  async function removeProduct(productId: string) {
+    if (!campaignId) return;
+    setMsg("");
+    const res = await fetch(`${API}/campaigns/${campaignId}/products/${productId}`, {
+      method: "DELETE",
+      headers: h,
+    });
+    if (res.ok) {
+      setAssigned((prev) => prev.filter((p: any) => p.id !== productId));
+      setMsg("Product removed");
+    } else { setMsg("Failed to remove"); }
+  }
+
+  const assignedIds = new Set(assigned.map((p: any) => p.id));
+  const unassigned = allProducts.filter((p: any) => !assignedIds.has(p.id));
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <button
+        onClick={openPanel}
+        className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+      >
+        <span className="font-mono text-sm font-semibold text-gray-900 w-32">@{creator.handle}</span>
+        <span className="flex-1 text-sm text-gray-700">{creator.display_name || creator.handle}</span>
+        <span className="text-xs text-gray-400 capitalize">{creator.platform_name || creator.platform || "—"}</span>
+        <StatusBadge status={creator.status || "active"} />
+        <span className="text-gray-300 text-xs ml-2">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-4">
+          {loadingCamp && <p className="text-xs text-gray-400">Loading catalog…</p>}
+          {msg && <p className="text-xs text-[#C9A84C] font-medium">{msg}</p>}
+
+          {!loadingCamp && (
+            <>
+              {/* Assigned products */}
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Assigned Products ({assigned.length})
+                </p>
+                {assigned.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">No products assigned yet. Add from the list below.</p>
+                )}
+                <div className="space-y-1">
+                  {assigned.map((p: any) => (
+                    <div key={p.id} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-gray-100">
+                      <span className="text-sm flex-1 font-medium text-gray-800">{p.name}</span>
+                      <span className="text-xs text-gray-400">GHS {Number(p.price).toFixed(2)}</span>
+                      <button
+                        onClick={() => removeProduct(p.id)}
+                        className="text-xs text-red-400 hover:text-red-600 font-semibold px-2 py-0.5 rounded"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add products */}
+              {unassigned.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                    Add Products ({unassigned.length} available)
+                  </p>
+                  <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                    {unassigned.map((p: any) => (
+                      <div key={p.id} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-gray-100">
+                        <span className="text-sm flex-1 text-gray-700">{p.name}</span>
+                        <span className="text-xs text-gray-400">GHS {Number(p.price).toFixed(2)}</span>
+                        <button
+                          onClick={() => assignProduct(p.id)}
+                          className="text-xs bg-[#C9A84C] text-black font-bold px-3 py-0.5 rounded-lg hover:bg-[#E8C97A] transition-colors"
+                        >
+                          Assign
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

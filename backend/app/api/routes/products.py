@@ -9,6 +9,8 @@ from app.core.deps import require_vendor, get_current_user
 from app.models.product import Product
 from app.models.vendor import Vendor
 from app.models.user import User
+from app.models.influencer import Influencer
+from app.models.campaign import Campaign, ProductCampaignLink
 from app.schemas.product import ProductCreate, ProductUpdate, ProductOut
 
 router = APIRouter()
@@ -43,7 +45,30 @@ async def list_my_products(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Vendor sees their own products."""
+    """Vendor sees their own products. Influencer sees products assigned via their campaigns."""
+    if current_user.role == "influencer":
+        influencer_result = await db.execute(
+            select(Influencer).where(Influencer.user_id == current_user.id)
+        )
+        influencer = influencer_result.scalar_one_or_none()
+        if not influencer:
+            return []
+        # Get all active product_ids linked to influencer's campaigns
+        links_result = await db.execute(
+            select(ProductCampaignLink.product_id)
+            .join(Campaign, Campaign.id == ProductCampaignLink.campaign_id)
+            .where(Campaign.influencer_id == influencer.id)
+            .where(ProductCampaignLink.active == True)
+        )
+        product_ids = [row[0] for row in links_result.all()]
+        if not product_ids:
+            return []
+        result = await db.execute(
+            select(Product).where(Product.id.in_(product_ids)).order_by(Product.name)
+        )
+        return result.scalars().all()
+
+    # Vendor: return their own products
     vendor_result = await db.execute(select(Vendor).where(Vendor.user_id == current_user.id))
     vendor = vendor_result.scalar_one_or_none()
     if not vendor:
