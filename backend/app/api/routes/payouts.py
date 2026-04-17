@@ -176,3 +176,46 @@ async def get_payout(
     if not payout:
         raise HTTPException(status_code=404, detail="Payout not found")
     return payout
+
+
+class PayoutStatusUpdate(BaseModel):
+    status: str  # "completed" | "failed" | "processing"
+    payment_method: Optional[str] = None
+    external_reference: Optional[str] = None
+
+
+@router.patch("/{payout_id}/status", response_model=PayoutOut)
+async def update_payout_status(
+    payout_id: uuid.UUID,
+    body: PayoutStatusUpdate,
+    current_user: User = Depends(require_admin_or_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: mark a payout as completed, failed, or processing."""
+    valid_statuses = {"pending", "processing", "completed", "failed"}
+    if body.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Choose from: {valid_statuses}")
+
+    result = await db.execute(select(Payout).where(Payout.id == payout_id))
+    payout = result.scalar_one_or_none()
+    if not payout:
+        raise HTTPException(status_code=404, detail="Payout not found")
+
+    payout.status = body.status
+    if body.payment_method:
+        payout.payment_method = body.payment_method
+    if body.external_reference:
+        payout.external_reference = body.external_reference
+
+    # If marking failed: reverse commissions back to payable so influencer can request again
+    if body.status == "failed":
+        commissions_result = await db.execute(
+            select(Commission).where(Commission.payout_batch_id == payout_id)
+        )
+        for commission in commissions_result.scalars().all():
+            commission.commission_status = "payable"
+            commission.payout_batch_id = None
+
+    await db.commit()
+    await db.refresh(payout)
+    return payout

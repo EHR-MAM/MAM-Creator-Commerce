@@ -1,120 +1,85 @@
-// Admin — Payout Readiness Dashboard (FE-10)
+// Admin — Payout Management (Sprint XVI)
 // Route: /admin/payouts
-// Shows commissions ready for payout, runs payout batch (creates pending records only)
+// Shows pending payout requests; admin marks completed or failed
 // HUMAN APPROVAL required before any money moves
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-
-interface Commission {
-  id: string;
-  influencer_id: string;
-  influencer_handle?: string;
-  order_id: string;
-  creator_amount: number;
-  platform_amount: number;
-  currency: string;
-  commission_status: string;
-  created_at: string;
-}
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 
 interface Payout {
   id: string;
-  influencer_id: string;
+  payee_id: string;
   amount: number;
   currency: string;
   status: string;
-  payout_method: string;
-  created_at: string;
-  approved_at?: string;
-  notes?: string;
+  payment_method?: string;
+  period_end?: string;
 }
 
 export default function AdminPayouts() {
   const [token, setToken] = useState("");
-  const [authed, setAuthed] = useState(false);
-  const [commissions, setCommissions] = useState<Commission[]>([]);
   const [payouts, setPayouts] = useState<Payout[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [runningPayout, setRunningPayout] = useState(false);
-  const [payoutMsg, setPayoutMsg] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [actionMsg, setActionMsg] = useState<Record<string, string>>({});
 
-  async function login(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    try {
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: (e.target as any).email.value, password: (e.target as any).password.value }),
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setToken(data.access_token);
-      setAuthed(true);
-    } catch {
-      setError("Login failed.");
-    }
-  }
+  // Pick up token from sessionStorage (set by main admin page login)
+  useEffect(() => {
+    const stored = sessionStorage.getItem("mam_admin_token");
+    if (stored) setToken(stored);
+  }, []);
 
-  async function fetchData() {
+  const fetchPayouts = useCallback(async (t: string) => {
+    if (!t) return;
     setLoading(true);
     try {
-      const [cRes, pRes] = await Promise.all([
-        fetch(`${API_URL}/commissions?status=pending`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API_URL}/payouts`, { headers: { Authorization: `Bearer ${token}` } }),
-      ]);
-      setCommissions(cRes.ok ? await cRes.json() : []);
-      setPayouts(pRes.ok ? await pRes.json() : []);
-    } catch {
-      setError("Failed to load payout data.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function runPayoutBatch() {
-    setRunningPayout(true);
-    setPayoutMsg("");
-    try {
-      const res = await fetch(`${API_URL}/payouts/run`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`${API_URL}/payouts`, {
+        headers: { Authorization: `Bearer ${t}` },
       });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setPayoutMsg(`Payout batch created — ${data.created} pending records. Requires human approval before processing.`);
-      await fetchData();
+      if (res.ok) setPayouts(await res.json());
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (token) fetchPayouts(token);
+  }, [token, fetchPayouts]);
+
+  async function updateStatus(payoutId: string, status: string) {
+    setActionMsg(m => ({ ...m, [payoutId]: "…" }));
+    try {
+      const res = await fetch(`${API_URL}/payouts/${payoutId}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setActionMsg(m => ({ ...m, [payoutId]: status === "completed" ? "Marked completed ✓" : "Marked failed" }));
+        await fetchPayouts(token);
+      } else {
+        const err = await res.json();
+        setActionMsg(m => ({ ...m, [payoutId]: `Error: ${err.detail || "Failed"}` }));
+      }
     } catch {
-      setPayoutMsg("Failed to run payout batch.");
-    } finally {
-      setRunningPayout(false);
+      setActionMsg(m => ({ ...m, [payoutId]: "Network error" }));
     }
   }
 
-  useEffect(() => { if (authed) fetchData(); }, [authed]);
+  const pending = payouts.filter(p => p.status === "pending");
+  const completed = payouts.filter(p => p.status === "completed");
+  const failed = payouts.filter(p => p.status === "failed");
+  const totalPending = pending.reduce((s, p) => s + Number(p.amount), 0);
 
-  const totalPending = commissions.reduce((sum, c) => sum + Number(c.creator_amount), 0);
-
-  if (!authed) {
+  if (!token) {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl p-8 shadow-sm w-full max-w-sm">
-          <h1 className="text-xl font-bold mb-1">Admin Login</h1>
-          <p className="text-sm text-gray-500 mb-6">MAM — Micro-Affiliate Marketing</p>
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-          <form onSubmit={login} className="space-y-4">
-            <input name="email" type="email" required placeholder="Email"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
-            <input name="password" type="password" required placeholder="Password"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
-            <button type="submit" className="w-full bg-black text-white py-3 rounded-xl font-bold text-sm">
-              Sign In
-            </button>
-          </form>
+        <div className="bg-white rounded-xl p-8 shadow-sm w-full max-w-sm text-center">
+          <p className="text-gray-600 mb-4">Please sign in via the admin dashboard first.</p>
+          <Link href={`${BASE}/admin`} className="bg-black text-white px-6 py-3 rounded-xl font-bold text-sm">
+            Go to Admin
+          </Link>
         </div>
       </main>
     );
@@ -122,90 +87,118 @@ export default function AdminPayouts() {
 
   return (
     <main className="min-h-screen bg-gray-50">
+      {/* Header */}
       <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 className="font-bold text-lg">Admin — Payout Readiness</h1>
-          <p className="text-gray-400 text-xs mt-0.5">MAM — Micro-Affiliate Marketing</p>
+          <h1 className="font-bold text-lg">Payout Management</h1>
+          <p className="text-gray-400 text-xs mt-0.5">Yes MAM — Admin</p>
         </div>
-        <div className="flex gap-3">
-          <Link href="/admin" className="text-[#C9A84C] text-sm font-medium">Orders</Link>
-          <Link href="/dashboard" className="text-gray-300 text-sm">Creator</Link>
-        </div>
+        <Link href={`${BASE}/admin`} className="text-[#C9A84C] text-sm font-medium">
+          ← Back to Admin
+        </Link>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
 
-        {/* Pending commissions summary */}
-        <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
-          <h2 className="font-bold text-base mb-1">Commissions Awaiting Payout</h2>
-          <p className="text-3xl font-bold mt-2">GHS {totalPending.toFixed(2)}</p>
-          <p className="text-sm text-gray-500 mt-1">{commissions.length} commission records</p>
-
-          {/* Payout action — HUMAN GATE clearly labeled */}
-          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-sm font-semibold text-amber-800">Human Approval Required</p>
-            <p className="text-xs text-amber-700 mt-1">
-              Running the payout batch creates <strong>pending</strong> payout records only.
-              No money moves until each payout is manually approved in your payout provider dashboard.
-            </p>
-            <button
-              onClick={runPayoutBatch}
-              disabled={runningPayout || commissions.length === 0}
-              className="mt-3 px-4 py-2 bg-amber-600 text-white text-sm rounded-lg font-bold disabled:opacity-50"
-            >
-              {runningPayout ? "Running…" : "Create Payout Batch (Pending)"}
-            </button>
-            {payoutMsg && <p className="text-xs mt-2 text-amber-800">{payoutMsg}</p>}
-          </div>
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "Pending", value: pending.length, color: "text-amber-600" },
+            { label: "Completed", value: completed.length, color: "text-green-600" },
+            { label: "Failed", value: failed.length, color: "text-red-500" },
+          ].map(k => (
+            <div key={k.label} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm text-center">
+              <p className="text-xs text-gray-400 uppercase tracking-wider">{k.label}</p>
+              <p className={`text-3xl font-black mt-1 ${k.color}`}>{k.value}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Commission list */}
+        {/* Pending Approval Banner */}
+        {pending.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <p className="font-semibold text-amber-800 text-sm">
+              GHS {totalPending.toFixed(2)} awaiting approval across {pending.length} request{pending.length > 1 ? "s" : ""}
+            </p>
+            <p className="text-xs text-amber-700 mt-1">
+              Transfer the amount to the creator's MoMo number, then click "Mark Completed". If payment fails, click "Mark Failed" to return commissions to the creator so they can request again.
+            </p>
+          </div>
+        )}
+
+        {/* Pending payouts */}
         <div>
-          <h2 className="font-bold text-base mb-3">Pending Commissions</h2>
+          <h2 className="font-bold text-base mb-3">Pending Requests ({pending.length})</h2>
           {loading ? (
             <div className="text-center py-8 text-gray-400">Loading…</div>
-          ) : commissions.length === 0 ? (
+          ) : pending.length === 0 ? (
             <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-gray-100">
-              No pending commissions.
+              No pending payout requests.
             </div>
           ) : (
-            <div className="space-y-2">
-              {commissions.map(c => (
-                <div key={c.id} className="bg-white rounded-xl p-4 border border-gray-100 flex justify-between items-center">
-                  <div>
-                    <p className="text-xs font-mono text-gray-400">Order #{c.order_id.slice(0, 8)}</p>
-                    <p className="text-sm font-medium mt-0.5">Creator: {c.currency} {Number(c.creator_amount).toFixed(2)}</p>
-                    <p className="text-xs text-gray-400">Platform: {c.currency} {Number(c.platform_amount).toFixed(2)}</p>
-                    <p className="text-xs text-gray-400">{new Date(c.created_at).toLocaleDateString()}</p>
+            <div className="space-y-3">
+              {pending.map(p => (
+                <div key={p.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="font-bold text-lg">GHS {Number(p.amount).toFixed(2)}</p>
+                      <p className="text-xs font-mono text-gray-400 mt-0.5">ID: {p.id.slice(0, 12)}…</p>
+                      <p className="text-xs text-gray-400">
+                        Requested: {p.period_end ? new Date(p.period_end).toLocaleString() : "—"}
+                      </p>
+                      {p.payment_method && (
+                        <p className="text-xs text-gray-500 mt-0.5">Method: {p.payment_method}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <button
+                        onClick={() => updateStatus(p.id, "completed")}
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+                      >
+                        Mark Completed
+                      </button>
+                      <button
+                        onClick={() => updateStatus(p.id, "failed")}
+                        className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+                      >
+                        Mark Failed
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full font-medium">
-                    {c.commission_status}
-                  </span>
+                  {actionMsg[p.id] && (
+                    <p className={`text-xs mt-2 font-medium ${
+                      actionMsg[p.id].includes("✓") ? "text-green-600" :
+                      actionMsg[p.id].includes("Error") ? "text-red-500" : "text-gray-500"
+                    }`}>
+                      {actionMsg[p.id]}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Recent payouts */}
-        <div>
-          <h2 className="font-bold text-base mb-3">Recent Payouts</h2>
-          {payouts.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-gray-100">
-              No payouts yet.
-            </div>
-          ) : (
+        {/* Recent completed/failed payouts */}
+        {(completed.length > 0 || failed.length > 0) && (
+          <div>
+            <h2 className="font-bold text-base mb-3">History</h2>
             <div className="space-y-2">
-              {payouts.slice(0, 10).map(p => (
+              {[...completed, ...failed]
+                .sort((a, b) => (b.period_end || "").localeCompare(a.period_end || ""))
+                .slice(0, 15)
+                .map(p => (
                 <div key={p.id} className="bg-white rounded-xl p-4 border border-gray-100 flex justify-between items-center">
                   <div>
-                    <p className="text-sm font-medium">{p.currency} {Number(p.amount).toFixed(2)}</p>
-                    <p className="text-xs text-gray-400">{p.payout_method} · {new Date(p.created_at).toLocaleDateString()}</p>
-                    {p.notes && <p className="text-xs text-gray-500 mt-0.5">{p.notes}</p>}
+                    <p className="text-sm font-semibold">{p.currency} {Number(p.amount).toFixed(2)}</p>
+                    <p className="text-xs text-gray-400 font-mono">{p.id.slice(0, 12)}…</p>
+                    <p className="text-xs text-gray-400">
+                      {p.period_end ? new Date(p.period_end).toLocaleDateString() : "—"}
+                    </p>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                  <span className={`text-xs px-3 py-1 rounded-full font-bold ${
                     p.status === "completed" ? "bg-green-100 text-green-800" :
-                    p.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                    p.status === "failed" ? "bg-red-100 text-red-700" :
                     "bg-gray-100 text-gray-600"
                   }`}>
                     {p.status}
@@ -213,8 +206,8 @@ export default function AdminPayouts() {
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
       </div>
     </main>
