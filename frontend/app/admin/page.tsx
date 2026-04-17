@@ -852,6 +852,10 @@ function AddVendorForm({ onSubmit }: { onSubmit: (data: object) => void }) {
   );
 }
 
+const SCRAPER_URL = process.env.NEXT_PUBLIC_BASE_PATH
+  ? `${process.env.NEXT_PUBLIC_BASE_PATH.replace(/\/mam$/, "")}/mam-scraper`
+  : "https://sensedirector.com/mam-scraper";
+
 function AddProductForm({ vendors, onSubmit }: { vendors: any[]; onSubmit: (data: object) => void }) {
   const [form, setForm] = useState({
     vendor_id: "",
@@ -864,11 +868,40 @@ function AddProductForm({ vendors, onSubmit }: { vendors: any[]; onSubmit: (data
     inventory_count: "10",
     color: "",
     size: "",
+    affiliate_url: "",
+    image_url: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [scrapeUrl, setScrapeUrl] = useState("");
+  const [scraping, setScraping] = useState(false);
+  const [scrapeMsg, setScrapeMsg] = useState("");
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  async function handleScrape() {
+    if (!scrapeUrl.trim()) return;
+    setScraping(true);
+    setScrapeMsg("");
+    try {
+      const res = await fetch(`${SCRAPER_URL}/scrape?url=${encodeURIComponent(scrapeUrl)}`);
+      if (!res.ok) throw new Error("Scrape failed");
+      const data = await res.json();
+      setForm(f => ({
+        ...f,
+        name: data.title || f.name,
+        category: data.category || f.category,
+        price: data.price ? String(data.price) : f.price,
+        image_url: data.image || f.image_url,
+        affiliate_url: scrapeUrl,
+        description: f.description,
+      }));
+      setScrapeMsg(`Scraped: ${data.title?.slice(0, 40) || "OK"}`);
+    } catch (e: any) {
+      setScrapeMsg("Scrape failed — fill manually");
+    }
+    setScraping(false);
+  }
 
   async function handleSubmit() {
     if (!form.vendor_id || !form.name || !form.sku || !form.price) return;
@@ -884,8 +917,12 @@ function AddProductForm({ vendors, onSubmit }: { vendors: any[]; onSubmit: (data
       inventory_count: parseInt(form.inventory_count) || 0,
       color: form.color || undefined,
       size: form.size || undefined,
+      affiliate_url: form.affiliate_url || undefined,
+      media_urls: form.image_url ? [form.image_url] : undefined,
     });
-    setForm({ vendor_id: form.vendor_id, name: "", sku: "", category: "fashion", description: "", price: "", currency: "GHS", inventory_count: "10", color: "", size: "" });
+    setForm({ vendor_id: form.vendor_id, name: "", sku: "", category: "fashion", description: "", price: "", currency: "GHS", inventory_count: "10", color: "", size: "", affiliate_url: "", image_url: "" });
+    setScrapeUrl("");
+    setScrapeMsg("");
     setSubmitting(false);
   }
 
@@ -895,6 +932,40 @@ function AddProductForm({ vendors, onSubmit }: { vendors: any[]; onSubmit: (data
       {vendors.length === 0 && (
         <p className="text-sm text-amber-600 mb-3">No vendors yet — create a vendor first in the Vendors tab.</p>
       )}
+
+      {/* URL scraper */}
+      <div className="mb-4 p-3 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+        <p className="text-xs font-semibold text-gray-500 mb-2">Auto-fill from URL (Jumia, SHEIN, Amazon…)</p>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            placeholder="Paste product URL…"
+            value={scrapeUrl}
+            onChange={e => setScrapeUrl(e.target.value)}
+            className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400"
+          />
+          <button
+            onClick={handleScrape}
+            disabled={scraping || !scrapeUrl.trim()}
+            className="bg-[#C9A84C] text-black px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 whitespace-nowrap"
+          >
+            {scraping ? "Scraping…" : "Auto-fill"}
+          </button>
+        </div>
+        {scrapeMsg && (
+          <p className={`text-xs mt-1.5 ${scrapeMsg.includes("failed") ? "text-red-500" : "text-green-600"}`}>
+            {scrapeMsg}
+          </p>
+        )}
+        {form.image_url && (
+          <div className="mt-2 flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={form.image_url} alt="preview" className="w-12 h-12 object-cover rounded-lg border border-gray-200" />
+            <p className="text-xs text-gray-400 truncate">{form.image_url.slice(0, 50)}…</p>
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-3 mb-3">
         <select value={form.vendor_id} onChange={set("vendor_id")}
           className="border border-gray-200 rounded-xl px-3 py-2 text-sm col-span-2">

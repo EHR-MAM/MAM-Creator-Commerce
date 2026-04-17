@@ -16,6 +16,7 @@ class ProductCreate(BaseModel):
     currency: str = "GHS"
     inventory_count: int = Field(default=0, ge=0)
     media_urls: Optional[List[str]] = None
+    affiliate_url: Optional[str] = None
 
 
 class ProductUpdate(BaseModel):
@@ -25,6 +26,7 @@ class ProductUpdate(BaseModel):
     inventory_count: Optional[int] = None
     status: Optional[str] = None
     media_urls: Optional[List[str]] = None
+    affiliate_url: Optional[str] = None
 
 
 class ProductOut(BaseModel):
@@ -41,6 +43,7 @@ class ProductOut(BaseModel):
     inventory_count: int
     status: str
     media_urls: Optional[List[str]]
+    affiliate_url: Optional[str]
 
     class Config:
         from_attributes = True
