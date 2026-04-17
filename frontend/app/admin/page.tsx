@@ -1,16 +1,21 @@
 // MAM Admin Dashboard -- full 6-tab back-office
+// Sprint III: auth gate via useAuth + redirect to /login
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 
-type Tab = "overview" | "orders" | "creators" | "vendors" | "campaigns" | "commissions";
+type Tab = "overview" | "orders" | "creators" | "vendors" | "products" | "campaigns" | "commissions";
 
 function useAdminData(token: string) {
   const [kpis, setKpis] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [creators, setCreators] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,11 +27,12 @@ function useAdminData(token: string) {
     if (!token) return;
     setLoading(true);
     try {
-      const [kpiRes, ordRes, crRes, vnRes, cpRes, cmRes] = await Promise.all([
-        fetch(`${API}/analytics/kpis`, { headers: h }),
+      const [kpiRes, ordRes, crRes, vnRes, prRes, cpRes, cmRes] = await Promise.all([
+        fetch(`${API}/analytics/reports/kpis`, { headers: h }),
         fetch(`${API}/orders`, { headers: h }),
         fetch(`${API}/influencers`, { headers: h }),
         fetch(`${API}/vendors`, { headers: h }),
+        fetch(`${API}/products?status=active&limit=200`, { headers: h }),
         fetch(`${API}/campaigns`, { headers: h }),
         fetch(`${API}/commissions`, { headers: h }),
       ]);
@@ -34,6 +40,7 @@ function useAdminData(token: string) {
       if (ordRes.ok) setOrders(await ordRes.json());
       if (crRes.ok) setCreators(await crRes.json());
       if (vnRes.ok) setVendors(await vnRes.json());
+      if (prRes.ok) setProducts(await prRes.json());
       if (cpRes.ok) setCampaigns(await cpRes.json());
       if (cmRes.ok) setCommissions(await cmRes.json());
     } catch (e: any) { setError(e.message); }
@@ -41,7 +48,7 @@ function useAdminData(token: string) {
   }, [token]);
 
   useEffect(() => { load(); }, [load]);
-  return { kpis, orders, creators, vendors, campaigns, commissions, loading, error, reload: load };
+  return { kpis, orders, creators, vendors, products, campaigns, commissions, loading, error, reload: load };
 }
 
 function KpiCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -168,17 +175,22 @@ function AdminLoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
 }
 
 export default function AdminPage() {
-  const [token, setToken] = useState("");
+  const { user, token: authToken, loading: authLoading, logout } = useAuth();
+  const router = useRouter();
+  const token = authToken || "";
   const [tab, setTab] = useState<Tab>("overview");
   const [msg, setMsg] = useState("");
 
-  // Restore token from sessionStorage on mount
+  // Redirect to login if not authenticated or wrong role
   useEffect(() => {
-    const saved = sessionStorage.getItem("mam_admin_token");
-    if (saved) setToken(saved);
-  }, []);
+    if (!authLoading && !user) {
+      router.replace(`${BASE}/login?next=${encodeURIComponent("/mam/admin")}`);
+    } else if (!authLoading && user && user.role !== "admin" && user.role !== "operator") {
+      router.replace(`${BASE}/dashboard`);
+    }
+  }, [user, authLoading, router]);
 
-  const { kpis, orders, creators, vendors, campaigns, commissions, loading, error, reload } =
+  const { kpis, orders, creators, vendors, products, campaigns, commissions, loading, error, reload } =
     useAdminData(token);
 
   const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
@@ -199,8 +211,27 @@ export default function AdminPage() {
     reload();
   }
 
-  if (!token) {
-    return <AdminLoginScreen onLogin={(t) => { setToken(t); }} />;
+  async function createProduct(body: object) {
+    const r = await fetch(`${API}/products`, { method: "POST", headers: h, body: JSON.stringify(body) });
+    if (!r.ok) { setMsg("Error creating product: " + (await r.text())); return; }
+    setMsg("Product created successfully");
+    reload();
+  }
+
+  async function toggleProductStatus(productId: string, currentStatus: string) {
+    const newStatus = currentStatus === "active" ? "inactive" : "active";
+    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: newStatus }) });
+    if (!r.ok) { setMsg("Error updating product"); return; }
+    reload();
+  }
+
+  // Show spinner while auth loads or redirecting
+  if (authLoading || !user || (user.role !== "admin" && user.role !== "operator")) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0A0A0A" }}>
+        <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   const TABS: { id: Tab; label: string }[] = [
@@ -208,6 +239,7 @@ export default function AdminPage() {
     { id: "orders", label: "Orders" },
     { id: "creators", label: "Creators" },
     { id: "vendors", label: "Vendors" },
+    { id: "products", label: "Products" },
     { id: "campaigns", label: "Campaigns" },
     { id: "commissions", label: "Commissions" },
   ];
@@ -225,9 +257,14 @@ export default function AdminPage() {
             <span className="text-[#C9A84C] font-bold text-lg">MAM</span>
             <span className="text-gray-400 text-sm">Admin Dashboard</span>
           </div>
-          <button onClick={() => { sessionStorage.removeItem("mam_admin_token"); setToken(""); }} className="text-xs text-gray-400 hover:text-white">
-            Sign out
-          </button>
+          <div className="flex items-center gap-3">
+            <a href="/mam/admin/reports" className="text-xs text-[#C9A84C] hover:text-[#E8C97A] font-semibold border border-[#C9A84C]/30 px-3 py-1.5 rounded-lg transition-colors">
+              Reports →
+            </a>
+            <button onClick={() => { logout(); router.replace(`${BASE}/login`); }} className="text-xs text-gray-400 hover:text-white">
+              Sign out
+            </button>
+          </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 pb-0 flex gap-1 overflow-x-auto">
           {TABS.map((t) => (
@@ -388,6 +425,54 @@ export default function AdminPage() {
               </div>
             </div>
             <AddVendorForm onSubmit={(data) => createUser("vendor", data)} />
+          </div>
+        )}
+
+        {/* PRODUCTS */}
+        {tab === "products" && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="font-bold text-gray-900 mb-3">Products ({products.length})</h2>
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-50">
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Name</th>
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">SKU</th>
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Category</th>
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Price</th>
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Stock</th>
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Status</th>
+                      <th className="px-4 py-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.map((p: any) => (
+                      <tr key={p.id} className="border-b border-gray-50 last:border-0">
+                        <td className="px-4 py-3 font-semibold">{p.name}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-gray-400">{p.sku}</td>
+                        <td className="px-4 py-3 text-gray-500 capitalize">{p.category}</td>
+                        <td className="px-4 py-3 font-semibold">{p.currency} {Number(p.price).toFixed(2)}</td>
+                        <td className="px-4 py-3">{p.inventory_count}</td>
+                        <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => toggleProductStatus(p.id, p.status)}
+                            className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg"
+                          >
+                            {p.status === "active" ? "Deactivate" : "Activate"}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {products.length === 0 && (
+                      <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">No products yet</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <AddProductForm vendors={vendors} onSubmit={createProduct} />
           </div>
         )}
 
@@ -711,6 +796,100 @@ function AddVendorForm({ onSubmit }: { onSubmit: (data: object) => void }) {
       <button onClick={() => onSubmit(form)}
         className="bg-[#111111] text-white px-4 py-2 rounded-xl text-sm font-semibold">
         Create Vendor Account
+      </button>
+    </div>
+  );
+}
+
+function AddProductForm({ vendors, onSubmit }: { vendors: any[]; onSubmit: (data: object) => void }) {
+  const [form, setForm] = useState({
+    vendor_id: "",
+    name: "",
+    sku: "",
+    category: "fashion",
+    description: "",
+    price: "",
+    currency: "GHS",
+    inventory_count: "10",
+    color: "",
+    size: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  async function handleSubmit() {
+    if (!form.vendor_id || !form.name || !form.sku || !form.price) return;
+    setSubmitting(true);
+    await onSubmit({
+      vendor_id: form.vendor_id,
+      name: form.name,
+      sku: form.sku,
+      category: form.category,
+      description: form.description || undefined,
+      price: parseFloat(form.price),
+      currency: form.currency,
+      inventory_count: parseInt(form.inventory_count) || 0,
+      color: form.color || undefined,
+      size: form.size || undefined,
+    });
+    setForm({ vendor_id: form.vendor_id, name: "", sku: "", category: "fashion", description: "", price: "", currency: "GHS", inventory_count: "10", color: "", size: "" });
+    setSubmitting(false);
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <h3 className="font-bold text-gray-900 mb-4">Add Product</h3>
+      {vendors.length === 0 && (
+        <p className="text-sm text-amber-600 mb-3">No vendors yet — create a vendor first in the Vendors tab.</p>
+      )}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <select value={form.vendor_id} onChange={set("vendor_id")}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm col-span-2">
+          <option value="">— Select vendor —</option>
+          {vendors.map((v: any) => (
+            <option key={v.id} value={v.id}>{v.business_name || v.name || v.id}</option>
+          ))}
+        </select>
+        <input placeholder="Product name *" value={form.name} onChange={set("name")}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+        <input placeholder="SKU * (e.g. DRESS-001)" value={form.sku} onChange={set("sku")}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+        <select value={form.category} onChange={set("category")}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm">
+          <option value="fashion">Fashion</option>
+          <option value="beauty">Beauty</option>
+          <option value="food">Food</option>
+          <option value="accessories">Accessories</option>
+          <option value="home">Home</option>
+          <option value="health">Health</option>
+          <option value="electronics">Electronics</option>
+          <option value="other">Other</option>
+        </select>
+        <div className="flex gap-2">
+          <input placeholder="Price *" type="number" step="0.01" min="0" value={form.price} onChange={set("price")}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1" />
+          <select value={form.currency} onChange={set("currency")}
+            className="border border-gray-200 rounded-xl px-3 py-2 text-sm w-20">
+            <option value="GHS">GHS</option>
+            <option value="USD">USD</option>
+          </select>
+        </div>
+        <input placeholder="Stock qty" type="number" min="0" value={form.inventory_count} onChange={set("inventory_count")}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+        <input placeholder="Color (optional)" value={form.color} onChange={set("color")}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+        <textarea placeholder="Description (optional)" value={form.description} onChange={set("description")}
+          rows={2}
+          className="border border-gray-200 rounded-xl px-3 py-2 text-sm col-span-2 resize-none" />
+      </div>
+      <button
+        onClick={handleSubmit}
+        disabled={submitting || !form.vendor_id || !form.name || !form.sku || !form.price}
+        className="bg-[#111111] text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-40"
+      >
+        {submitting ? "Adding…" : "Add Product"}
       </button>
     </div>
   );

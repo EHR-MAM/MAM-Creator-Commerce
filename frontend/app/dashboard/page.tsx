@@ -1,10 +1,13 @@
 // Influencer Creator Dashboard — unified tabbed app shell (Sprint C)
 // Route: /dashboard  (basePath: /mam)
+// Sprint III: auth gate via useAuth + redirect to /login
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { TEMPLATES, type TemplateId } from "@/lib/templates";
+import { useAuth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1061,8 +1064,8 @@ function BottomNav({ tab, setTab, newOrderCount }: { tab: Tab; setTab: (t: Tab) 
 // ─── Main App ──────────────────────────────────────────────────────────────────
 
 export default function InfluencerDashboard() {
-  const [token, setToken] = useState("");
-  const [authed, setAuthed] = useState(false);
+  const { user, token, loading: authLoading, logout } = useAuth();
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("home");
   const [loading, setLoading] = useState(false);
 
@@ -1071,14 +1074,12 @@ export default function InfluencerDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [kpi, setKpi] = useState<KPI | null>(null);
 
-  // Restore token from sessionStorage on mount
+  // Redirect to login if not authenticated
   useEffect(() => {
-    const saved = sessionStorage.getItem("mam_creator_token");
-    if (saved) {
-      setToken(saved);
-      setAuthed(true);
+    if (!authLoading && !user) {
+      router.replace(`${BASE}/login?next=${encodeURIComponent("/mam/dashboard")}`);
     }
-  }, []);
+  }, [user, authLoading, router]);
 
   const fetchData = useCallback(async (t: string) => {
     setLoading(true);
@@ -1100,25 +1101,22 @@ export default function InfluencerDashboard() {
   }, []);
 
   useEffect(() => {
-    if (authed && token) fetchData(token);
-  }, [authed, token, fetchData]);
-
-  function handleLogin(t: string) {
-    setToken(t);
-    setAuthed(true);
-  }
+    if (user && token) fetchData(token);
+  }, [user, token, fetchData]);
 
   function handleLogout() {
-    sessionStorage.removeItem("mam_creator_token");
-    setToken("");
-    setAuthed(false);
-    setProfile(null);
-    setCommissions([]);
-    setOrders([]);
-    setKpi(null);
+    logout();
+    router.replace(`${BASE}/login`);
   }
 
-  if (!authed) return <LoginScreen onLogin={handleLogin} />;
+  // Show spinner while auth loads or redirecting
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0A0A0A" }}>
+        <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const newOrderCount = orders.filter(o => o.status === "pending").length;
 
@@ -1141,6 +1139,16 @@ export default function InfluencerDashboard() {
           <div className="flex items-center gap-3">
             {loading && (
               <div className="w-4 h-4 border-2 border-[#C9A84C]/30 border-t-[#C9A84C] rounded-full animate-spin" />
+            )}
+            {profile?.handle && (
+              <a
+                href={`${BASE}/${profile.handle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#C9A84C] hover:text-[#E8C97A] font-semibold border border-[#C9A84C]/30 px-2.5 py-1 rounded-lg transition-colors"
+              >
+                My Store
+              </a>
             )}
             <button
               onClick={handleLogout}

@@ -1,10 +1,13 @@
 // Vendor Dashboard — order queue + stock update (FE-12)
 // Route: /vendor
-// Vendors log in to see their pending orders, advance order status, and update stock
+// Sprint III: auth gate via useAuth + redirect to /login
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 
 interface Order {
   id: string;
@@ -47,8 +50,9 @@ const NEXT_STATUS: Record<string, string | null> = {
 };
 
 export default function VendorDashboard() {
-  const [token, setToken] = useState("");
-  const [authed, setAuthed] = useState(false);
+  const { user, token: authToken, loading: authLoading, logout } = useAuth();
+  const router = useRouter();
+  const token = authToken || "";
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [tab, setTab] = useState<"orders" | "stock">("orders");
@@ -58,23 +62,14 @@ export default function VendorDashboard() {
   const [stockEditing, setStockEditing] = useState<string | null>(null);
   const [stockValue, setStockValue] = useState<number>(0);
 
-  async function login(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    try {
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: (e.target as any).email.value, password: (e.target as any).password.value }),
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setToken(data.access_token);
-      setAuthed(true);
-    } catch {
-      setError("Login failed. Check your credentials.");
+  // Redirect to login if not authenticated or wrong role
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace(`${BASE}/login?next=${encodeURIComponent("/mam/vendor")}`);
+    } else if (!authLoading && user && user.role !== "vendor" && user.role !== "admin") {
+      router.replace(`${BASE}/dashboard`);
     }
-  }
+  }, [user, authLoading, router]);
 
   async function fetchOrders() {
     try {
@@ -134,29 +129,17 @@ export default function VendorDashboard() {
     }
   }
 
-  useEffect(() => { if (authed) fetchData(); }, [authed]);
+  useEffect(() => { if (user && token) fetchData(); }, [user, token]);
 
   const activeOrders = orders.filter(o => !["delivered", "cancelled", "refunded"].includes(o.status));
   const recentOrders = orders.filter(o => ["delivered", "cancelled"].includes(o.status));
 
-  if (!authed) {
+  // Show spinner while auth loads or redirecting
+  if (authLoading || !user || (user.role !== "vendor" && user.role !== "admin")) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl p-8 shadow-sm w-full max-w-sm">
-          <h1 className="text-xl font-bold mb-1">Vendor Login</h1>
-          <p className="text-sm text-gray-500 mb-6">MAM — Micro-Affiliate Marketing</p>
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-          <form onSubmit={login} className="space-y-4">
-            <input name="email" type="email" required placeholder="Vendor email"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
-            <input name="password" type="password" required placeholder="Password"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm" />
-            <button type="submit" className="w-full bg-black text-white py-3 rounded-xl font-bold text-sm">
-              Sign In
-            </button>
-          </form>
-        </div>
-      </main>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-8 h-8 border-2 border-gray-800 border-t-transparent rounded-full animate-spin" />
+      </div>
     );
   }
 
