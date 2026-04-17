@@ -11,7 +11,7 @@ class Influencer(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     handle: Mapped[str] = mapped_column(String(100), nullable=False)
     platform_name: Mapped[str] = mapped_column(String(50), default="tiktok")
-    audience_region: Mapped[str] = mapped_column(String(100), default="Ghana")
+    audience_region: Mapped[str] = mapped_column(String(100), default="Africa")
     payout_method: Mapped[str | None] = mapped_column(String(50))
     payout_details_ref: Mapped[str | None] = mapped_column(String(255))  # encrypted ref
     status: Mapped[str] = mapped_column(

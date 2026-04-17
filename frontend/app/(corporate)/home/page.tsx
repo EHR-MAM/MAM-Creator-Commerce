@@ -73,10 +73,10 @@ function Nav() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white/60">
-          <a href="#how-it-works" className="hover:text-white transition-colors hover:text-[#C9A84C]">How it works</a>
-          <a href="#for-creators" className="hover:text-white transition-colors hover:text-[#C9A84C]">For Creators</a>
-          <a href="#for-vendors" className="hover:text-white transition-colors hover:text-[#C9A84C]">For Vendors</a>
-          <a href="#proof" className="hover:text-white transition-colors hover:text-[#C9A84C]">Results</a>
+          <a href="/mam/how-it-works" className="hover:text-white transition-colors hover:text-[#C9A84C]">How it works</a>
+          <a href="/mam/about" className="hover:text-white transition-colors hover:text-[#C9A84C]">About</a>
+          <a href="/mam/join#creators" className="hover:text-white transition-colors hover:text-[#C9A84C]">For Creators</a>
+          <a href="/mam/join#vendors" className="hover:text-white transition-colors hover:text-[#C9A84C]">For Vendors</a>
         </div>
 
         <div className="hidden md:flex items-center gap-3">
@@ -84,7 +84,7 @@ function Nav() {
             Creator Login
           </Link>
           <a
-            href="#creator-signup"
+            href="/mam/join#creators"
             className="bg-gold-gradient text-[#0A0A0A] text-sm font-black px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity shadow-gold-sm"
           >
             Start for free →
@@ -127,7 +127,7 @@ function Nav() {
 // ── Marquee ticker ─────────────────────────────────────────────────────────────
 function Ticker() {
   const items = [
-    "🇬🇭 Ghana's #1 Creator Commerce Platform",
+    "🇬🇭 Africa's #1 Creator Commerce Platform",
     "💰 18% Commission on Every Sale",
     "📱 50,000+ TikTok Followers Reached",
     "⚡ Store Live in Under 24 Hours",
@@ -390,7 +390,7 @@ export default function YesMAMHomePage() {
               {/* Eyebrow badge */}
               <div className="animate-fade-in inline-flex items-center gap-2 glass-gold text-[#C9A84C] text-xs font-bold tracking-[0.15em] uppercase px-5 py-2 rounded-full mb-8">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#C9A84C] animate-pulse" />
-                Ghana&apos;s Creator Commerce Platform
+                Africa&apos;s Creator Commerce Platform
               </div>
 
               {/* Main headline */}
@@ -401,7 +401,7 @@ export default function YesMAMHomePage() {
 
               {/* Sub */}
               <p className="animate-fade-in delay-200 text-lg text-white/50 max-w-lg leading-relaxed mb-10">
-                Yes MAM gives Ghana&apos;s TikTok creators a stunning, branded store in minutes.
+                Yes MAM gives Africa&apos;s TikTok creators a stunning, branded store in minutes.
                 Your audience browses, orders, pays on delivery —
                 you <strong className="text-white">earn 18% on every sale.</strong>
               </p>
@@ -440,7 +440,7 @@ export default function YesMAMHomePage() {
               <div className="relative rounded-3xl overflow-hidden shadow-[0_20px_80px_rgba(0,0,0,0.6)]" style={{ aspectRatio: "4/5" }}>
                 <img
                   src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=600&q=80&auto=format&fit=crop"
-                  alt="Ghana TikTok creator"
+                  alt="African TikTok creator"
                   className="w-full h-full object-cover"
                   loading="eager"
                 />
@@ -501,7 +501,7 @@ export default function YesMAMHomePage() {
         <div className="max-w-6xl mx-auto">
           <Reveal className="text-center mb-10">
             <span className="text-[#C9A84C] text-xs font-bold tracking-[0.2em] uppercase block mb-2">Products on Yes MAM</span>
-            <h2 className="font-display text-3xl md:text-4xl font-black text-white">Ghana fashion. African beauty.</h2>
+            <h2 className="font-display text-3xl md:text-4xl font-black text-white">African fashion. African beauty.</h2>
           </Reveal>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
@@ -543,7 +543,7 @@ export default function YesMAMHomePage() {
       {/* ── STATS ────────────────────────────────────────────────────────── */}
       <section className="py-20 px-4 bg-[#0A0A0A]">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Stat value="Ghana" label="Pilot market — live now" delay={0} />
+          <Stat value="Africa" label="Live across the continent" delay={0} />
           <Stat value="18%" label="Creator commission rate" delay={100} />
           <Stat value="72hr" label="Max Accra delivery" delay={200} />
           <Stat value="Free" label="Zero cost to start" delay={300} />
@@ -621,8 +621,8 @@ export default function YesMAMHomePage() {
               </div>
               <div className="space-y-7">
                 <Step n="1" accent="#F5A623" title="List your products with us" desc="Our team adds your products to the MAM catalog with quality photos, descriptions, and pricing. Start with just 5 items." delay={0} />
-                <Step n="2" accent="#F5A623" title="Creators promote to thousands" desc="Influencers with 10K+ followers put your products in front of their loyal, highly-engaged Ghana audience — for free." delay={100} />
-                <Step n="3" accent="#F5A623" title="Fulfill orders & grow" desc="Receive pre-filled order summaries. Deliver to Accra. We handle payments and creator commissions for you." delay={200} />
+                <Step n="2" accent="#F5A623" title="Creators promote to thousands" desc="Influencers with 10K+ followers put your products in front of their loyal, highly-engaged African audience — for free." delay={100} />
+                <Step n="3" accent="#F5A623" title="Fulfill orders & grow" desc="Receive pre-filled order summaries. Deliver to your local area. We handle payments and creator commissions for you." delay={200} />
               </div>
             </div>
           </div>
@@ -690,7 +690,7 @@ export default function YesMAMHomePage() {
               <div className="space-y-3">
                 {[
                   "Zero upfront cost — pay only on successful delivery",
-                  "Reach Ghana's most engaged social media audiences",
+                  "Reach Africa's most engaged social media audiences",
                   "We handle order management and creator payments",
                   "Pre-filled order summaries delivered to you",
                   "Start with as few as 5 products",
@@ -710,7 +710,7 @@ export default function YesMAMHomePage() {
             <Reveal delay={200}>
               <div id="vendor-signup" className="kente-pattern rounded-3xl p-8 border border-[#F5A623]/20">
                 <h3 className="text-xl font-black text-[#F5A623] mb-1">List your products on Yes MAM</h3>
-                <p className="text-sm text-white/40 mb-6">We're onboarding Accra vendors now. Fashion, hair, beauty & accessories.</p>
+                <p className="text-sm text-white/40 mb-6">We're onboarding vendors across Africa now. Fashion, hair, beauty & accessories.</p>
                 <VendorSignupForm />
               </div>
             </Reveal>
@@ -724,9 +724,9 @@ export default function YesMAMHomePage() {
           <Reveal className="text-center mb-14">
             <span className="text-[#C9A84C] text-xs font-bold tracking-[0.2em] uppercase block mb-3">Early Results</span>
             <h2 className="font-display text-4xl md:text-5xl font-black text-white mb-4">
-              It's working in Ghana.
+              It's working across Africa.
             </h2>
-            <p className="text-white/40 max-w-lg mx-auto">Real creators, real vendors, real results — from Accra's first season.</p>
+            <p className="text-white/40 max-w-lg mx-auto">Real creators, real vendors, real results — from our founding pilot.</p>
           </Reveal>
 
           <div className="grid md:grid-cols-3 gap-5">
@@ -752,7 +752,7 @@ export default function YesMAMHomePage() {
                     </div>
                     <div>
                       <p className="font-bold text-sm text-white">Christiana Amankwaah</p>
-                      <p className="text-xs text-white/40">TikTok Creator · @sweet200723 · Ghana</p>
+                      <p className="text-xs text-white/40">TikTok Creator · @sweet200723 · Africa</p>
                     </div>
                   </div>
                 </div>
@@ -786,12 +786,12 @@ export default function YesMAMHomePage() {
           <Reveal>
             <div className="text-6xl mb-6 animate-float inline-block">🇬🇭</div>
             <h2 className="font-display text-4xl md:text-5xl font-black text-white mb-5">
-              Ghana's creator economy
+              Africa's creator economy
               <br />
               <span className="text-shimmer">starts here.</span>
             </h2>
             <p className="text-white/40 mb-10 text-lg">
-              Free for creators. Zero risk for vendors. Built for Accra.
+              Free for creators. Zero risk for vendors. Built for Africa.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
@@ -822,7 +822,7 @@ export default function YesMAMHomePage() {
                 <span className="font-black text-white text-lg">Yes MAM</span>
               </div>
               <p className="text-xs text-white/30 max-w-xs leading-relaxed">
-                Micro-Affiliate Marketing — Ghana's creator commerce platform.
+                Micro-Affiliate Marketing — Africa's creator commerce platform.
                 Turning TikTok followers into real income.
               </p>
               <p className="text-xs text-white/20 mt-3">yesmam.shop · yesmamshop.com</p>
@@ -840,10 +840,10 @@ export default function YesMAMHomePage() {
           </div>
 
           <div className="border-t border-white/5 pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-white/20">© 2026 Yes MAM · Micro-Affiliate Marketing · Built in Ghana 🇬🇭</p>
+            <p className="text-xs text-white/20">© 2026 Yes MAM · Micro-Affiliate Marketing · Built for Africa 🌍</p>
             <div className="flex items-center gap-2 text-xs text-white/20">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block animate-pulse" />
-              Platform live · Accra pilot active
+              Platform live · Africa pilot active
             </div>
           </div>
         </div>

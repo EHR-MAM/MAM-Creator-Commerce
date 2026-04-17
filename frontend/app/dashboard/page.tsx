@@ -199,7 +199,7 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
 // ─── Tab: Home ─────────────────────────────────────────────────────────────────
 
 function HomeTab({ kpi, commissions, profile }: { kpi: KPI | null; commissions: Commission[]; profile: InfluencerProfile | null }) {
-  const pendingCommission = commissions.filter(c => c.commission_status === "pending");
+  const pendingCommission = commissions.filter(c => c.commission_status === "payable");
 
   return (
     <div className="space-y-5">
@@ -286,7 +286,7 @@ function HomeTab({ kpi, commissions, profile }: { kpi: KPI | null; commissions: 
                   <p className="font-bold text-white">GHS {Number(c.influencer_amount).toFixed(2)}</p>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     c.commission_status === "paid" ? "bg-green-900/40 text-green-400 border border-green-500/30" :
-                    c.commission_status === "pending" ? "bg-amber-900/40 text-amber-400 border border-amber-500/30" :
+                    c.commission_status === "payable" ? "bg-amber-900/40 text-amber-400 border border-amber-500/30" :
                     "bg-white/5 text-gray-400"
                   }`}>
                     {c.commission_status}

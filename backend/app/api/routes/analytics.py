@@ -89,7 +89,7 @@ async def get_my_kpis(
     pending = await db.execute(
         select(func.sum(Commission.influencer_amount))
         .join(Order, Commission.order_id == Order.id)
-        .where(Order.influencer_id == influencer.id, Commission.commission_status == "pending")
+        .where(Order.influencer_id == influencer.id, Commission.commission_status == "payable")
     )
     paid = await db.execute(
         select(func.sum(Commission.influencer_amount))

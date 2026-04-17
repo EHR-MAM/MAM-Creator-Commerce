@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "../globals.css";
 
 export const metadata: Metadata = {
-  title: "MAM — Micro-Affiliate Marketing | Ghana's Creator Commerce Platform",
+  title: "MAM — Micro-Affiliate Marketing | Africa's Creator Commerce Platform",
   description:
-    "MAM turns Ghana's TikTok creators into commerce engines. Influencers get a beautiful store in minutes. Vendors reach thousands of loyal followers. Everyone wins.",
+    "MAM turns Africa's TikTok creators into commerce engines. Influencers get a beautiful store in minutes. Vendors reach thousands of loyal followers. Everyone wins.",
   openGraph: {
     title: "MAM — Micro-Affiliate Marketing",
-    description: "Ghana's creator commerce platform. Launch your store today.",
+    description: "Africa's creator commerce platform. Launch your store today.",
     siteName: "MAM",
   },
 };

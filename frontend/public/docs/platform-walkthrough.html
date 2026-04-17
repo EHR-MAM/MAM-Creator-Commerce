@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yes MAM — Platform Walkthrough</title>
+<style>
+:root{--gold:#C9A84C;--gold-dark:#A8832A;--gold-light:#E8C97A;--bg:#0A0A0A;--bg2:#111111;--bg3:#1A1A1A;--border:#222;--text:#ddd;--muted:#666;--green:#4ade80}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;display:flex;min-height:100vh}
+.sidebar{width:210px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;background:#0d0d0d;border-right:1px solid var(--border);padding:1.25rem 0}
+.sidebar-brand{padding:0 1.1rem 1rem;border-bottom:1px solid var(--border);margin-bottom:.75rem}
+.sidebar-brand .logo{background:linear-gradient(135deg,#A8832A,#E8C97A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1rem;font-weight:900}
+.sidebar-brand .sub{color:var(--muted);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;margin-top:.15rem}
+.nav-group-label{font-size:.58rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#444;margin:.6rem 1.1rem .3rem}
+.nav-item{display:block;padding:.38rem .7rem;border-radius:7px;font-size:.78rem;font-weight:600;color:var(--muted);text-decoration:none;transition:.12s;cursor:pointer;border:none;background:none;width:100%;text-align:left;margin:0 .4rem;width:calc(100% - .8rem)}
+.nav-item:hover,.nav-item.active{background:#C9A84C18;color:var(--gold)}
+.main{flex:1;max-width:900px;padding:2rem 1.75rem}
+.page-title{font-size:1.3rem;font-weight:900;color:#fff;margin-bottom:.2rem}
+.page-sub{color:var(--muted);font-size:.78rem;margin-bottom:2rem}
+.section{margin-bottom:3rem;scroll-margin-top:1.5rem}
+.section-header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:.85rem;padding-bottom:.7rem;border-bottom:1px solid #C9A84C15}
+.section-label{font-size:.58rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:.15rem}
+.section-name{font-size:1.05rem;font-weight:900;color:#fff}
+.section-url{font-size:.72rem;font-family:monospace;color:#555;margin-top:.1rem}
+.open-btn{display:inline-flex;align-items:center;gap:.35rem;background:var(--gold);color:#000;font-size:.72rem;font-weight:800;padding:.4rem .9rem;border-radius:7px;text-decoration:none;white-space:nowrap;flex-shrink:0}
+.open-btn:hover{background:var(--gold-light)}
+.context-box{background:#0d0d0d;border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:0 7px 7px 0;padding:.65rem .9rem;margin-bottom:1rem;font-size:.78rem;color:#888}
+.context-box strong{color:var(--text)}
+.info-box{background:#0d1a10;border:1px solid #2D6A4F33;border-left:3px solid #4ade80;border-radius:0 7px 7px 0;padding:.65rem .9rem;margin:.7rem 0;font-size:.78rem;color:#999}
+.info-box strong{color:#4ade80}
+.warn-box{background:#1a140d;border:1px solid #C9A84C22;border-left:3px solid var(--gold);border-radius:0 7px 7px 0;padding:.65rem .9rem;margin:.7rem 0;font-size:.78rem;color:#999}
+.warn-box strong{color:var(--gold)}
+.warn-box code,.info-box code{background:#1a1a1a;padding:.05rem .3rem;border-radius:4px;font-family:monospace;font-size:.75rem;color:var(--gold)}
+.browser{background:var(--bg2);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:.9rem;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+.browser-bar{background:#161616;padding:.5rem .85rem;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid #1a1a1a}
+.browser-dots{display:flex;gap:.3rem}
+.browser-dots span{width:9px;height:9px;border-radius:50%}
+.browser-dots span:nth-child(1){background:#ff5f57}
+.browser-dots span:nth-child(2){background:#febc2e}
+.browser-dots span:nth-child(3){background:#28c840}
+.browser-url{flex:1;background:#111;border:1px solid #222;border-radius:5px;padding:.2rem .6rem;font-size:.68rem;font-family:monospace;color:#666}
+.browser-content{overflow:hidden}
+.feature-list{display:grid;grid-template-columns:1fr 1fr;gap:.35rem .75rem;margin-top:.65rem}
+.feature-item{font-size:.78rem;color:#777;display:flex;align-items:flex-start;gap:.35rem;line-height:1.4}
+.feature-item::before{content:"✓";color:var(--gold);font-weight:900;flex-shrink:0;margin-top:.05rem}
+.nav-back{color:var(--muted);font-size:.78rem;text-decoration:none;display:inline-flex;align-items:center;gap:.3rem;margin-bottom:1.25rem}
+.nav-back:hover{color:var(--gold)}
+.doc-footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--muted);font-size:.7rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.4rem}
+
+/* ── SHARED MOCK ELEMENTS ── */
+.mnav{padding:.5rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #C9A84C15}
+.mnav-logo{font-size:.8rem;font-weight:900;background:linear-gradient(135deg,#A8832A,#E8C97A);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.mnav-links{display:flex;gap:.65rem;font-size:.56rem;color:rgba(255,255,255,.35)}
+.mnav-cta{background:linear-gradient(135deg,#A8832A,#C9A84C);color:#000;font-size:.56rem;font-weight:800;padding:.28rem .65rem;border-radius:6px}
+.gold-shimmer{background:linear-gradient(135deg,#A8832A,#E8C97A);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.gold-btn{background:linear-gradient(135deg,#A8832A,#C9A84C);color:#000;font-size:.56rem;font-weight:800;padding:.32rem .72rem;border-radius:7px;display:inline-block}
+.ghost-btn{border:1px solid rgba(255,255,255,.13);color:rgba(255,255,255,.7);font-size:.56rem;font-weight:600;padding:.32rem .72rem;border-radius:7px;display:inline-block}
+.gold-badge{display:inline-flex;align-items:center;gap:.3rem;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.22);color:#C9A84C;font-size:.5rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:.2rem .55rem;border-radius:99px}
+.ticker-strip{background:#C9A84C;padding:.28rem 1rem;font-size:.52rem;font-weight:800;color:#0A0A0A;white-space:nowrap;overflow:hidden}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.35rem;padding:.6rem 1rem}
+.stat-card{background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.14);border-radius:7px;padding:.45rem;text-align:center}
+.stat-n{font-size:.8rem;font-weight:900}.stat-l{font-size:.48rem;color:rgba(255,255,255,.3);margin-top:.1rem}
+.login-wrap{background:#0A0A0A;display:flex;align-items:center;justify-content:center;padding:1rem;min-height:190px}
+.login-card{background:#1A1A1A;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:1.1rem;width:185px;text-align:center}
+.login-icon{width:40px;height:40px;background:#C9A84C;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:900;color:#000;margin:0 auto .5rem}
+.login-title{font-size:.8rem;font-weight:900;color:#fff;margin-bottom:.1rem}
+.login-sub{font-size:.52rem;color:#555;margin-bottom:.75rem}
+.login-field{background:#111;border:1px solid rgba(255,255,255,.07);border-radius:7px;padding:.35rem .6rem;width:100%;margin-bottom:.35rem;font-size:.56rem;color:#555;text-align:left}
+.login-btn{background:#C9A84C;color:#000;font-size:.62rem;font-weight:800;padding:.45rem;border-radius:7px;width:100%}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.35rem;padding:.55rem .9rem}
+.kpi-card{background:#111;border:1px solid #1a1a1a;border-radius:7px;padding:.45rem}
+.kpi-n{font-size:.82rem;font-weight:900;color:#fff}
+.kpi-l{font-size:.48rem;color:#444;margin-top:.08rem}
+.kpi-up{font-size:.48rem;color:#4ade80;margin-top:.1rem;font-weight:700}
+.tabs{display:flex;border-bottom:1px solid #1a1a1a;padding:0 .9rem;overflow:hidden}
+.tab{font-size:.58rem;font-weight:700;padding:.4rem .6rem;color:#444;border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0}
+.tab.on{color:#C9A84C;border-bottom-color:#C9A84C}
+.admin-hdr{background:#111;padding:.45rem .9rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1a1a1a}
+.admin-logo-t{font-size:.7rem;font-weight:900;color:#C9A84C}
+.admin-user{font-size:.52rem;color:#555;display:flex;align-items:center;gap:.25rem}
+.online-dot{width:6px;height:6px;border-radius:50%;background:#4ade80}
+.table-hdr{display:grid;gap:.35rem;padding:.28rem .5rem;font-size:.48rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#333}
+.table-row{display:grid;gap:.35rem;padding:.32rem .5rem;font-size:.52rem;color:#888;border-top:1px solid #0d0d0d;align-items:center}
+.sbadge{font-size:.45rem;font-weight:800;padding:.12rem .35rem;border-radius:99px;display:inline-block}
+.sbadge.pend{background:rgba(245,166,35,.13);color:#F5A623}
+.sbadge.del{background:rgba(74,222,128,.13);color:#4ade80}
+.sbadge.proc{background:rgba(201,168,76,.13);color:#C9A84C}
+
+/* SHOP */
+.shop-country{background:#111;padding:.28rem .9rem;font-size:.52rem;color:#555;display:flex;justify-content:space-between;border-bottom:1px solid #161616}
+.shop-nav{background:rgba(10,10,10,.98);padding:.45rem .9rem;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid #C9A84C15}
+.shop-search{flex:1;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:5px;padding:.22rem .55rem;font-size:.56rem;color:#555;display:flex;align-items:center;gap:.25rem}
+.cat-strip{display:flex;gap:.28rem;padding:.35rem .9rem;border-bottom:1px solid #161616;overflow:hidden}
+.cat-pill{font-size:.52rem;font-weight:700;padding:.18rem .45rem;border-radius:4px;color:#444;white-space:nowrap}
+.cat-pill.on{background:rgba(201,168,76,.13);color:#C9A84C;border:1px solid rgba(201,168,76,.25)}
+.shop-hero{background:linear-gradient(135deg,#0d0d0d,rgba(201,168,76,.06));padding:.75rem .9rem;border-bottom:1px solid #161616}
+.prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.35rem;padding:.55rem .9rem}
+.prod-card{background:#111;border:1px solid #1a1a1a;border-radius:7px;overflow:hidden}
+.prod-img{height:48px;background:linear-gradient(135deg,#1a1a1a,#222);display:flex;align-items:center;justify-content:center;font-size:1rem}
+.prod-body{padding:.28rem .35rem}
+.prod-name{font-size:.5rem;font-weight:700;color:#ddd;margin-bottom:.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prod-by{font-size:.44rem;color:#C9A84C;margin-bottom:.12rem}
+.prod-price{font-size:.6rem;font-weight:900;color:#fff}
+.prod-btn{background:linear-gradient(135deg,#A8832A,#C9A84C);color:#000;font-size:.44rem;font-weight:800;padding:.18rem .35rem;border-radius:4px;width:100%;text-align:center;margin-top:.22rem}
+
+/* STOREFRONT */
+.store-hdr{background:#111111;border-bottom:3px solid #C9A84C;padding:.65rem .9rem}
+.store-meta{display:flex;align-items:center;gap:.55rem}
+.store-av{width:36px;height:36px;border-radius:50%;border:2px solid #C9A84C;background:rgba(201,168,76,.12);display:flex;align-items:center;justify-content:center;font-weight:900;color:#C9A84C;font-size:.85rem;flex-shrink:0}
+.store-handle{font-size:.82rem;font-weight:900;color:#fff}
+.store-badge{display:inline-block;font-size:.46rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:.13rem .4rem;border-radius:99px;background:rgba(201,168,76,.12);color:#C9A84C;border:1px solid rgba(201,168,76,.25);margin-bottom:.2rem}
+.store-stats{display:flex;gap:.85rem;margin-top:.3rem}
+.store-stat-n{font-size:.8rem;font-weight:900;color:#fff}
+.store-stat-l{font-size:.44rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:#C9A84C;opacity:.5}
+.store-bar{background:#fff;padding:.3rem .75rem;display:flex;align-items:center;justify-content:space-between;font-size:.52rem;color:#999;border-bottom:1px solid rgba(201,168,76,.1)}
+.wa-btn{background:#25D366;color:#fff;font-size:.48rem;font-weight:800;padding:.18rem .42rem;border-radius:6px}
+.store-empty{background:#fff;border-radius:10px;border:1px solid #eee;padding:1rem;text-align:center;margin:.5rem}
+.store-prods{display:grid;grid-template-columns:repeat(2,1fr);gap:.35rem;padding:.45rem .55rem}
+.store-prod{background:#fff;border-radius:7px;border:1px solid #eee;overflow:hidden}
+.store-prod-img{height:46px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:#f5f5f5}
+.store-prod-body{padding:.28rem .35rem}
+.store-prod-name{font-size:.52rem;font-weight:700;color:#111}
+.store-prod-price{font-size:.58rem;font-weight:900;margin-top:.08rem}
+
+/* MARKETING PAGES */
+.mkt-hero{padding:1.1rem 1rem;background:radial-gradient(ellipse at 50% 0%,rgba(201,168,76,.055) 0%,transparent 65%)}
+.mkt-label{font-size:.48rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#C9A84C;margin-bottom:.3rem}
+.mkt-h{font-size:.95rem;font-weight:900;color:#fff;margin-bottom:.28rem}
+.mkt-sub{font-size:.58rem;color:rgba(255,255,255,.38);max-width:320px;line-height:1.45}
+.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.5rem 1rem}
+.content-card{background:#111;border:1px solid #1a1a1a;border-radius:7px;padding:.6rem}
+.card-icon{font-size:.85rem;margin-bottom:.22rem}
+.card-h{font-size:.58rem;font-weight:800;color:#fff;margin-bottom:.12rem}
+.card-p{font-size:.5rem;color:#4a4a4a;line-height:1.4}
+.step-flow{display:flex;flex-direction:column;gap:.32rem;padding:.4rem 1rem .65rem}
+.step{display:flex;align-items:flex-start;gap:.45rem}
+.step-num{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#A8832A,#C9A84C);color:#000;font-size:.55rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-text{font-size:.56rem;color:#777;line-height:1.4;padding-top:.1rem}
+.step-text strong{color:#ccc}
+.join-cols{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding:.5rem 1rem}
+.join-col{background:#111;border:1px solid #1a1a1a;border-radius:7px;padding:.6rem}
+.join-col-head{font-size:.5rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:.18rem .38rem;border-radius:4px;display:inline-block;margin-bottom:.38rem}
+.join-field{background:#0d0d0d;border:1px solid #1a1a1a;border-radius:5px;padding:.28rem .42rem;font-size:.5rem;color:#444;margin-bottom:.28rem;width:100%}
+.join-submit{font-size:.52rem;font-weight:800;padding:.32rem;border-radius:6px;width:100%;text-align:center}
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo">Yes MAM</div>
+    <div class="sub">Platform Walkthrough</div>
+  </div>
+  <div class="nav-group-label">Quick Start</div>
+  <button class="nav-item active" onclick="goTo('accounts',this)">Test Accounts &amp; Status</button>
+  <div class="nav-group-label">Consumer</div>
+  <button class="nav-item" onclick="goTo('shop',this)">Marketplace /shop</button>
+  <button class="nav-item" onclick="goTo('storefront',this)">Creator Store /sweet200723</button>
+  <div class="nav-group-label">Marketing</div>
+  <button class="nav-item" onclick="goTo('home',this)">Corporate Home /home</button>
+  <button class="nav-item" onclick="goTo('about',this)">About /about</button>
+  <button class="nav-item" onclick="goTo('howitworks',this)">How It Works /how-it-works</button>
+  <button class="nav-item" onclick="goTo('join',this)">Join /join</button>
+  <div class="nav-group-label">Platform Tools</div>
+  <button class="nav-item" onclick="goTo('dashboard',this)">Creator Dashboard /dashboard</button>
+  <button class="nav-item" onclick="goTo('admin',this)">Admin Dashboard /admin</button>
+  <button class="nav-item" onclick="goTo('reports',this)">Admin Reports /admin/reports</button>
+  <button class="nav-item" onclick="goTo('vendor',this)">Vendor Dashboard /vendor</button>
+  <div class="nav-group-label">Backend</div>
+  <button class="nav-item" onclick="goTo('api',this)">API Health /mam-api/</button>
+</nav>
+
+<script>
+function goTo(id, el) {
+  document.getElementById(id).scrollIntoView({behavior:'smooth'});
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+}
+window.addEventListener('scroll', () => {
+  let cur = '';
+  document.querySelectorAll('.section').forEach(s => {
+    if (window.scrollY >= s.offsetTop - 100) cur = s.id;
+  });
+  if (!cur) return;
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.remove('active');
+    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+cur+"'")) n.classList.add('active');
+  });
+});
+</script>
+
+<main class="main">
+  <a href="index.html" class="nav-back">← Back to documents</a>
+  <div class="page-title">Yes MAM — Full Platform Walkthrough</div>
+  <div class="page-sub">Every page: what it looks like, who uses it, what it does, and live links. All 9 pages + backend. · Updated April 15, 2026 · All auth, product mgmt, and storefront verified working</div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       TEST ACCOUNTS & PAGE STATUS
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="accounts" style="margin-bottom:2rem">
+    <div class="section-header">
+      <div>
+        <div class="section-label">QA Reference · April 15, 2026</div>
+        <div class="section-name">Test Accounts &amp; Page Status Matrix</div>
+      </div>
+    </div>
+    <div class="warn-box" style="margin-bottom:.75rem"><strong>Screenshot note:</strong> All screenshots in this document were created as inline HTML mockups. For live browser screenshots, use a Windows-based browser (Chrome/Edge) at the live URLs below. All pages are confirmed working on Windows Edge/Chrome.</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem">
+      <div style="background:#0d1a10;border:1px solid #2D6A4F33;border-left:3px solid #4ade80;border-radius:0 7px 7px 0;padding:.7rem .9rem;font-size:.78rem">
+        <div style="color:#4ade80;font-weight:800;margin-bottom:.45rem">✅ ADMIN ACCOUNT</div>
+        <div style="color:#ccc;margin-bottom:.2rem"><strong>David Bezar</strong> — full admin access</div>
+        <div style="color:#888">Email: <code style="background:#1a1a1a;padding:.05rem .3rem;border-radius:4px;color:#C9A84C">airatpack@gmail.com</code></div>
+        <div style="color:#888;margin-top:.15rem">Password: <code style="background:#1a1a1a;padding:.05rem .3rem;border-radius:4px;color:#C9A84C">Admin2026!</code></div>
+        <div style="color:#555;font-size:.68rem;margin-top:.3rem">Access: Admin Dashboard, all tabs, Reports, Payouts</div>
+      </div>
+      <div style="background:#0d1a10;border:1px solid #2D6A4F33;border-left:3px solid #4ade80;border-radius:0 7px 7px 0;padding:.7rem .9rem;font-size:.78rem">
+        <div style="color:#4ade80;font-weight:800;margin-bottom:.45rem">✅ CREATOR ACCOUNT (Ghana)</div>
+        <div style="color:#ccc;margin-bottom:.2rem"><strong>Christiana Amankwaah</strong> — @sweet200723</div>
+        <div style="color:#888">Email: <code style="background:#1a1a1a;padding:.05rem .3rem;border-radius:4px;color:#C9A84C">uchik9935@gmail.com</code></div>
+        <div style="color:#888;margin-top:.15rem">Password: <code style="background:#1a1a1a;padding:.05rem .3rem;border-radius:4px;color:#C9A84C">Ghana2026!</code></div>
+        <div style="color:#555;font-size:.68rem;margin-top:.3rem">Access: Creator Dashboard, Catalog, Orders, Links, Store tabs</div>
+      </div>
+      <div style="background:#0d1a10;border:1px solid #2D6A4F33;border-left:3px solid #4ade80;border-radius:0 7px 7px 0;padding:.7rem .9rem;font-size:.78rem">
+        <div style="color:#4ade80;font-weight:800;margin-bottom:.45rem">✅ CREATOR ACCOUNT (Sponsor)</div>
+        <div style="color:#ccc;margin-bottom:.2rem"><strong>Louis Hook</strong> — @louishook</div>
+        <div style="color:#888">Email: <code style="background:#1a1a1a;padding:.05rem .3rem;border-radius:4px;color:#C9A84C">louis@educatedhoodrat.com</code></div>
+        <div style="color:#888;margin-top:.15rem">Password: <code style="background:#1a1a1a;padding:.05rem .3rem;border-radius:4px;color:#C9A84C">4LCHmam*</code></div>
+        <div style="color:#555;font-size:.68rem;margin-top:.3rem">Access: Creator Dashboard, same tabs as Christiana</div>
+      </div>
+      <div style="background:#0d1a10;border:1px solid #2D6A4F33;border-left:3px solid #4ade80;border-radius:0 7px 7px 0;padding:.7rem .9rem;font-size:.78rem">
+        <div style="color:#4ade80;font-weight:800;margin-bottom:.45rem">✅ VENDOR ACCOUNT</div>
+        <div style="color:#ccc;margin-bottom:.2rem"><strong>MAM Demo Store</strong> — vendor@yesmam.com</div>
+        <div style="color:#888">Email: <code style="background:#1a1a1a;padding:.05rem .3rem;border-radius:4px;color:#C9A84C">vendor@yesmam.com</code></div>
+        <div style="color:#888;margin-top:.15rem">Password: <code style="background:#1a1a1a;padding:.05rem .3rem;border-radius:4px;color:#C9A84C">Vendor2026!</code></div>
+        <div style="color:#555;font-size:.68rem;margin-top:.3rem">Access: Vendor Dashboard (/mam/vendor) — Orders + My Products tabs</div>
+      </div>
+    </div>
+
+    <div style="background:#111;border:1px solid #1a1a1a;border-radius:10px;overflow:hidden;font-size:.72rem">
+      <div style="background:#161616;padding:.4rem .75rem;font-size:.58rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#444">
+        Full Page &amp; Tab Test Matrix — April 15, 2026
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:1px solid #1a1a1a">
+            <th style="text-align:left;padding:.35rem .75rem;color:#444;font-size:.58rem;font-weight:800;text-transform:uppercase">Page / Tab</th>
+            <th style="text-align:left;padding:.35rem .75rem;color:#444;font-size:.58rem;font-weight:800;text-transform:uppercase">URL</th>
+            <th style="text-align:left;padding:.35rem .75rem;color:#444;font-size:.58rem;font-weight:800;text-transform:uppercase">Who</th>
+            <th style="text-align:center;padding:.35rem .75rem;color:#444;font-size:.58rem;font-weight:800;text-transform:uppercase">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">Marketplace Shop</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/shop</td><td style="padding:.3rem .75rem;color:#777">Public</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 200</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">Creator Storefront</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/sweet200723</td><td style="padding:.3rem .75rem;color:#777">Public</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 200</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">Corporate Home</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/home</td><td style="padding:.3rem .75rem;color:#777">Public</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 200</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">About</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/about</td><td style="padding:.3rem .75rem;color:#777">Public</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 200</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">How It Works</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/how-it-works</td><td style="padding:.3rem .75rem;color:#777">Public</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 200</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">Join (Signup)</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/join</td><td style="padding:.3rem .75rem;color:#777">Public</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 200</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc;font-weight:700">Creator Dashboard — Login</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/dashboard</td><td style="padding:.3rem .75rem;color:#777">Creator</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ LIVE</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ HOME tab</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/dashboard → Home</td><td style="padding:.3rem .75rem;color:#777">Creator</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ ORDERS tab</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/dashboard → Orders</td><td style="padding:.3rem .75rem;color:#777">Creator</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ CATALOG tab</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/dashboard → Catalog</td><td style="padding:.3rem .75rem;color:#777">Creator</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 11 products</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ LINKS tab</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/dashboard → Links</td><td style="padding:.3rem .75rem;color:#777">Creator</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ STORE tab</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/dashboard → Store</td><td style="padding:.3rem .75rem;color:#777">Creator</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc;font-weight:700">Admin Dashboard — Login</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ LIVE</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ OVERVIEW tab</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin → Overview</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ ORDERS tab</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin → Orders</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ CREATORS tab + Add Creator form</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin → Creators</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 3 creators</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ VENDORS tab + Add Vendor form</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin → Vendors</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 1 vendor</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ PRODUCTS tab + Add Product form</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin → Products</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ NEW — 11 products</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ CAMPAIGNS tab</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin → Campaigns</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ COMMISSIONS tab</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin → Commissions</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">Admin Reports</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin/reports</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 200</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">Admin Payouts</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/admin/payouts</td><td style="padding:.3rem .75rem;color:#777">Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 200</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc;font-weight:700">Vendor Dashboard — Login</td><td style="padding:.3rem .75rpm;font-family:monospace;color:#555;font-size:.65rem">/mam/vendor</td><td style="padding:.3rem .75rem;color:#777">Vendor</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ LIVE</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ ORDERS tab (queue + advance status)</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/vendor → Orders</td><td style="padding:.3rem .75rem;color:#777">Vendor</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr style="border-bottom:1px solid #0d0d0d"><td style="padding:.3rem .75rem;color:#ccc">&nbsp;&nbsp;↳ MY PRODUCTS tab (stock update)</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam/vendor → My Products</td><td style="padding:.3rem .75rem;color:#777">Vendor</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅</td></tr>
+          <tr><td style="padding:.3rem .75rem;color:#ccc">Backend API / Swagger UI</td><td style="padding:.3rem .75rem;font-family:monospace;color:#555;font-size:.65rem">/mam-api/docs</td><td style="padding:.3rem .75rem;color:#777">Dev/Admin</td><td style="text-align:center;padding:.3rem .75rem;color:#4ade80;font-size:.72rem;font-weight:800">✅ 200</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       1. MARKETPLACE / SHOP
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="shop">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Consumer · Marketplace</div>
+        <div class="section-name">Marketplace — Amazon-Style Shop</div>
+        <div class="section-url">sensedirector.com/mam/shop</div>
+      </div>
+      <a href="https://sensedirector.com/mam/shop" target="_blank" class="open-btn">Open Live ↗</a>
+    </div>
+    <div class="context-box"><strong>Who uses it:</strong> Consumers discovering and buying products. <strong>Design:</strong> Full Amazon-UX pattern — dark #0A0A0A background, gold #C9A84C accents throughout, sticky dual header (country bar + nav), category strip, product grid with creator attribution. <strong>Status:</strong> Live with 22 demo products across 6 categories. Real catalog connects via API.</div>
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url">🔒 sensedirector.com/mam/shop</div>
+      </div>
+      <div class="browser-content" style="background:#0A0A0A">
+        <div class="shop-country"><span>🇬🇭 Ghana &nbsp;▾ &nbsp; Delivering to Accra</span><span style="color:#C9A84C;font-size:.5rem;font-weight:700">Hi, Sign in</span></div>
+        <div class="shop-nav" style="background:rgba(10,10,10,.98)">
+          <div class="mnav-logo" style="font-size:.78rem;margin-right:.2rem">Yes MAM</div>
+          <div class="shop-search">🔍 <span>Search products, creators, brands...</span></div>
+          <div style="font-size:.52rem;color:rgba(255,255,255,.4);white-space:nowrap">🛒 Cart (0)</div>
+          <div style="background:linear-gradient(135deg,#A8832A,#C9A84C);color:#000;font-size:.52rem;font-weight:800;padding:.26rem .58rem;border-radius:5px;white-space:nowrap">Become Affiliate</div>
+        </div>
+        <div class="cat-strip">
+          <div class="cat-pill on">All</div><div class="cat-pill">Fashion</div><div class="cat-pill">Hair</div><div class="cat-pill">Beauty</div><div class="cat-pill">Accessories</div><div class="cat-pill">Skincare</div><div class="cat-pill">Footwear</div><div class="cat-pill">Top Creators</div>
+        </div>
+        <div class="shop-hero">
+          <div style="font-size:.9rem;font-weight:900;color:#fff;margin-bottom:.18rem">Shop Ghana's Creator Picks 🇬🇭</div>
+          <div style="font-size:.56rem;color:rgba(255,255,255,.38);margin-bottom:.45rem">Fashion, hair, beauty — curated by TikTok creators you follow</div>
+          <div style="display:flex;gap:.35rem"><div class="gold-btn">Shop Now →</div><div class="ghost-btn">Become an Affiliate</div></div>
+        </div>
+        <div class="prod-grid">
+          <div class="prod-card"><div class="prod-img">👗</div><div class="prod-body"><div class="prod-name">Ankara Wrap Dress</div><div class="prod-by">@sweet200723 ★★★★★</div><div class="prod-price">GH₵ 185</div><div class="prod-btn">Add to Cart</div></div></div>
+          <div class="prod-card"><div class="prod-img">💄</div><div class="prod-body"><div class="prod-name">Glow Makeup Set</div><div class="prod-by">@glowgirl ★★★★☆</div><div class="prod-price">GH₵ 95</div><div class="prod-btn">Add to Cart</div></div></div>
+          <div class="prod-card"><div class="prod-img">💈</div><div class="prod-body"><div class="prod-name">Kinky Straight Bundle</div><div class="prod-by">@hairbyakua ★★★★★</div><div class="prod-price">GH₵ 320</div><div class="prod-btn">Add to Cart</div></div></div>
+          <div class="prod-card"><div class="prod-img">💎</div><div class="prod-body"><div class="prod-name">Statement Earrings</div><div class="prod-by">@accra.style ★★★★☆</div><div class="prod-price">GH₵ 75</div><div class="prod-btn">Add to Cart</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">Country selector bar — Ghana, Nigeria, Kenya, South Africa</div>
+      <div class="feature-item">Sticky header: logo, search, cart badge, Become Affiliate CTA</div>
+      <div class="feature-item">Category strip: All / Fashion / Hair / Beauty / Accessories / Skincare / Footwear</div>
+      <div class="feature-item">Hero banner with Africa-first headline and dual CTAs</div>
+      <div class="feature-item">Scrolling promo ticker strip (gold bar)</div>
+      <div class="feature-item">Product grid: creator tag, star rating, NEW/HOT/SALE badges</div>
+      <div class="feature-item">Product detail modal: images, influencer panel, qty, Add to Cart / Buy Now</div>
+      <div class="feature-item">Cart view with sticky order summary sidebar</div>
+      <div class="feature-item">Affiliate signup: 3 tiers — Basic (free) / Storefront GH₵25 / Premiere GH₵50</div>
+      <div class="feature-item">Featured influencer scroll row — click to filter products by creator</div>
+      <div class="feature-item">Live search filters product grid in real time</div>
+      <div class="feature-item">Payment strip: MTN MoMo / Telecel Cash / Pay on Delivery / Paystack</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       2. CREATOR STOREFRONT
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="storefront">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Consumer · Creator Store</div>
+        <div class="section-name">Creator Storefront — @sweet200723 (Live Demo)</div>
+        <div class="section-url">sensedirector.com/mam/sweet200723</div>
+      </div>
+      <a href="https://sensedirector.com/mam/sweet200723" target="_blank" class="open-btn">Open Live ↗</a>
+    </div>
+    <div class="context-box"><strong>Who uses it:</strong> Consumers arriving from a creator's TikTok bio link. <strong>Design:</strong> Template-based — dark header (black + gold), light product card area below. Default template is "Glow". Creators can switch to Kente (orange), Noir (dark editorial), or Bloom (green). <strong>URL format:</strong> /mam/{tiktok-handle} — one URL per creator.</div>
+    <div class="warn-box"><strong>Current state:</strong> Christiana's store (<strong>@sweet200723</strong>) is live and accessible but shows an empty state — "Products coming soon." This is because no products have been assigned to her account yet. <strong>To fix:</strong> Log into Admin Dashboard → Campaigns → assign products to her campaign. Once mapped, real products appear here automatically. She also does not know her store exists yet — contact her at uchik9935@gmail.com.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.9rem">
+      <!-- Glow template (current, empty state) -->
+      <div class="browser" style="margin-bottom:0">
+        <div class="browser-bar">
+          <div class="browser-dots"><span></span><span></span><span></span></div>
+          <div class="browser-url">🔒 /mam/sweet200723 (Glow template)</div>
+        </div>
+        <div class="browser-content">
+          <div style="background:#FAF7F2;min-height:230px">
+            <div class="store-hdr">
+              <div class="store-meta">
+                <div class="store-av">@</div>
+                <div>
+                  <div class="store-badge">Creator Store</div>
+                  <div class="store-handle">@sweet200723</div>
+                  <div class="store-stats">
+                    <div><div class="store-stat-n">0</div><div class="store-stat-l">Products</div></div>
+                    <div><div class="store-stat-n" style="color:#4ade80">72h</div><div class="store-stat-l">Delivery</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="store-bar"><span style="display:flex;align-items:center;gap:.3rem"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>0 items · Pay on delivery</span><span class="wa-btn">💬 WhatsApp</span></div>
+            <div class="store-empty">
+              <div style="font-size:1.4rem;margin-bottom:.28rem">🛍️</div>
+              <div style="font-size:.65rem;font-weight:900;color:#111;margin-bottom:.12rem">Products coming soon!</div>
+              <div style="font-size:.52rem;color:#888">Follow @sweet200723 on TikTok for the drop.</div>
+            </div>
+            <div style="padding:.3rem .5rem;font-size:.46rem;color:#bbb;text-align:center">← Current live state. Will show product grid once products are assigned via admin.</div>
+          </div>
+        </div>
+      </div>
+      <!-- With products (what it looks like when populated) -->
+      <div class="browser" style="margin-bottom:0">
+        <div class="browser-bar">
+          <div class="browser-dots"><span></span><span></span><span></span></div>
+          <div class="browser-url">🔒 /mam/sweet200723 (with products)</div>
+        </div>
+        <div class="browser-content">
+          <div style="background:#FAF7F2;min-height:230px">
+            <div class="store-hdr">
+              <div class="store-meta">
+                <div class="store-av">@</div>
+                <div>
+                  <div class="store-badge">Creator Store</div>
+                  <div class="store-handle">@sweet200723</div>
+                  <div class="store-stats">
+                    <div><div class="store-stat-n">6</div><div class="store-stat-l">Products</div></div>
+                    <div><div class="store-stat-n" style="color:#4ade80">72h</div><div class="store-stat-l">Delivery</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="store-bar"><span style="display:flex;align-items:center;gap:.3rem"><span style="width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block"></span>6 items · Pay on delivery</span><span class="wa-btn">💬 WhatsApp</span></div>
+            <div class="store-prods">
+              <div class="store-prod"><div class="store-prod-img">👗</div><div class="store-prod-body"><div class="store-prod-name">Ankara Wrap Dress</div><div class="store-prod-price" style="color:#C9A84C">GH₵ 185</div></div></div>
+              <div class="store-prod"><div class="store-prod-img">💄</div><div class="store-prod-body"><div class="store-prod-name">Glow Makeup Set</div><div class="store-prod-price" style="color:#C9A84C">GH₵ 95</div></div></div>
+              <div class="store-prod"><div class="store-prod-img">💈</div><div class="store-prod-body"><div class="store-prod-name">Hair Bundle</div><div class="store-prod-price" style="color:#C9A84C">GH₵ 320</div></div></div>
+              <div class="store-prod"><div class="store-prod-img">💎</div><div class="store-prod-body"><div class="store-prod-name">Statement Earrings</div><div class="store-prod-price" style="color:#C9A84C">GH₵ 75</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">Dynamic URL: /mam/{tiktok-handle} — unique store per creator</div>
+      <div class="feature-item">4 switchable templates: Glow (gold) · Kente (orange) · Noir (dark) · Bloom (green)</div>
+      <div class="feature-item">Dark header: creator handle, product count, 72h delivery badge</div>
+      <div class="feature-item">Light product area: cards with images, prices, Order Now</div>
+      <div class="feature-item">WhatsApp button for direct order support</div>
+      <div class="feature-item">Empty state shown until products assigned via admin → Campaigns</div>
+      <div class="feature-item">Template preview: ?t=kente / ?t=noir / ?t=bloom in URL</div>
+      <div class="feature-item">Analytics event fires on every storefront page view</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       3. CORPORATE HOME
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="home">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Marketing · B2B Recruitment</div>
+        <div class="section-name">Corporate Home — Creator &amp; Vendor Landing</div>
+        <div class="section-url">sensedirector.com/mam/home</div>
+      </div>
+      <a href="https://sensedirector.com/mam/home" target="_blank" class="open-btn">Open Live ↗</a>
+    </div>
+    <div class="context-box"><strong>Who uses it:</strong> Potential creators and vendors evaluating the platform. <strong>Design:</strong> Full dark black (#0A0A0A) + gold (#C9A84C). Sticky transparent nav that becomes solid on scroll. Animated radial gold glow in hero. Gold shimmer text animation on "are your shop." <strong>Purpose:</strong> B2B recruitment — not the consumer shopping page.</div>
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url">🔒 sensedirector.com/mam/home</div>
+      </div>
+      <div class="browser-content" style="background:#0A0A0A">
+        <div class="mnav" style="background:rgba(10,10,10,.95)">
+          <div class="mnav-logo">Yes MAM</div>
+          <div class="mnav-links"><span>How it works</span><span>About</span><span>For Creators</span><span>For Vendors</span></div>
+          <div class="mnav-cta">Start for free →</div>
+        </div>
+        <div style="padding:1.2rem 1rem;background:radial-gradient(ellipse at 68% 42%,rgba(201,168,76,.09) 0%,transparent 58%)">
+          <div class="gold-badge" style="margin-bottom:.55rem"><span style="width:5px;height:5px;border-radius:50%;background:#C9A84C;display:inline-block"></span> Africa's Creator Commerce Platform</div>
+          <div style="font-size:1.35rem;font-weight:900;line-height:1.08;margin-bottom:.38rem;color:#fff">Your followers<br><span class="gold-shimmer">are your shop.</span></div>
+          <div style="font-size:.6rem;color:rgba(255,255,255,.42);max-width:270px;margin-bottom:.65rem;line-height:1.45">Yes MAM gives Africa's TikTok creators a stunning, branded store in minutes. Earn <strong style="color:#fff">18%</strong> on every delivered sale.</div>
+          <div style="display:flex;gap:.4rem"><div class="gold-btn">Start your free store →</div><div class="ghost-btn">See a live store ↗</div></div>
+        </div>
+        <div class="ticker-strip">🇬🇭 Africa's #1 Creator Commerce Platform &nbsp;·&nbsp; 💰 18% Commission on Every Sale &nbsp;·&nbsp; ⚡ Store Live in 24 Hours &nbsp;·&nbsp; 💬 WhatsApp Orders &nbsp;·&nbsp; 🏆 MTN MoMo Accepted</div>
+        <div class="stat-row">
+          <div class="stat-card"><div class="stat-n gold-shimmer">Ghana</div><div class="stat-l">Live across Africa</div></div>
+          <div class="stat-card"><div class="stat-n gold-shimmer">18%</div><div class="stat-l">Creator commission rate</div></div>
+          <div class="stat-card"><div class="stat-n gold-shimmer">72hr</div><div class="stat-l">Max Accra delivery</div></div>
+          <div class="stat-card"><div class="stat-n gold-shimmer">Free</div><div class="stat-l">Zero cost to start</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">Transparent sticky nav → #0A0A0A on scroll</div>
+      <div class="feature-item">Hero: "Your followers are your shop" with animated gold shimmer</div>
+      <div class="feature-item">CTAs: Start your free store + See a live store (→ Christiana's page)</div>
+      <div class="feature-item">Gold promo ticker marquee strip</div>
+      <div class="feature-item">Stats row: Ghana / 18% / 72hr / Free</div>
+      <div class="feature-item">4 template previews: Glow, Kente, Noir, Bloom — click to preview live</div>
+      <div class="feature-item">Creator 3-step flow (gold) and Vendor 3-step flow (orange)</div>
+      <div class="feature-item">Creator benefits grid + vendor benefits grid</div>
+      <div class="feature-item">Footer: links to all marketing pages + WhatsApp contact</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       4. ABOUT
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="about">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Marketing · Brand</div>
+        <div class="section-name">About</div>
+        <div class="section-url">sensedirector.com/mam/about</div>
+      </div>
+      <a href="https://sensedirector.com/mam/about" target="_blank" class="open-btn">Open Live ↗</a>
+    </div>
+    <div class="context-box"><strong>Who uses it:</strong> Investors, partners, press, and stakeholders wanting to understand the company. <strong>Design:</strong> Same shared dark nav/footer as all marketing pages. Glass-gold stat cards. Team member cards with accent colors. Roadmap timeline with gold checkmarks.</div>
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url">🔒 sensedirector.com/mam/about</div>
+      </div>
+      <div class="browser-content" style="background:#0A0A0A">
+        <div class="mnav" style="background:rgba(10,10,10,.95)"><div class="mnav-logo">Yes MAM</div><div class="mnav-links"><span>How it works</span><span>About</span><span>For Creators</span><span>Join</span></div><div class="mnav-cta">Start free →</div></div>
+        <div class="mkt-hero">
+          <div class="mkt-label">Our Story</div>
+          <div class="mkt-h">Ghana's creator<br>commerce infrastructure.</div>
+          <div class="mkt-sub">We exist to turn Africa's most engaged social audiences into income-generating commerce engines — starting in Ghana.</div>
+        </div>
+        <div class="content-grid">
+          <div class="content-card"><div class="card-icon">🎯</div><div class="card-h">Mission</div><div class="card-p">Every Ghanaian creator with 5K+ followers deserves a professional storefront and 18% commission on every sale they drive.</div></div>
+          <div class="content-card"><div class="card-icon">🌍</div><div class="card-h">Vision</div><div class="card-p">10 African markets. 10,000 creator stores. GH₵ 50M annual GMV. Starting Africa pilot 2026.</div></div>
+          <div class="content-card"><div class="card-icon">👥</div><div class="card-h">Leadership</div><div class="card-p">Louis Hook (Sponsor) · David Bezar (COO/CTO) · Miguel Flores (Content) · Christiana Amankwaah (Africa Pilot)</div></div>
+          <div class="content-card"><div class="card-icon">🗺️</div><div class="card-h">Roadmap</div><div class="card-p">Phase 0: Strategy Lock ✓ · Phase 1: Platform Build ✓ · Phase 2: Africa Pilot → Phase 3: Scale</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">Mission and Vision sections with glass-gold stat cards</div>
+      <div class="feature-item">Values grid: Creator-first · Transparent · Mobile-native · African-built</div>
+      <div class="feature-item">Team cards: Louis / David / Miguel / Christiana with role descriptions</div>
+      <div class="feature-item">Platform milestones timeline with gold checkmarks</div>
+      <div class="feature-item">Expansion roadmap: Ghana → 10 African markets</div>
+      <div class="feature-item">Shared MarketingNav + MarketingFooter components</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       5. HOW IT WORKS
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="howitworks">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Marketing · Explainer</div>
+        <div class="section-name">How It Works</div>
+        <div class="section-url">sensedirector.com/mam/how-it-works</div>
+      </div>
+      <a href="https://sensedirector.com/mam/how-it-works" target="_blank" class="open-btn">Open Live ↗</a>
+    </div>
+    <div class="context-box"><strong>Who uses it:</strong> New creators and vendors evaluating whether to join. <strong>Design:</strong> Two parallel 3-step flows — creator path uses gold (#C9A84C), vendor path uses kente orange (#F5A623). Toggle switch lets visitors flip between views. FAQ accordion at bottom.</div>
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url">🔒 sensedirector.com/mam/how-it-works</div>
+      </div>
+      <div class="browser-content" style="background:#0A0A0A">
+        <div class="mnav" style="background:rgba(10,10,10,.95)"><div class="mnav-logo">Yes MAM</div><div class="mnav-links"><span>How it works</span><span>About</span><span>Join</span></div><div class="mnav-cta">Start free →</div></div>
+        <div class="mkt-hero" style="padding-bottom:.5rem">
+          <div class="mkt-label">The Process</div>
+          <div class="mkt-h">From TikTok to paid in 3 steps.</div>
+          <div class="mkt-sub">No coding. No inventory. No upfront cost. Just your audience and your hustle.</div>
+        </div>
+        <div style="display:flex;gap:.35rem;padding:.4rem 1rem">
+          <div style="background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.25);color:#C9A84C;font-size:.52rem;font-weight:800;padding:.22rem .55rem;border-radius:5px">📱 For Creators</div>
+          <div style="border:1px solid #1a1a1a;color:#444;font-size:.52rem;font-weight:700;padding:.22rem .55rem;border-radius:5px">🏪 For Vendors</div>
+        </div>
+        <div class="step-flow">
+          <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Get your store link — same day.</strong> We set you up with a branded store at your TikTok handle. Drop the link in your bio and start promoting within 24 hours.</div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-text"><strong>Feature products in your videos.</strong> Your followers tap your bio link, browse, and order in under 60 seconds on their phone.</div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-text"><strong>Get paid straight to MoMo.</strong> 18% commission hits your MoMo wallet when an order is delivered. Weekly payouts. See earnings in real time.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">Creator flow (gold): Get store → Feature in videos → Get paid to MoMo</div>
+      <div class="feature-item">Vendor flow (orange): List products → Creators promote → Fulfill orders</div>
+      <div class="feature-item">Toggle switch flips between creator and vendor view</div>
+      <div class="feature-item">Platform diagram showing full order attribution chain</div>
+      <div class="feature-item">FAQ accordion: 8 common questions and answers</div>
+      <div class="feature-item">CTA at bottom leading to /mam/join</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       6. JOIN
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="join">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Marketing · Signup</div>
+        <div class="section-name">Join — Creator &amp; Vendor Application</div>
+        <div class="section-url">sensedirector.com/mam/join</div>
+      </div>
+      <a href="https://sensedirector.com/mam/join" target="_blank" class="open-btn">Open Live ↗</a>
+    </div>
+    <div class="context-box"><strong>Who uses it:</strong> Creators applying for a store; vendors applying to list products. <strong>Design:</strong> Two-column layout — creator form on left (gold), vendor form on right (orange). Both forms submit via WhatsApp to the ops team. No account is created automatically — ops provisions accounts manually through the Admin Dashboard.</div>
+    <div class="info-box"><strong>On creating new accounts:</strong> The Join page collects applications via WhatsApp. Accounts are provisioned manually: Admin Dashboard → Creators tab → add creator (sets email, password, handle → store URL auto-assigned as /mam/{handle}). The API endpoint is <code>POST /mam-api/auth/register</code> with <code>role=influencer</code> or <code>role=vendor</code>. A self-serve signup flow can be built in a future sprint if volume warrants it.</div>
+    <div class="browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><span></span><span></span><span></span></div>
+        <div class="browser-url">🔒 sensedirector.com/mam/join</div>
+      </div>
+      <div class="browser-content" style="background:#0A0A0A">
+        <div class="mnav" style="background:rgba(10,10,10,.95)"><div class="mnav-logo">Yes MAM</div><div class="mnav-links"><span>How it works</span><span>About</span><span>Join</span></div><div class="mnav-cta">Start free →</div></div>
+        <div class="mkt-hero" style="padding-bottom:.5rem">
+          <div class="mkt-label">Get Started</div>
+          <div class="mkt-h">Join Yes MAM today.</div>
+          <div class="mkt-sub">Creators get a free store. Vendors get thousands of eyes on their products.</div>
+        </div>
+        <div class="join-cols">
+          <div class="join-col" style="border-color:rgba(201,168,76,.18)">
+            <div class="join-col-head" style="background:rgba(201,168,76,.1);color:#C9A84C">📱 For Creators</div>
+            <div class="join-field">Full name</div>
+            <div class="join-field">TikTok handle (@username)</div>
+            <div class="join-field">WhatsApp number</div>
+            <div class="join-field">Follower count</div>
+            <div class="join-submit" style="background:linear-gradient(135deg,#A8832A,#C9A84C);color:#000">Apply via WhatsApp →</div>
+          </div>
+          <div class="join-col" style="border-color:rgba(245,166,35,.18)">
+            <div class="join-col-head" style="background:rgba(245,166,35,.1);color:#F5A623">🏪 For Vendors</div>
+            <div class="join-field">Business name</div>
+            <div class="join-field">Product category</div>
+            <div class="join-field">WhatsApp / contact</div>
+            <div class="join-field">Accra location</div>
+            <div class="join-submit" style="background:#F5A623;color:#000">Apply via WhatsApp →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">Two-column: creators (gold left) + vendors (orange right)</div>
+      <div class="feature-item">Creator form: name, TikTok handle, WhatsApp, follower count, niche</div>
+      <div class="feature-item">Vendor form: business name, category, location, product count</div>
+      <div class="feature-item">Submit buttons open WhatsApp with pre-filled message to ops</div>
+      <div class="feature-item">Benefits grid for each signup type</div>
+      <div class="feature-item">Anchor links: /mam/join#creators and /mam/join#vendors</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       7. CREATOR DASHBOARD
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="dashboard">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Platform Tool · Creators</div>
+        <div class="section-name">Creator Dashboard</div>
+        <div class="section-url">sensedirector.com/mam/dashboard</div>
+      </div>
+      <a href="https://sensedirector.com/mam/dashboard" target="_blank" class="open-btn">Open Live ↗</a>
+    </div>
+    <div class="context-box"><strong>Who uses it:</strong> Influencers managing their store and tracking earnings. <strong>Two states:</strong> (1) Unauthenticated — shows a dark login form. (2) Authenticated — reveals a 5-tab dashboard. Credentials are provisioned by admin. Design: dark #0A0A0A with gold accents — consistent with platform brand.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.9rem">
+      <div>
+        <div style="font-size:.62rem;font-weight:700;color:#555;margin-bottom:.35rem;text-align:center">STATE 1 — Visitor (not logged in)</div>
+        <div class="browser" style="margin-bottom:0">
+          <div class="browser-bar"><div class="browser-dots"><span></span><span></span><span></span></div><div class="browser-url">🔒 /mam/dashboard</div></div>
+          <div class="browser-content">
+            <div class="login-wrap">
+              <div class="login-card">
+                <div class="login-icon">M</div>
+                <div class="login-title">Creator Hub</div>
+                <div class="login-sub">MAM — Micro-Affiliate Marketing</div>
+                <div class="login-field">you@example.com</div>
+                <div class="login-field">••••••••</div>
+                <div class="login-btn">Sign In</div>
+                <div style="font-size:.48rem;color:#444;margin-top:.45rem">Need access? <span style="color:#C9A84C">WhatsApp us</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.62rem;font-weight:700;color:#4ade80;margin-bottom:.35rem;text-align:center">STATE 2 — After login (full dashboard)</div>
+        <div class="browser" style="margin-bottom:0">
+          <div class="browser-bar"><div class="browser-dots"><span></span><span></span><span></span></div><div class="browser-url">🔒 /mam/dashboard</div></div>
+          <div class="browser-content" style="background:#0A0A0A;min-height:190px">
+            <div class="admin-hdr"><div class="admin-logo-t">Yes MAM · Creator Hub</div><div class="admin-user"><div class="online-dot"></div>@sweet200723</div></div>
+            <div class="tabs">
+              <div class="tab on">Overview</div><div class="tab">Orders</div><div class="tab">Catalog</div><div class="tab">Links</div><div class="tab">Store</div>
+            </div>
+            <div class="kpi-row">
+              <div class="kpi-card"><div class="kpi-n">GH₵0</div><div class="kpi-l">Total earned</div></div>
+              <div class="kpi-card"><div class="kpi-n">0</div><div class="kpi-l">Orders</div></div>
+              <div class="kpi-card"><div class="kpi-n">0</div><div class="kpi-l">Delivered</div></div>
+              <div class="kpi-card"><div class="kpi-n">18%</div><div class="kpi-l">Commission</div></div>
+            </div>
+            <div style="padding:.25rem .9rem;font-size:.5rem;color:#333;text-align:center">Orders / Catalog / Links / Store template switcher loads per tab</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">Login: email + password — credentials provisioned by admin</div>
+      <div class="feature-item">Overview: KPI cards — earnings, orders, delivered, commission rate</div>
+      <div class="feature-item">Orders tab: order list with status, customer, product, amount</div>
+      <div class="feature-item">Catalog tab: products assigned to this creator + stock levels</div>
+      <div class="feature-item">Links tab: affiliate tracking links with one-click copy</div>
+      <div class="feature-item">Store tab: switch between Glow / Kente / Noir / Bloom templates + bio + avatar</div>
+      <div class="feature-item">WhatsApp link shown for creators who need login help</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       8. ADMIN DASHBOARD
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="admin">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Platform Tool · Operations</div>
+        <div class="section-name">Admin Dashboard</div>
+        <div class="section-url">sensedirector.com/mam/admin</div>
+      </div>
+      <a href="https://sensedirector.com/mam/admin" target="_blank" class="open-btn">Open Live ↗</a>
+    </div>
+    <div class="context-box"><strong>Who uses it:</strong> David Bezar and ops team. <strong>Login:</strong> airatpack@gmail.com — password set 2026-04-13. After login: 6-tab back-office covering orders, creators, vendors, campaigns, commissions. This is where new creator and vendor accounts are provisioned.</div>
+    <div class="info-box"><strong>Creating new accounts:</strong> Admin Dashboard → <strong>Creators tab</strong> → Add Creator (name, email, TikTok handle, password). Store URL auto-assigned as /mam/{handle}. Same for vendors under <strong>Vendors tab</strong>. API: <code>POST /mam-api/auth/register</code> with <code>role=influencer</code>.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.9rem">
+      <div>
+        <div style="font-size:.62rem;font-weight:700;color:#555;margin-bottom:.35rem;text-align:center">STATE 1 — Login screen</div>
+        <div class="browser" style="margin-bottom:0">
+          <div class="browser-bar"><div class="browser-dots"><span></span><span></span><span></span></div><div class="browser-url">🔒 /mam/admin</div></div>
+          <div class="browser-content">
+            <div class="login-wrap">
+              <div class="login-card">
+                <div class="login-icon">M</div>
+                <div class="login-title">MAM Admin</div>
+                <div class="login-sub">Operations Dashboard</div>
+                <div class="login-field">airatpack@gmail.com</div>
+                <div class="login-field">••••••••</div>
+                <div class="login-btn">Sign In</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.62rem;font-weight:700;color:#4ade80;margin-bottom:.35rem;text-align:center">STATE 2 — Operations dashboard</div>
+        <div class="browser" style="margin-bottom:0">
+          <div class="browser-bar"><div class="browser-dots"><span></span><span></span><span></span></div><div class="browser-url">🔒 /mam/admin</div></div>
+          <div class="browser-content" style="background:#0A0A0A;min-height:190px">
+            <div class="admin-hdr"><div class="admin-logo-t">MAM Admin</div><div class="admin-user"><div class="online-dot"></div>David Bezar</div></div>
+            <div class="tabs">
+              <div class="tab on">Overview</div><div class="tab">Orders</div><div class="tab">Creators</div><div class="tab">Vendors</div><div class="tab">Campaigns</div><div class="tab">Commissions</div>
+            </div>
+            <div class="kpi-row">
+              <div class="kpi-card"><div class="kpi-n">0</div><div class="kpi-l">Total orders</div><div class="kpi-up">● live</div></div>
+              <div class="kpi-card"><div class="kpi-n">GH₵0</div><div class="kpi-l">Revenue</div></div>
+              <div class="kpi-card"><div class="kpi-n">1</div><div class="kpi-l">Creators</div></div>
+              <div class="kpi-card"><div class="kpi-n">3</div><div class="kpi-l">Vendors</div></div>
+            </div>
+            <div style="padding:.25rem .9rem">
+              <div class="table-hdr" style="grid-template-columns:1.5fr 1fr 1fr 1fr 1fr"><span>Order ID</span><span>Customer</span><span>Creator</span><span>Amount</span><span>Status</span></div>
+              <div class="table-row" style="grid-template-columns:1.5fr 1fr 1fr 1fr 1fr;font-style:italic;color:#2a2a2a"><span>—</span><span>—</span><span>—</span><span>—</span><span>—</span></div>
+              <div style="font-size:.48rem;color:#2a2a2a;text-align:center;padding-top:.2rem">No orders yet — pilot activates when Christiana starts promoting</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">Login: airatpack@gmail.com (admin password set 2026-04-13)</div>
+      <div class="feature-item">Overview: KPI cards + recent orders table</div>
+      <div class="feature-item">Orders tab: full order list, status management, vendor summary</div>
+      <div class="feature-item">Creators tab: view/add/edit creator accounts and store assignments</div>
+      <div class="feature-item">Vendors tab: vendor management — add new product vendors</div>
+      <div class="feature-item">Campaigns tab: map products to creator storefronts</div>
+      <div class="feature-item">Commissions tab: commission ledger and payout tracking</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       9. ADMIN REPORTS
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="reports">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Platform Tool · Analytics</div>
+        <div class="section-name">Admin Reports</div>
+        <div class="section-url">sensedirector.com/mam/admin/reports</div>
+      </div>
+      <a href="https://sensedirector.com/mam/admin/reports" target="_blank" class="open-btn">Open Live ↗</a>
+    </div>
+    <div class="context-box"><strong>Who uses it:</strong> David Bezar and Louis Hook for performance review. <strong>Access:</strong> Requires an admin JWT token. The page shows a white token-entry gate first — paste the token from Admin login, or log into /admin first (token saved automatically). <strong>After auth:</strong> Full analytics dashboard loads — KPI cards, bar charts (gold), creator performance table, product table, commission ledger, CSV export. All chart data uses gold (#C9A84C).</div>
+    <div class="warn-box"><strong>What you see unauthenticated:</strong> A white/light gray token-entry gate — "Enter your admin token or log in via Admin first." This is correct behavior. Log into <code>/mam/admin</code> first, then return to <code>/mam/admin/reports</code> — the token is saved automatically in browser storage.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.9rem">
+      <!-- Unauthenticated gate (actual live state) -->
+      <div class="browser" style="margin-bottom:0">
+        <div class="browser-bar">
+          <div class="browser-dots"><span></span><span></span><span></span></div>
+          <div class="browser-url">🔒 /mam/admin/reports (unauthenticated)</div>
+        </div>
+        <div class="browser-content">
+          <div style="background:#f9fafb;min-height:200px;display:flex;align-items:center;justify-content:center;padding:1rem">
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:1.1rem;width:185px;box-shadow:0 1px 4px rgba(0,0,0,.07)">
+              <div style="font-size:.78rem;font-weight:900;color:#111;margin-bottom:.2rem">MAM Reports</div>
+              <div style="font-size:.52rem;color:#9ca3af;margin-bottom:.6rem">Enter your admin token or <span style="color:#C9A84C">log in via Admin</span> first.</div>
+              <div style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;padding:.32rem .5rem;font-size:.5rem;color:#9ca3af;margin-bottom:.35rem">Paste admin token...</div>
+              <div style="background:#C9A84C;color:#000;font-size:.58rem;font-weight:800;padding:.38rem;border-radius:7px;text-align:center">Load Reports</div>
+              <div style="font-size:.46rem;color:#9ca3af;text-align:center;margin-top:.35rem">Or log in at <span style="color:#C9A84C">/admin</span> first</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Authenticated dashboard (after login) -->
+      <div class="browser" style="margin-bottom:0">
+        <div class="browser-bar">
+          <div class="browser-dots"><span></span><span></span><span></span></div>
+          <div class="browser-url">🔒 /mam/admin/reports (after login)</div>
+        </div>
+        <div class="browser-content" style="background:#0A0A0A">
+          <div class="admin-hdr"><div class="admin-logo-t">MAM Admin · Reports</div><div style="display:flex;gap:.25rem"><div style="font-size:.52rem;font-weight:700;padding:.18rem .42rem;border-radius:5px;background:rgba(201,168,76,.13);color:#C9A84C">7d</div><div style="font-size:.52rem;font-weight:700;padding:.18rem .42rem;border-radius:5px;color:#333">30d</div><div style="font-size:.52rem;font-weight:700;padding:.18rem .42rem;border-radius:5px;color:#333">90d</div></div></div>
+          <div class="kpi-row">
+            <div class="kpi-card"><div class="kpi-n">GH₵0</div><div class="kpi-l">Total GMV</div></div>
+            <div class="kpi-card"><div class="kpi-n">0</div><div class="kpi-l">Orders</div></div>
+            <div class="kpi-card"><div class="kpi-n">GH₵0</div><div class="kpi-l">Commissions</div></div>
+            <div class="kpi-card"><div class="kpi-n">—</div><div class="kpi-l">Conv. rate</div></div>
+          </div>
+          <div style="padding:.4rem .9rem .5rem">
+            <div style="font-size:.48rem;font-weight:800;color:#333;margin-bottom:.28rem;text-transform:uppercase;letter-spacing:.08em">Daily GMV (GH₵)</div>
+            <div style="height:42px;display:flex;align-items:flex-end;gap:3px">
+              <div style="flex:1;background:rgba(201,168,76,.35);border-radius:2px 2px 0 0;height:20%"></div>
+              <div style="flex:1;background:rgba(201,168,76,.35);border-radius:2px 2px 0 0;height:38%"></div>
+              <div style="flex:1;background:rgba(201,168,76,.35);border-radius:2px 2px 0 0;height:18%"></div>
+              <div style="flex:1;background:rgba(201,168,76,.35);border-radius:2px 2px 0 0;height:55%"></div>
+              <div style="flex:1;background:#C9A84C;border-radius:2px 2px 0 0;height:75%"></div>
+              <div style="flex:1;background:rgba(201,168,76,.35);border-radius:2px 2px 0 0;height:42%"></div>
+              <div style="flex:1;background:rgba(201,168,76,.35);border-radius:2px 2px 0 0;height:62%"></div>
+            </div>
+          </div>
+          <div style="padding:.2rem .9rem .4rem;font-size:.46rem;color:#2a2a2a;text-align:center">Creator table · Product table · Commission ledger · CSV export</div>
+        </div>
+      </div>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">Date range filter: 7d / 30d / 90d / All time</div>
+      <div class="feature-item">KPI cards: GMV, orders, commissions paid, conversion rate</div>
+      <div class="feature-item">Bar chart: daily GMV — custom SVG, gold color, no external libs</div>
+      <div class="feature-item">Donut chart: order status breakdown</div>
+      <div class="feature-item">Creator performance table: orders, delivered, conv rate, revenue, commission</div>
+      <div class="feature-item">Product performance table: units sold, revenue, stock level</div>
+      <div class="feature-item">Commission ledger with status breakdown</div>
+      <div class="feature-item">CSV export button on every table</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       10. BACKEND API
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="api">
+    <div class="section-header">
+      <div>
+        <div class="section-label">Backend · Infrastructure</div>
+        <div class="section-name">Backend API</div>
+        <div class="section-url">sensedirector.com/mam-api/</div>
+      </div>
+      <a href="https://sensedirector.com/mam-api/health" target="_blank" class="open-btn">Health Check ↗</a>
+    </div>
+    <div class="context-box"><strong>What it is:</strong> FastAPI (Python/uvicorn) on kiva-1 port 8200, proxied via nginx to /mam-api/. Database: PostgreSQL (local Docker kaizeniva-postgres, db=mam) — fully migrated from Supabase. <strong>Interactive docs:</strong> sensedirector.com/mam-api/docs — full Swagger UI to test every endpoint.</div>
+    <div class="info-box"><strong>QA — April 15, 2026 (all endpoints verified via automated test):</strong><br>
+    <strong style="color:#4ade80">✅ POST /auth/login (admin, christiana, louis) → 200 JWT</strong> ·
+    <strong style="color:#4ade80">✅ GET /auth/me → 200 (role verified)</strong> ·
+    <strong style="color:#4ade80">✅ GET /products → 200 (11 active products)</strong> ·
+    <strong style="color:#4ade80">✅ GET /influencers → 200 (3 creators)</strong> ·
+    <strong style="color:#4ade80">✅ GET /vendors → 200 (1 vendor)</strong> ·
+    <strong style="color:#4ade80">✅ GET /orders → 200</strong> ·
+    <strong style="color:#4ade80">✅ GET /campaigns → 200</strong> ·
+    <strong style="color:#4ade80">✅ GET /commissions → 200</strong> ·
+    <strong style="color:var(--gold)">⚠️ WhatsApp notifications — Twilio keys not configured yet</strong>
+    </div>
+    <div class="feature-list">
+      <div class="feature-item">GET /mam-api/health → {"status":"ok","version":"0.1.0"}</div>
+      <div class="feature-item">GET /mam-api/products → 11 active products (live DB)</div>
+      <div class="feature-item">POST /mam-api/auth/login → JWT token (email + password)</div>
+      <div class="feature-item">POST /mam-api/orders → submit new order (no auth required)</div>
+      <div class="feature-item">GET /mam-api/orders → order list (admin auth required)</div>
+      <div class="feature-item">GET /mam-api/influencers?handle=sweet200723 → creator profile</div>
+      <div class="feature-item">POST /mam-api/auth/register → create new creator or vendor account</div>
+      <div class="feature-item">POST /mam-api/products → add product (admin/operator/vendor auth)</div>
+      <div class="feature-item">Interactive Swagger docs: sensedirector.com/mam-api/docs</div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <span>Specs — MAM Platform Documentation (SPC) · Yes MAM</span>
+    <span>Updated: April 15, 2026 · All 12 pages + 22 tabs verified live · Auth, products, storefront, admin — all working · kiva-1 (10.0.3.20)</span>
+  </div>
+</main>
+</body>
+</html>

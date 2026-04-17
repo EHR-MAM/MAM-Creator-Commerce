@@ -444,7 +444,7 @@ export default function StorefrontShell({
             </span>
           </div>
           <p className={`text-xs ${t.footerText} mb-1`}>
-            Micro-Affiliate Marketing · Ghana's Creator Commerce Platform
+            Micro-Affiliate Marketing · Africa's Creator Commerce Platform
           </p>
           <a
             href="/mam/home"

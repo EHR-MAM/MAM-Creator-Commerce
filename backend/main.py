@@ -6,7 +6,7 @@ from app.api.routes import auth, products, vendors, influencers, campaigns, orde
 app = FastAPI(
     title="EHR Creator Commerce API",
     version="0.1.0",
-    description="Ghana-first creator-commerce platform API",
+    description="Africa-first creator-commerce platform API",
 )
 
 app.add_middleware(
