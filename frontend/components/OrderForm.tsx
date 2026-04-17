@@ -3,6 +3,12 @@ import { useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 
+const PAYMENT_METHODS = [
+  { id: "pay_on_delivery", label: "Pay on Delivery", icon: "🏠", desc: "Cash or MoMo on arrival", available: true },
+  { id: "mtn_momo_gh", label: "MTN Mobile Money", icon: "📱", desc: "Instant MoMo payment", available: false },
+  { id: "card", label: "Debit / Credit Card", icon: "💳", desc: "Visa, Mastercard", available: false },
+];
+
 interface Product {
   id: string;
   name: string;
@@ -29,6 +35,7 @@ export default function OrderForm({
   const [quantity, setQuantity] = useState(1);
   const [sizeVariant, setSizeVariant] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("pay_on_delivery");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState("");
@@ -92,7 +99,9 @@ export default function OrderForm({
         <p className="text-sm text-gray-600">
           We'll reach you on WhatsApp at <span className="font-semibold">{phone}</span> within 2 hours to confirm your delivery.
         </p>
-        <p className="text-xs text-gray-400">Pay on delivery · Cash or Mobile Money accepted</p>
+        <p className="text-xs text-gray-400">
+          {paymentMethod === "pay_on_delivery" ? "Pay on delivery · Cash or Mobile Money accepted" : "Payment confirmed"}
+        </p>
       </div>
     );
   }
@@ -242,6 +251,41 @@ export default function OrderForm({
         />
       </div>
 
+      {/* Payment method */}
+      <div>
+        <label className="text-sm font-medium text-gray-700 block mb-2">Payment Method</label>
+        <div className="space-y-2">
+          {PAYMENT_METHODS.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              disabled={!m.available}
+              onClick={() => m.available && setPaymentMethod(m.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
+                !m.available
+                  ? "opacity-40 cursor-not-allowed border-gray-100 bg-gray-50"
+                  : paymentMethod === m.id
+                  ? "border-[#C9A84C] bg-[#FAF7F2]"
+                  : "border-gray-200 bg-white hover:bg-gray-50"
+              }`}
+            >
+              <span className="text-xl">{m.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900">{m.label}</p>
+                <p className="text-xs text-gray-400">{m.desc}{!m.available ? " — coming soon" : ""}</p>
+              </div>
+              {m.available && (
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  paymentMethod === m.id ? "border-[#C9A84C]" : "border-gray-300"
+                }`}>
+                  {paymentMethod === m.id && <div className="w-2 h-2 rounded-full bg-[#C9A84C]" />}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Order summary */}
       <div className="bg-[#FAF7F2] rounded-xl p-4 text-sm space-y-2 border border-[#E8D9C0]">
         <p className="font-semibold text-gray-800 text-xs uppercase tracking-wide mb-2">Order Summary</p>
@@ -257,7 +301,9 @@ export default function OrderForm({
           <span>Total</span>
           <span className="text-[#C9A84C]">{product.currency} {total}</span>
         </div>
-        <p className="text-xs text-gray-400 text-center mt-1">Pay on delivery — Cash or Mobile Money</p>
+        <p className="text-xs text-gray-400 text-center mt-1">
+          {paymentMethod === "pay_on_delivery" ? "Pay on delivery — Cash or Mobile Money" : "Secure online payment"}
+        </p>
       </div>
 
       {error && (
@@ -275,7 +321,9 @@ export default function OrderForm({
       </button>
 
       <p className="text-xs text-gray-400 text-center">
-        No payment now · Pay on delivery · We confirm via WhatsApp
+        {paymentMethod === "pay_on_delivery"
+          ? "No payment now · Pay on delivery · We confirm via WhatsApp"
+          : "Secure payment · Order confirmed instantly"}
       </p>
     </form>
   );

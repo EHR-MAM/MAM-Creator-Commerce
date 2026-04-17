@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import auth, products, vendors, influencers, campaigns, orders, commissions, payouts, analytics, tracking
+from app.api.routes import auth, products, vendors, influencers, campaigns, orders, commissions, payouts, analytics, tracking, payments
 
 app = FastAPI(
     title="EHR Creator Commerce API",
@@ -27,6 +27,7 @@ app.include_router(commissions.router, prefix="/commissions", tags=["commissions
 app.include_router(payouts.router, prefix="/payouts", tags=["payouts"])
 app.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 app.include_router(tracking.router, prefix="/tracking", tags=["tracking"])
+app.include_router(payments.router, prefix="/payments", tags=["payments"])
 
 
 @app.get("/health")
