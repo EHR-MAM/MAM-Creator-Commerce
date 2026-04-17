@@ -198,8 +198,11 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
 
 // ─── Tab: Home ─────────────────────────────────────────────────────────────────
 
-function HomeTab({ kpi, commissions, profile }: { kpi: KPI | null; commissions: Commission[]; profile: InfluencerProfile | null }) {
+function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commissions: Commission[]; profile: InfluencerProfile | null; token: string }) {
   const pendingCommission = commissions.filter(c => c.commission_status === "payable");
+  const pendingTotal = pendingCommission.reduce((s, c) => s + Number(c.influencer_amount), 0);
+  const [payoutLoading, setPayoutLoading] = useState(false);
+  const [payoutMsg, setPayoutMsg] = useState("");
 
   return (
     <div className="space-y-5">
@@ -250,18 +253,52 @@ function HomeTab({ kpi, commissions, profile }: { kpi: KPI | null; commissions: 
         </div>
       )}
 
-      {/* Pending commissions */}
-      {pendingCommission.length > 0 && (
+      {/* Payout request card */}
+      {pendingTotal > 0 && (
         <div className="bg-amber-900/20 border border-amber-500/30 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-            <p className="text-amber-400 text-sm font-bold">
-              {pendingCommission.length} commission{pendingCommission.length > 1 ? "s" : ""} pending payout
-            </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                <p className="text-amber-400 text-sm font-bold">
+                  GHS {pendingTotal.toFixed(2)} ready for payout
+                </p>
+              </div>
+              <p className="text-xs text-amber-400/70">
+                {pendingCommission.length} commission{pendingCommission.length > 1 ? "s" : ""} · Paid to MoMo after admin confirmation
+              </p>
+              {payoutMsg && (
+                <p className={`text-xs mt-2 font-medium ${payoutMsg.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>
+                  {payoutMsg}
+                </p>
+              )}
+            </div>
+            <button
+              disabled={payoutLoading || !!payoutMsg}
+              onClick={async () => {
+                setPayoutLoading(true);
+                setPayoutMsg("");
+                try {
+                  const res = await fetch(`${API_URL}/payouts/request`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    setPayoutMsg(`Requested GHS ${Number(data.total_GHS).toFixed(2)}`);
+                  } else {
+                    setPayoutMsg(`Error: ${data.detail || "Request failed"}`);
+                  }
+                } catch {
+                  setPayoutMsg("Error: Network error");
+                }
+                setPayoutLoading(false);
+              }}
+              className="shrink-0 bg-amber-500 disabled:bg-amber-800 text-black font-bold text-xs px-3 py-2 rounded-xl transition-colors"
+            >
+              {payoutLoading ? "…" : "Request Payout"}
+            </button>
           </div>
-          <p className="text-xs text-amber-400/70">
-            GHS {pendingCommission.reduce((s, c) => s + Number(c.influencer_amount), 0).toFixed(2)} will be sent to your MoMo after delivery confirmation
-          </p>
         </div>
       )}
 
@@ -298,20 +335,14 @@ function HomeTab({ kpi, commissions, profile }: { kpi: KPI | null; commissions: 
         )}
       </div>
 
-      {/* Payout info */}
-      <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#C9A84C]/20">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#C9A84C]/10 flex items-center justify-center shrink-0">
-            <span className="text-sm">📱</span>
-          </div>
-          <div>
-            <p className="text-sm font-bold text-white">MoMo Payouts</p>
-            <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
-              Commissions are paid to your MTN MoMo number weekly after delivery confirmation.
-              Questions? <a href="https://wa.me/13107763650" target="_blank" rel="noopener noreferrer" className="text-[#C9A84C]">WhatsApp admin</a>
-            </p>
-          </div>
-        </div>
+      {/* Payout footer note */}
+      <div className="bg-[#111] rounded-2xl p-3 border border-white/5">
+        <p className="text-xs text-gray-600 leading-relaxed text-center">
+          Payouts sent via MTN MoMo · Questions?{" "}
+          <a href="https://wa.me/13107763650" target="_blank" rel="noopener noreferrer" className="text-[#C9A84C]">
+            WhatsApp admin
+          </a>
+        </p>
       </div>
     </div>
   );
@@ -1292,7 +1323,7 @@ export default function InfluencerDashboard() {
 
       {/* Tab content */}
       <div className="max-w-lg mx-auto px-4 py-6">
-        {tab === "home" && <HomeTab kpi={kpi} commissions={commissions} profile={profile} />}
+        {tab === "home" && <HomeTab kpi={kpi} commissions={commissions} profile={profile} token={token ?? ""} />}
         {tab === "orders" && <OrdersTab orders={orders} />}
         {tab === "catalog" && <CatalogTab token={token ?? ""} />}
         {tab === "analytics" && <AnalyticsTab token={token ?? ""} />}

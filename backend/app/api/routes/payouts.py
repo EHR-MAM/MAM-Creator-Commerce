@@ -3,13 +3,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from decimal import Decimal
+from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
 from app.core.database import get_db
-from app.core.deps import require_admin_or_operator
+from app.core.deps import require_admin_or_operator, get_current_user
 from app.models.payout import Payout
 from app.models.commission import Commission
+from app.models.influencer import Influencer
+from app.models.order import Order
 from app.models.user import User
 
 router = APIRouter()
@@ -23,6 +26,7 @@ class PayoutOut(BaseModel):
     currency: str
     status: str
     payment_method: Optional[str]
+    period_end: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -37,6 +41,80 @@ async def list_payouts(
     return result.scalars().all()
 
 
+@router.get("/mine", response_model=list[PayoutOut])
+async def list_my_payouts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Influencer sees their own payout history."""
+    inf_result = await db.execute(select(Influencer).where(Influencer.user_id == current_user.id))
+    influencer = inf_result.scalar_one_or_none()
+    if not influencer:
+        return []
+    result = await db.execute(
+        select(Payout)
+        .where(Payout.payee_type == "influencer", Payout.payee_id == influencer.id)
+        .order_by(Payout.period_end.desc())
+        .limit(20)
+    )
+    return result.scalars().all()
+
+
+@router.post("/request")
+async def request_payout(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Influencer requests a payout of all their payable commissions.
+    Creates a payout record in 'pending' status — admin must approve before money moves.
+    """
+    inf_result = await db.execute(select(Influencer).where(Influencer.user_id == current_user.id))
+    influencer = inf_result.scalar_one_or_none()
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer profile not found")
+
+    # Find all payable commissions for this influencer's orders
+    commissions_result = await db.execute(
+        select(Commission)
+        .join(Order, Commission.order_id == Order.id)
+        .where(Order.influencer_id == influencer.id, Commission.commission_status == "payable")
+    )
+    commissions = commissions_result.scalars().all()
+
+    if not commissions:
+        raise HTTPException(status_code=400, detail="No payable commissions to request payout for")
+
+    total = sum(c.influencer_amount for c in commissions)
+    now = datetime.now(timezone.utc)
+
+    payout = Payout(
+        payee_type="influencer",
+        payee_id=influencer.id,
+        amount=total,
+        currency="GHS",
+        status="pending",
+        period_end=now,
+    )
+    db.add(payout)
+    await db.flush()
+
+    # Link commissions to this payout batch
+    for commission in commissions:
+        commission.payout_batch_id = payout.id
+        commission.commission_status = "paid"
+
+    await db.commit()
+    await db.refresh(payout)
+
+    return {
+        "message": "Payout request submitted — admin will process within 1-2 business days",
+        "payout_id": str(payout.id),
+        "total_GHS": str(total),
+        "commission_count": len(commissions),
+    }
+
+
 @router.post("/run")
 async def run_payouts(
     influencer_id: uuid.UUID,
@@ -44,31 +122,34 @@ async def run_payouts(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Aggregate all payable commissions for an influencer and create a payout batch.
+    Admin: aggregate all payable commissions for a specific influencer and create a payout batch.
     HUMAN APPROVAL REQUIRED before marking payout as processing.
     This endpoint only creates the payout record in 'pending' status.
     """
-    result = await db.execute(
-        select(Commission).where(Commission.commission_status == "payable")
+    commissions_result = await db.execute(
+        select(Commission)
+        .join(Order, Commission.order_id == Order.id)
+        .where(Order.influencer_id == influencer_id, Commission.commission_status == "payable")
     )
-    commissions = result.scalars().all()
+    commissions = commissions_result.scalars().all()
 
     if not commissions:
-        return {"message": "No payable commissions found", "total": "0.00"}
+        return {"message": "No payable commissions found for this influencer", "total": "0.00"}
 
     total = sum(c.influencer_amount for c in commissions)
+    now = datetime.now(timezone.utc)
 
     payout = Payout(
         payee_type="influencer",
         payee_id=influencer_id,
         amount=total,
         currency="GHS",
-        status="pending",  # Requires human approval to move to 'processing'
+        status="pending",
+        period_end=now,
     )
     db.add(payout)
     await db.flush()
 
-    # Link commissions to this payout batch
     for commission in commissions:
         commission.payout_batch_id = payout.id
         commission.commission_status = "paid"
