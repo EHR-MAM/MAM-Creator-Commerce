@@ -78,7 +78,7 @@ interface Product {
   media_urls?: string[];
 }
 
-type Tab = "home" | "orders" | "catalog" | "links" | "store";
+type Tab = "home" | "orders" | "catalog" | "links" | "store" | "analytics";
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 
@@ -1024,12 +1024,142 @@ function StoreTab({ token, profile, onProfileUpdate }: {
 
 // ─── Bottom Nav ────────────────────────────────────────────────────────────────
 
+// ─── Tab: Analytics ────────────────────────────────────────────────────────────
+
+function AnalyticsTab({ token }: { token: string }) {
+  const [daily, setDaily] = useState<{ date: string; orders: number; gmv_GHS: string }[]>([]);
+  const [attribution, setAttribution] = useState<{ source: string; views: number }[]>([]);
+  const [linkTotal, setLinkTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const h = { Authorization: `Bearer ${token}` };
+    Promise.all([
+      fetch(`${API_URL}/analytics/reports/daily/me?days=14`, { headers: h })
+        .then(r => r.ok ? r.json() : []),
+      fetch(`${API_URL}/analytics/reports/attribution/me`, { headers: h })
+        .then(r => r.ok ? r.json() : []),
+      fetch(`${API_URL}/tracking/links`, { headers: h })
+        .then(r => r.ok ? r.json() : []),
+    ]).then(([d, a, links]) => {
+      setDaily(d);
+      setAttribution(a);
+      const total = (links as { click_count: number }[]).reduce((s, l) => s + (l.click_count || 0), 0);
+      setLinkTotal(total);
+      setLoading(false);
+    });
+  }, [token]);
+
+  const maxOrders = Math.max(...daily.map(d => d.orders), 1);
+  const totalOrders = daily.reduce((s, d) => s + d.orders, 0);
+  const totalGMV = daily.reduce((s, d) => s + parseFloat(d.gmv_GHS || "0"), 0);
+  const totalViews = attribution.reduce((s, a) => s + a.views, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="w-8 h-8 rounded-full border-2 border-[#C9A84C] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 pb-24">
+      {/* Summary KPI row */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Orders (14d)", value: totalOrders },
+          { label: "GMV (14d)", value: `GHS ${totalGMV.toFixed(0)}` },
+          { label: "Link Clicks", value: linkTotal },
+        ].map(k => (
+          <div key={k.label} className="bg-[#1A1A1A] rounded-2xl border border-white/8 p-3 text-center">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{k.label}</p>
+            <p className="text-lg font-black text-white">{k.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Orders bar chart (14 days) */}
+      <div className="bg-[#1A1A1A] rounded-2xl border border-white/8 p-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Orders — Last 14 Days</p>
+        {daily.length === 0 ? (
+          <p className="text-xs text-gray-600 text-center py-6">No orders in this period yet</p>
+        ) : (
+          <div className="flex items-end gap-1 h-20">
+            {daily.map(d => {
+              const pct = Math.max((d.orders / maxOrders) * 100, d.orders > 0 ? 8 : 2);
+              return (
+                <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+                  <div
+                    className="w-full rounded-t-sm transition-all"
+                    style={{
+                      height: `${pct}%`,
+                      backgroundColor: d.orders > 0 ? "#C9A84C" : "#2A2A2A",
+                    }}
+                    title={`${d.date}: ${d.orders} orders`}
+                  />
+                  {daily.length <= 7 && (
+                    <span className="text-[8px] text-gray-600 rotate-45 origin-left">{d.date.slice(5)}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Traffic sources */}
+      <div className="bg-[#1A1A1A] rounded-2xl border border-white/8 p-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          Traffic Sources {totalViews > 0 ? `(${totalViews} views)` : ""}
+        </p>
+        {attribution.length === 0 ? (
+          <p className="text-xs text-gray-600 text-center py-4">
+            No storefront views tracked yet. Share your store link to start seeing data.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {attribution.map(a => {
+              const pct = totalViews > 0 ? Math.round((a.views / totalViews) * 100) : 0;
+              const sourceIcon: Record<string, string> = {
+                tiktok: "🎵", instagram: "📸", direct: "🔗", unknown: "❓", other: "🌐",
+              };
+              return (
+                <div key={a.source} className="flex items-center gap-3">
+                  <span className="text-sm w-5">{sourceIcon[a.source] || "🌐"}</span>
+                  <span className="text-xs text-gray-300 capitalize w-20">{a.source}</span>
+                  <div className="flex-1 bg-[#2A2A2A] rounded-full h-1.5">
+                    <div
+                      className="h-1.5 rounded-full bg-[#C9A84C]"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-400 w-10 text-right">{pct}%</span>
+                  <span className="text-xs text-gray-600 w-8 text-right">{a.views}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Tip */}
+      <div className="bg-[#111] rounded-2xl border border-white/5 p-4">
+        <p className="text-xs text-gray-600 leading-relaxed">
+          Tip: Use the <span className="text-[#C9A84C]">Links</span> tab to create TikTok tracking links.
+          Each link captures clicks so you can see which posts drive the most sales.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function BottomNav({ tab, setTab, newOrderCount }: { tab: Tab; setTab: (t: Tab) => void; newOrderCount: number }) {
   const items: { id: Tab; label: string; icon: string }[] = [
     { id: "home", label: "Home", icon: "⬡" },
     { id: "orders", label: "Orders", icon: "📦" },
     { id: "catalog", label: "Catalog", icon: "🛍️" },
-    { id: "links", label: "Links", icon: "🔗" },
+    { id: "analytics", label: "Stats", icon: "📊" },
     { id: "store", label: "Store", icon: "✦" },
   ];
 
@@ -1165,6 +1295,7 @@ export default function InfluencerDashboard() {
         {tab === "home" && <HomeTab kpi={kpi} commissions={commissions} profile={profile} />}
         {tab === "orders" && <OrdersTab orders={orders} />}
         {tab === "catalog" && <CatalogTab token={token ?? ""} />}
+        {tab === "analytics" && <AnalyticsTab token={token ?? ""} />}
         {tab === "links" && <LinksTab token={token ?? ""} />}
         {tab === "store" && (
           <StoreTab

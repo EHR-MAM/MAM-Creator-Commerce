@@ -120,8 +120,8 @@ async def get_daily_trend(
     """
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
-    # Daily event counts (storefront views + link clicks)
-    day_col = func.strftime("%Y-%m-%d", AnalyticsEvent.occurred_at).label("day")
+    # Daily event counts — use PostgreSQL TO_CHAR for date truncation
+    day_col = func.to_char(AnalyticsEvent.occurred_at, "YYYY-MM-DD").label("day")
     event_counts = await db.execute(
         select(
             day_col,
@@ -151,6 +151,66 @@ async def get_daily_trend(
             pivot[day_str]["orders"] = row.count
 
     return sorted(pivot.values(), key=lambda x: x["date"])
+
+
+@router.get("/reports/daily/me")
+async def get_my_daily_trend(
+    days: int = Query(default=14, ge=1, le=90),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Influencer: daily orders + commissions for their store over the last N days."""
+    inf_result = await db.execute(select(Influencer).where(Influencer.user_id == current_user.id))
+    influencer = inf_result.scalar_one_or_none()
+    if not influencer:
+        return []
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    day_col = func.to_char(Order.created_at, "YYYY-MM-DD").label("day")
+    rows_result = await db.execute(
+        select(
+            day_col,
+            func.count(Order.id).label("orders"),
+            func.sum(Order.total).label("gmv"),
+        )
+        .where(Order.influencer_id == influencer.id, Order.created_at >= since)
+        .group_by(day_col)
+        .order_by(day_col)
+    )
+    rows = rows_result.all()
+    return [
+        {"date": str(r.day), "orders": r.orders, "gmv_GHS": str(r.gmv or "0.00")}
+        for r in rows
+    ]
+
+
+@router.get("/reports/attribution/me")
+async def get_my_attribution(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Influencer: traffic source breakdown for their storefront."""
+    inf_result = await db.execute(select(Influencer).where(Influencer.user_id == current_user.id))
+    influencer = inf_result.scalar_one_or_none()
+    if not influencer:
+        return []
+
+    result = await db.execute(
+        text("""
+            SELECT
+                COALESCE(payload_json->>'utm_source', 'direct') AS source,
+                COUNT(*) AS views
+            FROM analytics_events
+            WHERE event_name = 'storefront.viewed'
+              AND payload_json->>'influencer_handle' = :handle
+            GROUP BY source
+            ORDER BY views DESC
+        """),
+        {"handle": influencer.handle},
+    )
+    rows = result.all()
+    return [{"source": r.source, "views": r.views} for r in rows]
 
 
 @router.get("/reports/attribution")
