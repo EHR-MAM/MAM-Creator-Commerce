@@ -16,7 +16,10 @@ interface Payout {
   currency: string;
   status: string;
   payment_method?: string;
+  external_reference?: string;
   period_end?: string;
+  influencer_handle?: string;
+  influencer_momo?: string;
 }
 
 export default function AdminPayouts() {
@@ -141,8 +144,26 @@ export default function AdminPayouts() {
                 <div key={p.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <p className="font-bold text-lg">GHS {Number(p.amount).toFixed(2)}</p>
-                      <p className="text-xs font-mono text-gray-400 mt-0.5">ID: {p.id.slice(0, 12)}…</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-black text-xl">GHS {Number(p.amount).toFixed(2)}</p>
+                        {p.influencer_handle && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                            @{p.influencer_handle}
+                          </span>
+                        )}
+                      </div>
+                      {/* MoMo number — prominently shown for admin to transfer */}
+                      {p.influencer_momo ? (
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2 mb-2">
+                          <span className="text-amber-700 text-sm">📱</span>
+                          <div>
+                            <p className="text-[10px] text-amber-600 font-medium uppercase tracking-wider">Send MoMo to</p>
+                            <p className="font-bold text-amber-800 text-sm">{p.influencer_momo}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-red-400 mt-1 mb-2">⚠ No MoMo number saved — ask creator to update profile</p>
+                      )}
                       <p className="text-xs text-gray-400">
                         Requested: {p.period_end ? new Date(p.period_end).toLocaleString() : "—"}
                       </p>
@@ -190,10 +211,11 @@ export default function AdminPayouts() {
                 .map(p => (
                 <div key={p.id} className="bg-white rounded-xl p-4 border border-gray-100 flex justify-between items-center">
                   <div>
-                    <p className="text-sm font-semibold">{p.currency} {Number(p.amount).toFixed(2)}</p>
+                    <p className="text-sm font-semibold">{p.currency} {Number(p.amount).toFixed(2)}{p.influencer_handle ? ` — @${p.influencer_handle}` : ""}</p>
                     <p className="text-xs text-gray-400 font-mono">{p.id.slice(0, 12)}…</p>
                     <p className="text-xs text-gray-400">
                       {p.period_end ? new Date(p.period_end).toLocaleDateString() : "—"}
+                      {p.external_reference ? ` · Ref: ${p.external_reference}` : ""}
                     </p>
                   </div>
                   <span className={`text-xs px-3 py-1 rounded-full font-bold ${

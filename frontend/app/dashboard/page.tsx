@@ -21,6 +21,7 @@ interface InfluencerProfile {
   bio: string | null;
   avatar_url: string | null;
   payout_method: string | null;
+  payout_details_ref: string | null;
 }
 
 interface Commission {
@@ -806,6 +807,7 @@ function StoreTab({ token, profile, onProfileUpdate }: {
 
   const [bio, setBio] = useState(profile?.bio || "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
+  const [momoNumber, setMomoNumber] = useState(profile?.payout_details_ref || "");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState("");
@@ -815,7 +817,8 @@ function StoreTab({ token, profile, onProfileUpdate }: {
     if (profile?.template_id) setSelectedTemplate(profile.template_id as TemplateId);
     if (profile?.bio !== undefined) setBio(profile.bio || "");
     if (profile?.avatar_url !== undefined) setAvatarUrl(profile.avatar_url || "");
-  }, [profile?.template_id, profile?.bio, profile?.avatar_url]);
+    if (profile?.payout_details_ref !== undefined) setMomoNumber(profile.payout_details_ref || "");
+  }, [profile?.template_id, profile?.bio, profile?.avatar_url, profile?.payout_details_ref]);
 
   async function saveTemplate() {
     setSavingTemplate(true);
@@ -846,6 +849,7 @@ function StoreTab({ token, profile, onProfileUpdate }: {
         body: JSON.stringify({
           bio: bio || null,
           avatar_url: avatarUrl || null,
+          payout_details_ref: momoNumber || null,
         }),
       });
       if (res.ok) {
@@ -1007,6 +1011,21 @@ function StoreTab({ token, profile, onProfileUpdate }: {
             placeholder="Tell customers about yourself and what you sell..."
             className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors resize-none"
           />
+        </div>
+
+        {/* MoMo / Payout Number */}
+        <div>
+          <label className="text-xs text-gray-400 font-medium block mb-1.5">
+            MoMo / Payout Number
+          </label>
+          <input
+            type="tel"
+            value={momoNumber}
+            onChange={e => setMomoNumber(e.target.value)}
+            placeholder="e.g. 0244123456 (MTN MoMo)"
+            className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors"
+          />
+          <p className="text-[10px] text-gray-600 mt-1">Admin sends your earnings to this number when you request a payout</p>
         </div>
 
         {profileError && <p className="text-red-400 text-xs">{profileError}</p>}

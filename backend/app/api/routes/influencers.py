@@ -37,6 +37,7 @@ class InfluencerOut(BaseModel):
     platform_name: str
     audience_region: str
     payout_method: Optional[str]
+    payout_details_ref: Optional[str] = None
     status: str
     template_id: Optional[str] = "glow"
     bio: Optional[str] = None
@@ -53,6 +54,7 @@ class TemplateUpdate(BaseModel):
 class ProfileUpdate(BaseModel):
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
+    payout_details_ref: Optional[str] = None  # MoMo number / payout destination
 
 
 @router.get("/me", response_model=InfluencerOut)

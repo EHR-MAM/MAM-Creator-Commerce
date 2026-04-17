@@ -26,7 +26,11 @@ class PayoutOut(BaseModel):
     currency: str
     status: str
     payment_method: Optional[str]
+    external_reference: Optional[str] = None
     period_end: Optional[datetime] = None
+    # Enriched fields (joined from influencers table)
+    influencer_handle: Optional[str] = None
+    influencer_momo: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -38,7 +42,22 @@ async def list_payouts(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Payout).order_by(Payout.period_end.desc()).limit(100))
-    return result.scalars().all()
+    payouts = result.scalars().all()
+
+    # Enrich with influencer handle + MoMo number
+    enriched = []
+    for payout in payouts:
+        out = PayoutOut.model_validate(payout)
+        if payout.payee_type == "influencer":
+            inf_result = await db.execute(
+                select(Influencer).where(Influencer.id == payout.payee_id)
+            )
+            influencer = inf_result.scalar_one_or_none()
+            if influencer:
+                out.influencer_handle = influencer.handle
+                out.influencer_momo = influencer.payout_details_ref
+        enriched.append(out)
+    return enriched
 
 
 @router.get("/mine", response_model=list[PayoutOut])
