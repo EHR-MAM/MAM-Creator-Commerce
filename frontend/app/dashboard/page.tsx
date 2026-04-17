@@ -62,6 +62,7 @@ interface TrackingLink {
   id: string;
   code: string;
   label: string;
+  destination_path: string;
   click_count: number;
   is_active: boolean;
   created_at: string;
