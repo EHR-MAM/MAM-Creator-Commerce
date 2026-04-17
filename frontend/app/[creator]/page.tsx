@@ -26,10 +26,10 @@ async function getCreatorData(handle: string) {
   }
 }
 
-async function getCampaignProducts(campaignId: string) {
+async function getInfluencerProducts(influencerId: string) {
   try {
     const res = await fetch(
-      API_URL + "/products?campaign_id=" + campaignId + "&status=active",
+      API_URL + "/products?influencer_id=" + influencerId + "&status=active&limit=100",
       { next: { revalidate: 60 } }
     );
     if (!res.ok) return [];
@@ -86,9 +86,8 @@ export default async function CreatorStorefront({
   const creator = await getCreatorData(handle);
   if (!creator) notFound();
 
-  const products = creator.campaign_id
-    ? await getCampaignProducts(creator.campaign_id)
-    : [];
+  // Load products assigned to this influencer via campaigns (empty array if none assigned)
+  const products = creator.id ? await getInfluencerProducts(creator.id) : [];
 
   // Template priority: URL ?t= param (preview) > influencer record > default
   const templateId =

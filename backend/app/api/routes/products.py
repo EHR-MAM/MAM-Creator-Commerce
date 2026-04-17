@@ -20,12 +20,33 @@ router = APIRouter()
 async def list_products(
     category: Optional[str] = Query(None),
     vendor_id: Optional[uuid.UUID] = Query(None),
+    influencer_id: Optional[uuid.UUID] = Query(None),
     status: Optional[str] = Query("active"),
     search: Optional[str] = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
     db: AsyncSession = Depends(get_db),
 ):
+    # influencer_id filter: return only products assigned to that influencer via campaigns
+    if influencer_id:
+        links_result = await db.execute(
+            select(ProductCampaignLink.product_id)
+            .join(Campaign, Campaign.id == ProductCampaignLink.campaign_id)
+            .where(Campaign.influencer_id == influencer_id)
+            .where(ProductCampaignLink.active == True)
+        )
+        product_ids = [row[0] for row in links_result.all()]
+        if not product_ids:
+            return []
+        query = select(Product).where(Product.id.in_(product_ids))
+        if status:
+            query = query.where(Product.status == status)
+        if category:
+            query = query.where(Product.category == category)
+        query = query.order_by(Product.name).offset(offset).limit(limit)
+        result = await db.execute(query)
+        return result.scalars().all()
+
     query = select(Product)
     if status:
         query = query.where(Product.status == status)
