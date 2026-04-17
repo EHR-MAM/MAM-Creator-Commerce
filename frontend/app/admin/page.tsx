@@ -180,6 +180,8 @@ export default function AdminPage() {
   const token = authToken || "";
   const [tab, setTab] = useState<Tab>("overview");
   const [msg, setMsg] = useState("");
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
 
   // Redirect to login if not authenticated or wrong role
   useEffect(() => {
@@ -245,8 +247,8 @@ export default function AdminPage() {
   ];
 
   const payableTotal = commissions
-    .filter((c: any) => c.status === "payable")
-    .reduce((s: number, c: any) => s + Number(c.amount || 0), 0);
+    .filter((c: any) => c.commission_status === "payable")
+    .reduce((s: number, c: any) => s + Number(c.influencer_amount || 0), 0);
 
   return (
     <div className="min-h-screen bg-[#FAF7F2]">
@@ -300,7 +302,7 @@ export default function AdminPage() {
               <KpiCard label="Delivered" value={orders.filter((o: any) => o.status === "delivered").length} />
               <KpiCard
                 label="GMV"
-                value={`GHS ${orders.reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0).toFixed(2)}`}
+                value={`GHS ${orders.reduce((s: number, o: any) => s + Number(o.total || 0), 0).toFixed(2)}`}
               />
               <KpiCard label="Creator Owed" value={`GHS ${payableTotal.toFixed(2)}`} />
             </div>
@@ -324,7 +326,7 @@ export default function AdminPage() {
                     {orders.slice(0, 5).map((o: any) => (
                       <tr key={o.id} className="border-b border-gray-50 last:border-0">
                         <td className="px-4 py-3 font-mono text-xs text-gray-500">{o.id?.slice(0, 8)}…</td>
-                        <td className="px-4 py-3 font-semibold">GHS {Number(o.total_amount).toFixed(2)}</td>
+                        <td className="px-4 py-3 font-semibold">GHS {Number(o.total).toFixed(2)}</td>
                         <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                       </tr>
                     ))}
@@ -341,20 +343,69 @@ export default function AdminPage() {
         {/* ORDERS */}
         {tab === "orders" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            {/* Header + filters */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
               <h2 className="font-bold text-gray-900">All Orders ({orders.length})</h2>
-              <span className="text-xs text-gray-400">
-                Pending: {orders.filter((o: any) => o.status === "pending").length}
-              </span>
-            </div>
-            {orders.length === 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-400">
-                No orders yet
+              <div className="flex gap-2 w-full sm:w-auto">
+                <input
+                  type="search"
+                  placeholder="Search name or phone…"
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  className="flex-1 sm:w-48 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:border-gray-400"
+                />
+                <select
+                  value={orderStatusFilter}
+                  onChange={(e) => setOrderStatusFilter(e.target.value)}
+                  className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:border-gray-400 bg-white"
+                >
+                  <option value="all">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="processing">Processing</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="refunded">Refunded</option>
+                </select>
               </div>
-            )}
-            {orders.map((o: any) => (
-              <OrderCard key={o.id} order={o} onAdvance={advanceOrder} />
-            ))}
+            </div>
+            {/* Status tab pills */}
+            <div className="flex gap-2 flex-wrap">
+              {["all", "pending", "confirmed", "processing", "shipped", "delivered", "cancelled"].map(s => {
+                const count = s === "all" ? orders.length : orders.filter((o: any) => o.status === s).length;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setOrderStatusFilter(s)}
+                    className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${
+                      orderStatusFilter === s
+                        ? "bg-[#111] text-white"
+                        : "bg-white border border-gray-200 text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >
+                    {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)} ({count})
+                  </button>
+                );
+              })}
+            </div>
+            {/* Order list */}
+            {(() => {
+              const q = orderSearch.toLowerCase();
+              const filtered = orders.filter((o: any) => {
+                const matchStatus = orderStatusFilter === "all" || o.status === orderStatusFilter;
+                const matchSearch = !q || (o.customer_name || "").toLowerCase().includes(q) || (o.customer_phone || "").includes(q);
+                return matchStatus && matchSearch;
+              });
+              if (filtered.length === 0) return (
+                <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-400">
+                  {orders.length === 0 ? "No orders yet" : "No orders match your search/filter"}
+                </div>
+              );
+              return filtered.map((o: any) => (
+                <OrderCard key={o.id} order={o} onAdvance={advanceOrder} />
+              ));
+            })()}
           </div>
         )}
 
@@ -538,9 +589,9 @@ export default function AdminPage() {
                   {commissions.map((c: any) => (
                     <tr key={c.id} className="border-b border-gray-50 last:border-0">
                       <td className="px-4 py-3 font-mono text-xs text-gray-400">{c.order_id?.slice(0, 8)}…</td>
-                      <td className="px-4 py-3 font-mono text-xs">{c.influencer_id?.slice(0, 8)}…</td>
-                      <td className="px-4 py-3 font-bold">GHS {Number(c.amount).toFixed(2)}</td>
-                      <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+                      <td className="px-4 py-3 font-mono text-xs">{c.order_id?.slice(-8)}</td>
+                      <td className="px-4 py-3 font-bold">GHS {Number(c.influencer_amount).toFixed(2)}</td>
+                      <td className="px-4 py-3"><StatusBadge status={c.commission_status} /></td>
                     </tr>
                   ))}
                   {commissions.length === 0 && (
