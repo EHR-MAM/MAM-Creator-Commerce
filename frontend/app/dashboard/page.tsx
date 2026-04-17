@@ -507,13 +507,21 @@ function OrdersTab({ orders }: { orders: Order[] }) {
 
 // ─── Tab: Links ────────────────────────────────────────────────────────────────
 
-function LinksTab({ token }: { token: string }) {
+function LinksTab({ token, profile }: {
+  token: string;
+  profile: InfluencerProfile | null;
+}) {
   const [links, setLinks] = useState<TrackingLink[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [label, setLabel] = useState("");
+  const [destProduct, setDestProduct] = useState<string>(""); // "" = entire store
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [shareFor, setShareFor] = useState<string | null>(null); // link id
   const [error, setError] = useState("");
+
+  const handle = profile?.handle || "";
 
   const fetchLinks = useCallback(async () => {
     setLoading(true);
@@ -531,20 +539,37 @@ function LinksTab({ token }: { token: string }) {
 
   useEffect(() => { fetchLinks(); }, [fetchLinks]);
 
+  // Load influencer's assigned products for destination picker
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_URL}/products/mine`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setProducts(data))
+      .catch(() => {/* silent */});
+  }, [token]);
+
   async function createLink(e: React.FormEvent) {
     e.preventDefault();
     setCreating(true);
+    setError("");
     try {
+      const destination = destProduct
+        ? `/${handle}/${destProduct}`
+        : `/${handle}`;
       const res = await fetch(`${API_URL}/tracking/links`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label || undefined }),
+        body: JSON.stringify({
+          label: label || undefined,
+          destination_path: destination,
+        }),
       });
       if (!res.ok) throw new Error();
       setLabel("");
+      setDestProduct("");
       await fetchLinks();
     } catch {
-      setError("Failed to create link.");
+      setError("Failed to create link. Try again.");
     } finally {
       setCreating(false);
     }
@@ -567,58 +592,91 @@ function LinksTab({ token }: { token: string }) {
     });
   }
 
+  function buildShareText(link: TrackingLink) {
+    const prod = products.find(p => link.destination_path?.includes(p.id));
+    const productName = prod ? prod.name : "my store";
+    return `Check out ${productName} on Yes MAM! 🛍️\n\n${link.short_url}\n\n#YesMAM #Ghana #ShopNow`;
+  }
+
   const totalClicks = links.reduce((s, l) => s + l.click_count, 0);
+  const activeCount = links.filter(l => l.is_active).length;
 
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-black text-white">TikTok Links</h2>
-        <p className="text-xs text-gray-500 mt-0.5">Track which posts drive sales</p>
+        <h2 className="text-xl font-black text-white">Tracking Links</h2>
+        <p className="text-xs text-gray-500 mt-0.5">Create unique links to track which TikTok posts drive sales</p>
       </div>
 
-      {/* Click counter */}
-      {totalClicks > 0 && (
-        <div className="bg-[#C9A84C]/10 border border-[#C9A84C]/20 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Total Clicks</p>
-            <p className="text-3xl font-black text-[#C9A84C]">{totalClicks.toLocaleString()}</p>
-          </div>
-          <p className="text-xs text-gray-500">{links.filter(l => l.is_active).length} active links</p>
+      {/* Stats banner */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-[#C9A84C]/10 border border-[#C9A84C]/20 rounded-2xl p-4">
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Total Clicks</p>
+          <p className="text-3xl font-black text-[#C9A84C]">{totalClicks.toLocaleString()}</p>
         </div>
-      )}
+        <div className="bg-[#1A1A1A] border border-white/8 rounded-2xl p-4">
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Active Links</p>
+          <p className="text-3xl font-black text-white">{activeCount}</p>
+        </div>
+      </div>
 
       {/* How it works */}
       <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
         <p className="text-sm font-bold text-white mb-2">How it works</p>
         <ol className="text-xs text-gray-400 space-y-1.5 list-decimal list-inside">
-          <li>Create a link for each TikTok post you promote</li>
-          <li>Put the short link in your TikTok bio or video caption</li>
-          <li>Every click is tracked — see which posts drive the most sales</li>
+          <li>Create a link for each post — label it by date or product</li>
+          <li>Paste the short link in your TikTok bio or video caption</li>
+          <li>Every click and sale is tracked back to that post</li>
         </ol>
       </div>
 
-      {/* Create link */}
+      {/* Create link form */}
       {error && <p className="text-red-400 text-xs">{error}</p>}
-      <form onSubmit={createLink} className="flex gap-2">
-        <input
-          value={label}
-          onChange={e => setLabel(e.target.value)}
-          placeholder="Label (e.g. TikTok Mar 15)"
-          className="flex-1 bg-[#1A1A1A] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60"
-        />
+      <form onSubmit={createLink} className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8 space-y-3">
+        <p className="text-sm font-bold text-white">Create New Link</p>
+
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Label (optional)</label>
+          <input
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            placeholder="e.g. TikTok Mar 15 — Wig reveal"
+            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 block mb-1">Destination</label>
+          <select
+            value={destProduct}
+            onChange={e => setDestProduct(e.target.value)}
+            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#C9A84C]/60"
+          >
+            <option value="">Entire store (@{handle})</option>
+            {products.filter(p => p.status === "active").map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <p className="text-[10px] text-gray-600 mt-1">
+            {destProduct
+              ? `→ /${handle}/${destProduct.slice(0, 8)}…`
+              : `→ /${handle} (full storefront)`}
+          </p>
+        </div>
+
         <button
           type="submit"
           disabled={creating}
-          className="px-4 py-3 bg-[#C9A84C] text-black rounded-xl text-sm font-black shrink-0 disabled:opacity-50"
+          className="w-full py-3 bg-[#C9A84C] text-black rounded-xl text-sm font-black disabled:opacity-50"
         >
-          {creating ? "…" : "+ Add"}
+          {creating ? "Creating…" : "Generate Link"}
         </button>
       </form>
 
       {/* Links list */}
       {loading ? (
         <div className="space-y-2">
-          {[0, 1, 2].map(i => <div key={i} className="h-16 bg-[#1A1A1A] rounded-2xl animate-pulse" />)}
+          {[0, 1, 2].map(i => <div key={i} className="h-20 bg-[#1A1A1A] rounded-2xl animate-pulse" />)}
         </div>
       ) : links.length === 0 ? (
         <div className="text-center py-10 bg-[#1A1A1A] rounded-2xl border border-white/8">
@@ -661,14 +719,34 @@ function LinksTab({ token }: { token: string }) {
                       {copied === link.short_url ? "Copied!" : "Copy"}
                     </button>
                     <button
+                      onClick={() => setShareFor(shareFor === link.id ? null : link.id)}
+                      className="px-3 py-1.5 rounded-xl text-xs text-gray-400 border border-white/10 hover:text-white"
+                    >
+                      Share
+                    </button>
+                    <button
                       onClick={() => deactivateLink(link.id)}
-                      className="px-3 py-1.5 rounded-xl text-xs text-gray-500 border border-white/10"
+                      className="px-3 py-1.5 rounded-xl text-xs text-gray-600 border border-white/8 hover:text-gray-400"
                     >
                       Disable
                     </button>
                   </div>
                 )}
               </div>
+
+              {/* Share text panel */}
+              {shareFor === link.id && link.is_active && (
+                <div className="mt-3 bg-black/30 rounded-xl p-3 border border-white/8">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide font-bold mb-2">Share text</p>
+                  <p className="text-xs text-gray-300 whitespace-pre-line">{buildShareText(link)}</p>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(buildShareText(link)).then(() => { setCopied(link.id); setTimeout(() => setCopied(null), 2000); })}
+                    className="mt-2 text-xs text-[#C9A84C] font-bold hover:underline"
+                  >
+                    {copied === link.id ? "Copied!" : "Copy share text"}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1209,6 +1287,7 @@ function BottomNav({ tab, setTab, newOrderCount }: { tab: Tab; setTab: (t: Tab) 
     { id: "home", label: "Home", icon: "⬡" },
     { id: "orders", label: "Orders", icon: "📦" },
     { id: "catalog", label: "Catalog", icon: "🛍️" },
+    { id: "links", label: "Links", icon: "🔗" },
     { id: "analytics", label: "Stats", icon: "📊" },
     { id: "store", label: "Store", icon: "✦" },
   ];
@@ -1346,7 +1425,7 @@ export default function InfluencerDashboard() {
         {tab === "orders" && <OrdersTab orders={orders} />}
         {tab === "catalog" && <CatalogTab token={token ?? ""} />}
         {tab === "analytics" && <AnalyticsTab token={token ?? ""} />}
-        {tab === "links" && <LinksTab token={token ?? ""} />}
+        {tab === "links" && <LinksTab token={token ?? ""} profile={profile} />}
         {tab === "store" && (
           <StoreTab
             token={token ?? ""}
