@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # CORS
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://sensedirector.com", "https://yesmam.shop", "https://www.yesmam.shop"]
 
     # Commission rates (defaults, can be overridden per campaign)
     DEFAULT_CREATOR_COMMISSION_RATE: float = 0.18   # 18%
@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"
 
 
 settings = Settings()
