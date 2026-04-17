@@ -1,13 +1,27 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 
-const PAYMENT_METHODS = [
+const ICON_MAP: Record<string, string> = {
+  home: "🏠",
+  mobile: "📱",
+  card: "💳",
+  bank: "🏦",
+};
+
+// Fallback shown while methods load or if API fails
+const FALLBACK_METHODS = [
   { id: "pay_on_delivery", label: "Pay on Delivery", icon: "🏠", desc: "Cash or MoMo on arrival", available: true },
-  { id: "mtn_momo_gh", label: "MTN Mobile Money", icon: "📱", desc: "Instant MoMo payment", available: false },
-  { id: "card", label: "Debit / Credit Card", icon: "💳", desc: "Visa, Mastercard", available: false },
 ];
+
+interface PaymentMethod {
+  id: string;
+  label: string;
+  icon: string;
+  desc: string;
+  available: boolean;
+}
 
 interface Product {
   id: string;
@@ -36,10 +50,30 @@ export default function OrderForm({
   const [sizeVariant, setSizeVariant] = useState("");
   const [instructions, setInstructions] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("pay_on_delivery");
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(FALLBACK_METHODS);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState("");
   const [error, setError] = useState("");
+
+  // Load payment methods from API on mount
+  useEffect(() => {
+    fetch(`${API_URL}/payments/methods?country=GH`)
+      .then((r) => r.json())
+      .then((data) => {
+        const methods: PaymentMethod[] = (data.methods || []).map((m: {id: string; name: string; icon: string; provider: string}) => ({
+          id: m.id,
+          label: m.name,
+          icon: ICON_MAP[m.icon] || "💳",
+          desc: m.provider === "cod" ? "Cash or MoMo on arrival" : m.provider === "paystack" ? "Powered by Paystack" : m.provider,
+          available: m.provider === "cod",
+        }));
+        if (methods.length > 0) setPaymentMethods(methods);
+      })
+      .catch(() => {
+        // keep FALLBACK_METHODS on network error
+      });
+  }, []);
 
   const deliveryFee = 20;
   const itemTotal = product.price * quantity;
@@ -255,7 +289,7 @@ export default function OrderForm({
       <div>
         <label className="text-sm font-medium text-gray-700 block mb-2">Payment Method</label>
         <div className="space-y-2">
-          {PAYMENT_METHODS.map((m) => (
+          {paymentMethods.map((m) => (
             <button
               key={m.id}
               type="button"
