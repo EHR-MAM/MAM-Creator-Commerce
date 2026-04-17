@@ -1164,11 +1164,11 @@ export default function InfluencerDashboard() {
       <div className="max-w-lg mx-auto px-4 py-6">
         {tab === "home" && <HomeTab kpi={kpi} commissions={commissions} profile={profile} />}
         {tab === "orders" && <OrdersTab orders={orders} />}
-        {tab === "catalog" && <CatalogTab token={token} />}
-        {tab === "links" && <LinksTab token={token} />}
+        {tab === "catalog" && <CatalogTab token={token ?? ""} />}
+        {tab === "links" && <LinksTab token={token ?? ""} />}
         {tab === "store" && (
           <StoreTab
-            token={token}
+            token={token ?? ""}
             profile={profile}
             onProfileUpdate={setProfile}
           />
