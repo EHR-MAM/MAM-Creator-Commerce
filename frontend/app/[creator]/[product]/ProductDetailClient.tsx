@@ -1,10 +1,11 @@
 "use client";
-// ProductDetailClient — Sprint IV
-// Image carousel, affiliate CTA, related products, order form
+// ProductDetailClient — Sprint IV + Sprint XIX (multi-product cart)
+// Image carousel, Add to Cart, cart drawer, affiliate CTA, related products
 import { useState } from "react";
 import Link from "next/link";
-import OrderForm from "@/components/OrderForm";
 import WhatsAppFallback from "@/components/WhatsAppFallback";
+import CartDrawer from "@/components/CartDrawer";
+import { useCart } from "@/lib/cart";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
@@ -52,7 +53,6 @@ function ImageCarousel({ images, name, category }: { images: string[]; name: str
 
   return (
     <div>
-      {/* Main image */}
       <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden relative">
         {hasImages ? (
           <img
@@ -67,8 +67,6 @@ function ImageCarousel({ images, name, category }: { images: string[]; name: str
           </div>
         )}
       </div>
-
-      {/* Thumbnail strip — only if 2+ images */}
       {images.length > 1 && (
         <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
           {images.map((img, i) => (
@@ -171,22 +169,57 @@ export default function ProductDetailClient({
   const inStock = product.inventory_count > 0;
   const influencerId = influencer?.id || null;
 
+  const { addItem, count } = useCart();
+  const [cartOpen, setCartOpen] = useState(false);
+  const [addedFeedback, setAddedFeedback] = useState(false);
+  const [qty, setQty] = useState(1);
+
+  function handleAddToCart() {
+    addItem({
+      productId: product.id,
+      productName: product.name,
+      price: Number(product.price),
+      currency: product.currency,
+      vendorId: product.vendor_id,
+      influencerId,
+      creatorHandle,
+      imageUrl: images[0],
+    }, qty);
+    setAddedFeedback(true);
+    setTimeout(() => setAddedFeedback(false), 2000);
+  }
+
   return (
     <main className="min-h-screen bg-[#FAF7F2]">
-      {/* Back nav */}
+      {/* Back nav + cart icon */}
       <div className="bg-black px-4 py-3 sticky top-0 z-10">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <Link href={`${BASE}/${creatorHandle}`} className="text-[#C9A84C] text-sm font-semibold">
             ← @{creatorHandle}
           </Link>
-          <a
-            href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi! I want to order ${product.name} from @${creatorHandle}'s Yes MAM store.`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 bg-[#25D366] text-white text-xs font-bold px-3 py-1.5 rounded-xl"
-          >
-            💬 WhatsApp
-          </a>
+          <div className="flex items-center gap-3">
+            {/* Cart icon with badge */}
+            <button
+              onClick={() => setCartOpen(true)}
+              className="relative text-white"
+              aria-label="Open cart"
+            >
+              <span className="text-xl">🛒</span>
+              {count > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#C9A84C] text-black text-[10px] font-black rounded-full flex items-center justify-center">
+                  {count}
+                </span>
+              )}
+            </button>
+            <a
+              href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi! I want to order ${product.name} from @${creatorHandle}'s Yes MAM store.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 bg-[#25D366] text-white text-xs font-bold px-3 py-1.5 rounded-xl"
+            >
+              💬 WhatsApp
+            </a>
+          </div>
         </div>
       </div>
 
@@ -202,19 +235,16 @@ export default function ProductDetailClient({
           </p>
           <h1 className="text-2xl font-black text-gray-900 leading-tight">{product.name}</h1>
 
-          {/* Rating */}
           {product.rating && product.review_count ? (
             <StarRating rating={product.rating} count={product.review_count} />
           ) : null}
 
-          {/* Price */}
           <div className="flex items-baseline gap-3 mt-3">
             <p className="text-3xl font-black text-gray-900">
               {product.currency} {Number(product.price).toFixed(2)}
             </p>
           </div>
 
-          {/* Availability */}
           <div className="flex items-center gap-2 mt-2">
             <span className={`w-2 h-2 rounded-full ${inStock ? "bg-green-500" : "bg-red-400"}`} />
             <span className={`text-sm font-medium ${inStock ? "text-green-700" : "text-red-600"}`}>
@@ -226,13 +256,71 @@ export default function ProductDetailClient({
             </span>
           </div>
 
-          {/* Description */}
           {product.description && (
             <p className="text-gray-600 text-sm leading-relaxed mt-3 border-t border-gray-100 pt-3">
               {product.description}
             </p>
           )}
         </div>
+
+        {/* ── Add to Cart section ── */}
+        {inStock && (
+          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm space-y-3">
+            {/* Quantity selector */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Quantity</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setQty(q => Math.max(1, q - 1))}
+                  className="w-8 h-8 rounded-full border border-gray-200 font-bold text-lg flex items-center justify-center hover:bg-gray-50"
+                >
+                  −
+                </button>
+                <span className="font-bold text-base w-6 text-center">{qty}</span>
+                <button
+                  type="button"
+                  onClick={() => setQty(q => q + 1)}
+                  className="w-8 h-8 rounded-full border border-gray-200 font-bold text-lg flex items-center justify-center hover:bg-gray-50"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Add to Cart button */}
+            <button
+              onClick={handleAddToCart}
+              className={`w-full py-4 rounded-xl font-black text-base transition-all ${
+                addedFeedback
+                  ? "bg-green-600 text-white"
+                  : "bg-black text-white hover:bg-gray-900"
+              }`}
+            >
+              {addedFeedback ? "✓ Added to cart!" : `Add to Cart — ${product.currency} ${(Number(product.price) * qty).toFixed(2)}`}
+            </button>
+
+            {/* View cart shortcut if items in cart */}
+            {count > 0 && (
+              <button
+                onClick={() => setCartOpen(true)}
+                className="w-full py-3 rounded-xl font-bold text-sm border border-black text-black hover:bg-gray-50 transition-colors"
+              >
+                View Cart ({count} item{count !== 1 ? "s" : ""}) → Checkout
+              </button>
+            )}
+          </div>
+        )}
+
+        {!inStock && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-center">
+            <p className="text-2xl mb-2">😔</p>
+            <p className="text-red-600 font-bold">Currently sold out</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Message @{creatorHandle} on WhatsApp to be notified when it&apos;s back.
+            </p>
+          </div>
+        )}
 
         {/* ── Affiliate Buy Now CTA (if affiliate_url present) ── */}
         {product.affiliate_url && (
@@ -249,19 +337,6 @@ export default function ProductDetailClient({
 
         {/* ── Influencer Badge ── */}
         <InfluencerBadge influencer={influencer} handle={creatorHandle} />
-
-        {/* ── Order Form ── */}
-        {inStock ? (
-          <OrderForm product={product} creatorHandle={creatorHandle} influencerId={influencerId} />
-        ) : (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-center">
-            <p className="text-2xl mb-2">😔</p>
-            <p className="text-red-600 font-bold">Currently sold out</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Message @{creatorHandle} on WhatsApp to be notified when it&apos;s back.
-            </p>
-          </div>
-        )}
 
         {/* ── WhatsApp fallback ── */}
         <WhatsAppFallback
@@ -308,6 +383,9 @@ export default function ProductDetailClient({
         </div>
 
       </div>
+
+      {/* Cart Drawer */}
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
     </main>
   );
 }

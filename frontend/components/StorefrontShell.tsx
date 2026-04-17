@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { type TemplateConfig, TEMPLATES, type TemplateId } from "@/lib/templates";
 import { useState } from "react";
+import CartDrawer from "@/components/CartDrawer";
+import { useCart } from "@/lib/cart";
 
 const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
 
@@ -162,6 +164,8 @@ export default function StorefrontShell({
   previewMode: boolean;
 }) {
   const [activeTemplate, setActiveTemplate] = useState<TemplateId>(template.id);
+  const [cartOpen, setCartOpen] = useState(false);
+  const { count } = useCart();
   const t = TEMPLATES[activeTemplate];
 
   const displayName = creator.name || `@${handle}`;
@@ -311,14 +315,29 @@ export default function StorefrontShell({
             {inStock} items available · Pay on delivery
           </span>
         </div>
-        <a
-          href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi @${handle}! I found your Yes MAM store and want to order. Can you help?`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 bg-[#25D366] text-white text-xs font-black px-3 py-1.5 rounded-xl"
-        >
-          <span>💬</span> WhatsApp
-        </a>
+        <div className="flex items-center gap-2">
+          {/* Cart icon with badge */}
+          <button
+            onClick={() => setCartOpen(true)}
+            className="relative text-gray-700"
+            aria-label="Open cart"
+          >
+            <span className="text-lg">🛒</span>
+            {count > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#C9A84C] text-black text-[10px] font-black rounded-full flex items-center justify-center">
+                {count}
+              </span>
+            )}
+          </button>
+          <a
+            href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi @${handle}! I found your Yes MAM store and want to order. Can you help?`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 bg-[#25D366] text-white text-xs font-black px-3 py-1.5 rounded-xl"
+          >
+            <span>💬</span> WhatsApp
+          </a>
+        </div>
       </div>
 
       {/* ── Product Grid ── */}
@@ -455,6 +474,9 @@ export default function StorefrontShell({
           </a>
         </div>
       </div>
+
+      {/* Cart Drawer */}
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
     </main>
   );
 }
