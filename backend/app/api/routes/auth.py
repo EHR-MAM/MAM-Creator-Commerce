@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import timedelta
@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, UserMe
+from app.services.notifications import send_welcome_notification
 
 router = APIRouter()
 
@@ -18,10 +19,9 @@ _refresh_tokens: dict[str, str] = {}
 
 
 @router.post("/register", status_code=201)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(body: RegisterRequest, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none():
-        from fastapi import HTTPException
         raise HTTPException(status_code=409, detail="Email already registered")
     user = User(
         name=body.name,
@@ -34,6 +34,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     await db.flush()
 
     # Auto-create influencer record for influencer role
+    handle = None
     if body.role == "influencer":
         from app.models.influencer import Influencer
         handle = body.email.split("@")[0].replace(".", "_")
@@ -42,6 +43,18 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
     await db.commit()
     await db.refresh(user)
+
+    # Fire-and-forget welcome notification (WhatsApp ops alert + welcome email)
+    background_tasks.add_task(
+        send_welcome_notification,
+        {
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "handle": handle or "",
+        },
+    )
+
     return {"id": str(user.id), "email": user.email, "role": user.role}
 
 
