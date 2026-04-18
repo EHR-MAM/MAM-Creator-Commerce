@@ -330,10 +330,15 @@ export default function AdminPage() {
               />
               <KpiCard label="Creator Owed" value={`GHS ${payableTotal.toFixed(2)}`} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <KpiCard label="Active Creators" value={creators.filter((c: any) => c.status === "active").length} />
               <KpiCard label="Active Vendors" value={vendors.filter((v: any) => v.status === "active").length} />
               <KpiCard label="Live Campaigns" value={campaigns.filter((c: any) => c.status === "active").length} />
+              <KpiCard
+                label="Platform Revenue"
+                value={`GHS ${commissions.reduce((s: number, c: any) => s + Number(c.platform_amount || 0), 0).toFixed(2)}`}
+                sub="all-time platform fees"
+              />
             </div>
             <div>
               <h2 className="font-bold text-gray-900 mb-3">Recent Orders</h2>
@@ -728,23 +733,44 @@ export default function AdminPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-50">
-                    <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Name</th>
+                    <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Campaign</th>
+                    <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Creator</th>
+                    <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Orders</th>
+                    <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">GMV</th>
                     <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Creator %</th>
-                    <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Platform %</th>
                     <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {campaigns.map((c: any) => (
-                    <tr key={c.id} className="border-b border-gray-50 last:border-0">
-                      <td className="px-4 py-3 font-semibold">{c.name}</td>
-                      <td className="px-4 py-3">{c.creator_commission_pct ?? "—"}%</td>
-                      <td className="px-4 py-3">{c.platform_commission_pct ?? "—"}%</td>
-                      <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
-                    </tr>
-                  ))}
+                  {campaigns.map((c: any) => {
+                    const creator = creators.find((cr: any) => cr.id === c.influencer_id);
+                    const campOrders = orders.filter((o: any) =>
+                      o.campaign_id === c.id || o.influencer_id === c.influencer_id
+                    );
+                    const campGMV = campOrders.reduce((s: number, o: any) => s + Number(o.total || 0), 0);
+                    return (
+                      <tr key={c.id} className="border-b border-gray-50 last:border-0">
+                        <td className="px-4 py-3 font-semibold">
+                          <div>{c.name}</div>
+                          {c.start_at && <div className="text-xs text-gray-400">{new Date(c.start_at).toLocaleDateString()}{c.end_at ? ` – ${new Date(c.end_at).toLocaleDateString()}` : ""}</div>}
+                        </td>
+                        <td className="px-4 py-3">
+                          {creator ? (
+                            <div>
+                              <div className="font-medium text-xs">@{creator.handle}</div>
+                              {creator.display_name && <div className="text-xs text-gray-400">{creator.display_name}</div>}
+                            </div>
+                          ) : <span className="text-gray-300 text-xs">—</span>}
+                        </td>
+                        <td className="px-4 py-3 font-semibold">{campOrders.length}</td>
+                        <td className="px-4 py-3 font-semibold">{campGMV > 0 ? `GHS ${campGMV.toFixed(2)}` : "—"}</td>
+                        <td className="px-4 py-3 text-gray-500">{c.creator_commission_pct != null ? `${c.creator_commission_pct}%` : "—"}</td>
+                        <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+                      </tr>
+                    );
+                  })}
                   {campaigns.length === 0 && (
-                    <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">No campaigns</td></tr>
+                    <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">No campaigns</td></tr>
                   )}
                 </tbody>
               </table>
