@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, exists
 from pydantic import BaseModel
 from typing import Optional
 import uuid
@@ -12,6 +12,7 @@ from app.models.influencer import Influencer
 from app.models.user import User
 from app.models.commission import Commission
 from app.models.order import Order
+from app.models.campaign import Campaign, ProductCampaignLink
 
 router = APIRouter()
 
@@ -120,6 +121,9 @@ async def get_leaderboard(
     limit: int = 10,
     db: AsyncSession = Depends(get_db),
 ):
+    """Public leaderboard: creators with earnings first, then creators with active products,
+    up to `limit` total entries."""
+    # ── Tier 1: creators who have earnings (commissions) ──────────────────────
     stats_q = (
         select(
             Order.influencer_id,
@@ -135,28 +139,58 @@ async def get_leaderboard(
     stats_result = await db.execute(stats_q)
     rows = stats_result.all()
 
-    if not rows:
-        return []
-
-    influencer_ids = [r.influencer_id for r in rows]
-    inf_result = await db.execute(
-        select(Influencer).where(Influencer.id.in_(influencer_ids), Influencer.status == "active")
-    )
-    influencer_map = {inf.id: inf for inf in inf_result.scalars().all()}
-
     leaderboard = []
-    for r in rows:
-        inf = influencer_map.get(r.influencer_id)
-        if not inf:
-            continue
-        leaderboard.append({
-            "handle": inf.handle,
-            "platform_name": inf.platform_name,
-            "avatar_url": inf.avatar_url,
-            "bio": inf.bio,
-            "total_earned": float(r.total_earned),
-            "orders_count": int(r.orders_count),
-        })
+    seen_ids: set = set()
+
+    if rows:
+        influencer_ids = [r.influencer_id for r in rows]
+        inf_result = await db.execute(
+            select(Influencer).where(Influencer.id.in_(influencer_ids), Influencer.status == "active")
+        )
+        influencer_map = {inf.id: inf for inf in inf_result.scalars().all()}
+        for r in rows:
+            inf = influencer_map.get(r.influencer_id)
+            if not inf:
+                continue
+            leaderboard.append({
+                "handle": inf.handle,
+                "platform_name": inf.platform_name,
+                "avatar_url": inf.avatar_url,
+                "bio": inf.bio,
+                "total_earned": float(r.total_earned),
+                "orders_count": int(r.orders_count),
+            })
+            seen_ids.add(inf.id)
+
+    # ── Tier 2: active influencers with assigned products, no earnings yet ────
+    remaining = limit - len(leaderboard)
+    if remaining > 0:
+        with_products_q = (
+            select(Influencer)
+            .where(
+                Influencer.status == "active",
+                Influencer.id.not_in(seen_ids) if seen_ids else True,
+                exists(
+                    select(ProductCampaignLink.product_id)
+                    .join(Campaign, Campaign.id == ProductCampaignLink.campaign_id)
+                    .where(
+                        Campaign.influencer_id == Influencer.id,
+                        ProductCampaignLink.active == True,
+                    )
+                ),
+            )
+            .limit(remaining)
+        )
+        wp_result = await db.execute(with_products_q)
+        for inf in wp_result.scalars().all():
+            leaderboard.append({
+                "handle": inf.handle,
+                "platform_name": inf.platform_name,
+                "avatar_url": inf.avatar_url,
+                "bio": inf.bio,
+                "total_earned": 0.0,
+                "orders_count": 0,
+            })
 
     return leaderboard
 
