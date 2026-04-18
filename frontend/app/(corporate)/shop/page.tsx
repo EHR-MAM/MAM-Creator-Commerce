@@ -37,6 +37,15 @@ interface CartItem extends Product {
   infHandle: string;
   qty: number;
 }
+interface ApiInfluencer {
+  handle: string;
+  platform_name?: string;
+  avatar_url?: string | null;
+  bio?: string | null;
+  total_earned?: number;
+  orders_count?: number;
+}
+
 interface ApiProduct {
   id: string;
   name: string;
@@ -813,26 +822,68 @@ function InfluencerBand({ onSignup }: { onSignup: () => void }) {
   );
 }
 
-function InfluencerRow({ onFilter }: { onFilter: (id: string) => void }) {
+const PLATFORM_ICON: Record<string, string> = {
+  tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube", twitter: "Twitter", facebook: "Facebook",
+};
+
+function InfluencerRow({ liveInfluencers, onGoToStore, onFilter }: {
+  liveInfluencers: ApiInfluencer[];
+  onGoToStore: (handle: string) => void;
+  onFilter: (id: string) => void;
+}) {
+  // Merge: live creators first, then fill with demo placeholders up to 5
+  const liveHandles = new Set(liveInfluencers.map(i => i.handle));
+  const demoFallbacks = INFLUENCERS.filter(i => !liveHandles.has(i.id));
+
   return (
     <>
       <div className="flex items-center justify-between px-4 pt-6 pb-3">
         <h2 className="text-lg font-black text-white">Top <span className="text-[#C9A84C]">Influencers</span></h2>
-        <a href="#" className="text-xs text-[#C9A84C] hover:underline">See all →</a>
+        <a href="/mam/home#join" className="text-xs text-[#C9A84C] hover:underline">Become a creator →</a>
       </div>
       <div className="flex gap-3 px-4 pb-6 overflow-x-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#333 transparent" }}>
-        {INFLUENCERS.map(i => (
+        {/* Real creators from API */}
+        {liveInfluencers.map(i => {
+          const initial = (i.handle[0] || "?").toUpperCase();
+          const platform = PLATFORM_ICON[i.platform_name || ""] || i.platform_name || "";
+          const ordersLabel = i.orders_count ? `${i.orders_count} order${i.orders_count !== 1 ? "s" : ""}` : "Active creator";
+          return (
+            <button
+              key={i.handle}
+              onClick={() => onGoToStore(i.handle)}
+              className="bg-[#141414] border border-[#C9A84C]/30 rounded-xl p-4 text-center min-w-[148px] flex-shrink-0 hover:border-[#C9A84C]/70 hover:-translate-y-0.5 transition-all"
+            >
+              {i.avatar_url ? (
+                <img src={i.avatar_url} alt={i.handle} className="w-16 h-16 rounded-full object-cover border-2 border-[#C9A84C]/50 mx-auto mb-2" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#C9A84C]/30 to-[#8B6914]/30 border-2 border-[#C9A84C]/50 mx-auto mb-2 flex items-center justify-center">
+                  <span className="text-2xl font-black text-[#C9A84C]">{initial}</span>
+                </div>
+              )}
+              <p className="text-sm font-bold text-white mb-0.5">@{i.handle}</p>
+              {platform && <p className="text-[10px] text-[#888] mb-1">{platform}</p>}
+              <p className="text-[10px] text-[#C9A84C]">{ordersLabel}</p>
+              <div className="mt-2 w-full bg-[#C9A84C]/20 border border-[#C9A84C]/50 text-[#C9A84C] text-[11px] font-bold py-1 rounded-md">
+                Visit Store →
+              </div>
+            </button>
+          );
+        })}
+        {/* Demo placeholders to fill remaining slots */}
+        {demoFallbacks.slice(0, Math.max(0, 5 - liveInfluencers.length)).map(i => (
           <button
             key={i.id}
             onClick={() => onFilter(i.id)}
-            className="bg-[#141414] border border-[#222] rounded-xl p-4 text-center min-w-[148px] flex-shrink-0 hover:border-[#C9A84C]/40 hover:-translate-y-0.5 transition-all"
+            className="bg-[#141414] border border-[#222] rounded-xl p-4 text-center min-w-[148px] flex-shrink-0 hover:border-[#C9A84C]/40 hover:-translate-y-0.5 transition-all opacity-70"
           >
-            <img src={i.avatar} alt={i.name} className="w-16 h-16 rounded-full object-cover border-2 border-[#C9A84C]/30 mx-auto mb-2" />
+            <div className="w-16 h-16 rounded-full bg-[#222] border-2 border-[#333] mx-auto mb-2 flex items-center justify-center">
+              <span className="text-2xl font-black text-[#444]">{i.name[0]}</span>
+            </div>
             <p className="text-sm font-bold text-white mb-0.5">{i.name.split(" ")[0]}</p>
-            <p className="text-xs text-[#C9A84C] mb-1.5">{i.handle}</p>
-            <p className="text-[10px] text-[#555]">{i.followers} followers</p>
-            <div className="mt-2 w-full bg-[#C9A84C]/15 border border-[#C9A84C]/40 text-[#C9A84C] text-[11px] font-semibold py-1 rounded-md">
-              View Store →
+            <p className="text-xs text-[#555] mb-1.5">{i.handle}</p>
+            <p className="text-[10px] text-[#444]">{i.followers} followers</p>
+            <div className="mt-2 w-full bg-[#1a1a1a] border border-[#2a2a2a] text-[#555] text-[11px] font-semibold py-1 rounded-md">
+              Coming soon
             </div>
           </button>
         ))}
@@ -877,26 +928,31 @@ export default function ShopPage() {
   const [toast, setToast] = useState({ msg: "", visible: false });
   const [apiProducts, setApiProducts] = useState<Product[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
+  const [liveInfluencers, setLiveInfluencers] = useState<ApiInfluencer[]>([]);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load products from real API
+  // Load products + influencer leaderboard from real API
   useEffect(() => {
-    async function fetchProducts(search?: string, category?: string) {
+    async function fetchInitial() {
       setApiLoading(true);
       try {
-        const params = new URLSearchParams({ status: "active", limit: "60" });
-        if (search) params.set("search", search);
-        if (category && category !== "all" && category !== "deals") params.set("category", category);
-        const res = await fetch(`${API_URL}/products?${params}`);
-        if (res.ok) {
-          const data: ApiProduct[] = await res.json();
+        const [prodRes, infRes] = await Promise.all([
+          fetch(`${API_URL}/products?status=active&limit=60`),
+          fetch(`${API_URL}/influencers/leaderboard?limit=10`),
+        ]);
+        if (prodRes.ok) {
+          const data: ApiProduct[] = await prodRes.json();
           setApiProducts(data.map(mapApiProduct));
+        }
+        if (infRes.ok) {
+          const infs: ApiInfluencer[] = await infRes.json();
+          setLiveInfluencers(infs);
         }
       } catch { /* silent — PRODUCTS fallback used */ } finally {
         setApiLoading(false);
       }
     }
-    fetchProducts();
+    fetchInitial();
   }, []);
 
   // Debounced search against real API
@@ -971,6 +1027,10 @@ export default function ShopPage() {
     setSearchQuery("");
     setView("home");
     setTimeout(() => document.getElementById("product-grid-section")?.scrollIntoView({ behavior: "smooth" }), 50);
+  }
+
+  function goToCreatorStore(handle: string) {
+    window.location.href = `/mam/${handle}`;
   }
 
   // Compute visible products — use real API products with demo fallback
@@ -1084,7 +1144,7 @@ export default function ShopPage() {
           </div>
 
           <InfluencerBand onSignup={() => setView("signup")} />
-          <InfluencerRow onFilter={filterInfluencer} />
+          <InfluencerRow liveInfluencers={liveInfluencers} onGoToStore={goToCreatorStore} onFilter={filterInfluencer} />
           <PaymentStrip />
 
           {/* Footer */}
