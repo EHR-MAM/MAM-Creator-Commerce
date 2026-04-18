@@ -37,11 +37,19 @@ interface Creator {
 
 const CATEGORY_EMOJI: Record<string, string> = {
   hair: "💆‍♀️",
+  "hair & beauty": "💆‍♀️",
   beauty: "💄",
   fashion: "👗",
-  accessories: "💍",
+  accessories: "👜",
   skincare: "🧴",
   wellness: "🌿",
+  electronics: "📱",
+  fitness: "🏋️",
+  "home & living": "🏡",
+  "mother & baby": "🍼",
+  "books & culture": "📚",
+  jewelry: "💎",
+  footwear: "👟",
 };
 
 const PLATFORM_ICON: Record<string, string> = {
@@ -116,7 +124,7 @@ function ProductCard({ product, handle, t }: { product: Product; handle: string;
                 className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl shadow-lg mb-2"
                 style={{ backgroundColor: `${t.accentHex}22`, border: `1px solid ${t.accentHex}44` }}
               >
-                {CATEGORY_EMOJI[product.category] || "🛍️"}
+                {CATEGORY_EMOJI[product.category.toLowerCase()] || "🛍️"}
               </div>
               <p className="text-xs font-medium opacity-50 uppercase tracking-widest" style={{ color: t.accentHex }}>
                 {product.category}
@@ -536,7 +544,7 @@ export default function StorefrontShell({
                           : { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : `${t.accentHex}15`, color: isDark ? "rgba(255,255,255,0.6)" : t.accentHex }
                       }
                     >
-                      {CATEGORY_EMOJI[cat] || ""} {cat} ({catCount})
+                      {CATEGORY_EMOJI[cat.toLowerCase()] || ""} {cat} ({catCount})
                     </button>
                   );
                 })}

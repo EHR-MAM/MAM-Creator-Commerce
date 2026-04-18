@@ -16,13 +16,19 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   hair: "💆‍♀️",
+  "hair & beauty": "💆‍♀️",
   beauty: "💄",
   fashion: "👗",
-  accessories: "💍",
+  accessories: "👜",
   skincare: "🧴",
   wellness: "🌿",
   electronics: "📱",
   footwear: "👟",
+  fitness: "🏋️",
+  "home & living": "🏡",
+  "mother & baby": "🍼",
+  "books & culture": "📚",
+  jewelry: "💎",
 };
 
 interface Product {
@@ -40,6 +46,7 @@ interface Product {
   affiliate_url?: string;
   rating?: number;
   review_count?: number;
+  creator_handle?: string | null;
 }
 
 interface Influencer {
@@ -67,7 +74,7 @@ function ImageCarousel({ images, name, category }: { images: string[]; name: str
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-            <div className="text-5xl mb-2">{CATEGORY_EMOJI[category] || "🛍️"}</div>
+            <div className="text-5xl mb-2">{CATEGORY_EMOJI[category.toLowerCase()] || "🛍️"}</div>
             <p className="text-xs text-gray-400 uppercase tracking-widest">{category}</p>
           </div>
         )}
@@ -136,15 +143,16 @@ function InfluencerBadge({ influencer, handle }: { influencer: Influencer | null
 
 function RelatedCard({ product, handle }: { product: Product; handle: string }) {
   const image = product.media_urls?.[0];
+  const targetHandle = product.creator_handle || handle;
   return (
-    <Link href={`${BASE}/${handle}/${product.id}`} className="block group">
+    <Link href={`${BASE}/${targetHandle}/${product.id}`} className="block group">
       <div className="rounded-xl overflow-hidden border border-gray-100 bg-white hover:shadow-md transition-shadow">
         <div className="aspect-square bg-gray-50 overflow-hidden">
           {image ? (
             <img src={image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-3xl">
-              {CATEGORY_EMOJI[product.category] || "🛍️"}
+              {CATEGORY_EMOJI[product.category.toLowerCase()] || "🛍️"}
             </div>
           )}
         </div>
