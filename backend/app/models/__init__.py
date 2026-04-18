@@ -9,10 +9,11 @@ from .payment import Payment
 from .payout import Payout
 from .analytics import AnalyticsEvent
 from .support import SupportTicket
+from .product_review import ProductReview
 
 __all__ = [
     "User", "Influencer", "Vendor", "Product",
     "Campaign", "ProductCampaignLink",
     "Order", "OrderItem", "Commission",
-    "Payment", "Payout", "AnalyticsEvent", "SupportTicket",
+    "Payment", "Payout", "AnalyticsEvent", "SupportTicket", "ProductReview",
 ]
