@@ -223,13 +223,18 @@ function CountryBar() {
 
 // ─── SITE HEADER ─────────────────────────────────────────────────────────────
 function SiteHeader({
-  query, setQuery, cartCount, onSearch, onShowCart, onShowSignup
+  query, setQuery, cartCount, onSearch, onShowCart, onShowSignup, suggestions, onSelectSuggestion
 }: {
   query: string; setQuery: (v: string) => void; cartCount: number;
   onSearch: (q: string) => void;
   onShowCart: () => void;
   onShowSignup: () => void;
+  suggestions?: string[];
+  onSelectSuggestion?: (s: string) => void;
 }) {
+  const [focused, setFocused] = useState(false);
+  const showDropdown = focused && !!query.trim() && suggestions && suggestions.length > 0;
+
   return (
     <div className="bg-[#111] border-b-2 border-[#C9A84C] sticky top-[33px] z-[200]">
       {/* Top row: logo + search + actions */}
@@ -239,16 +244,32 @@ function SiteHeader({
           Yes MAM<span className="block text-[9px] font-normal tracking-widest opacity-80">Creator Commerce</span>
         </a>
 
-        {/* Search */}
-        <div className="flex flex-1 min-w-[180px]">
+        {/* Search with autocomplete */}
+        <div className="flex flex-1 min-w-[180px] relative">
           <input
             type="text"
             value={query}
             onChange={e => { setQuery(e.target.value); onSearch(e.target.value); }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setTimeout(() => setFocused(false), 150)}
             placeholder="Search products, influencers, brands..."
             className="flex-1 bg-[#1e1e1e] border-2 border-r-0 border-[#333] rounded-l-md px-3 py-2 text-sm text-white placeholder-[#555] outline-none focus:border-[#C9A84C] transition-colors"
           />
           <button className="bg-[#C9A84C] border-none px-4 rounded-r-md text-base hover:bg-[#E8C97A] transition-colors">🔍</button>
+          {showDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl z-50 overflow-hidden">
+              {suggestions!.slice(0, 6).map((s, i) => (
+                <button
+                  key={i}
+                  onMouseDown={() => onSelectSuggestion?.(s)}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:bg-[#C9A84C]/10 hover:text-[#C9A84C] transition-colors flex items-center gap-2"
+                >
+                  <span className="text-[#555] text-xs">🔍</span>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -1052,6 +1073,20 @@ export default function ShopPage() {
     visibleProducts = baseProducts.filter(p => p.cat === activeCat);
   }
 
+  // Autocomplete suggestions from in-memory products
+  const searchSuggestions = searchQuery.trim().length >= 2
+    ? Array.from(new Set(
+        baseProducts
+          .filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
+          .map(p => p.title)
+      )).slice(0, 6)
+    : [];
+
+  function handleSelectSuggestion(title: string) {
+    setSearchQuery(title);
+    handleLiveSearch(title);
+  }
+
   const gridTitle = activeInfFilter
     ? <>{inf(activeInfFilter).name}&apos;s <span className="text-[#C9A84C]">Store</span></>
     : searchQuery && activeCat !== "all" && activeCat !== "deals"
@@ -1071,6 +1106,8 @@ export default function ShopPage() {
         onSearch={handleSearch}
         onShowCart={() => setView("cart")}
         onShowSignup={() => setView("signup")}
+        suggestions={searchSuggestions}
+        onSelectSuggestion={handleSelectSuggestion}
       />
 
       {view === "cart" && (
