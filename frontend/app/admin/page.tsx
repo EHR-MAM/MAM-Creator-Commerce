@@ -562,6 +562,7 @@ export default function AdminPage() {
                   <tr className="border-b border-gray-50">
                     <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Order</th>
                     <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Creator</th>
+                    <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Customer</th>
                     <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Amount</th>
                     <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Status</th>
                   </tr>
@@ -569,8 +570,9 @@ export default function AdminPage() {
                 <tbody>
                   {commissions.map((c: any) => (
                     <tr key={c.id} className="border-b border-gray-50 last:border-0">
-                      <td className="px-4 py-3 font-mono text-xs text-gray-400">{c.order_id?.slice(0, 8)}…</td>
-                      <td className="px-4 py-3 font-mono text-xs">{c.order_id?.slice(-8)}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-400">#{c.order_id_short || c.order_id?.slice(0, 8)}…</td>
+                      <td className="px-4 py-3 text-xs font-semibold text-[#C9A84C]">{c.creator_handle ? `@${c.creator_handle}` : "—"}</td>
+                      <td className="px-4 py-3 text-xs text-gray-600">{c.customer_name || "—"}</td>
                       <td className="px-4 py-3 font-bold">GHS {Number(c.influencer_amount).toFixed(2)}</td>
                       <td className="px-4 py-3"><StatusBadge status={c.commission_status} /></td>
                     </tr>
@@ -773,6 +775,11 @@ function OrderCard({ order: o, onAdvance }: { order: any; onAdvance: (id: string
           <div>
             <span className="font-semibold text-sm">{o.customer_name || "—"}</span>
             <span className="text-xs text-gray-400 ml-2">{o.customer_phone || ""}</span>
+            {o.created_at && (
+              <span className="text-xs text-gray-300 ml-2">
+                {new Date(o.created_at).toLocaleDateString("en-GH", { day: "numeric", month: "short" })}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
