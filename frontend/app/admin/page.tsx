@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 
-type Tab = "overview" | "orders" | "creators" | "vendors" | "products" | "campaigns" | "commissions" | "reviews";
+type Tab = "overview" | "orders" | "creators" | "vendors" | "products" | "campaigns" | "commissions" | "reviews" | "links";
 
 function useAdminData(token: string) {
   const [kpis, setKpis] = useState<any>(null);
@@ -296,6 +296,7 @@ export default function AdminPage() {
     { id: "campaigns", label: "Campaigns" },
     { id: "commissions", label: "Commissions" },
     { id: "reviews", label: "Reviews" },
+    { id: "links", label: "Links" },
   ];
 
   const payableTotal = commissions
@@ -874,6 +875,8 @@ export default function AdminPage() {
 
         {/* COMMISSIONS */}
         {tab === "reviews" && <ReviewsTab token={token} h={h} />}
+
+        {tab === "links" && <AdminLinksTab token={token} h={h} creators={creators} />}
 
         {tab === "commissions" && (
           <div className="space-y-4">
@@ -1851,6 +1854,159 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function AdminLinksTab({ token, h, creators }: {
+  token: string;
+  h: Record<string, string>;
+  creators: any[];
+}) {
+  const [links, setLinks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deactivating, setDeactivating] = useState<string | null>(null);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    fetch(`${API}/tracking/links/all`, { headers: h })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { setLinks(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [token]);
+
+  async function deactivate(linkId: string) {
+    setDeactivating(linkId);
+    const r = await fetch(`${API}/tracking/links/${linkId}/deactivate`, { method: "PATCH", headers: h });
+    if (r.ok) {
+      setLinks(prev => prev.map(l => l.id === linkId ? { ...l, is_active: false } : l));
+      setMsg("Link deactivated");
+    }
+    setDeactivating(null);
+  }
+
+  const totalClicks = links.reduce((s, l) => s + (l.click_count || 0), 0);
+  const activeCount = links.filter(l => l.is_active).length;
+
+  // Map short_url code → creator handle for display
+  function getCreatorHandle(link: any): string {
+    // destination_path is like /handle or /handle/product-id
+    const parts = (link.destination_path || "").split("/").filter(Boolean);
+    return parts[0] ? `@${parts[0]}` : "—";
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold text-gray-900 text-lg">Tracking Links</h2>
+        <div className="flex gap-3">
+          <div className="text-center">
+            <p className="text-2xl font-black text-gray-900">{totalClicks.toLocaleString()}</p>
+            <p className="text-xs text-gray-400">total clicks</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-black text-gray-900">{activeCount}</p>
+            <p className="text-xs text-gray-400">active</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-black text-gray-900">{links.length}</p>
+            <p className="text-xs text-gray-400">total</p>
+          </div>
+        </div>
+      </div>
+
+      {msg && (
+        <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-2 rounded-xl">
+          {msg}
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : links.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+          <p className="text-3xl mb-2">🔗</p>
+          <p className="text-gray-400 text-sm">No tracking links created yet</p>
+          <p className="text-xs text-gray-400 mt-1">Creators generate links from their dashboard Links tab</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-50">
+                <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Creator</th>
+                <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Label</th>
+                <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Destination</th>
+                <th className="text-right px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Clicks</th>
+                <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Created</th>
+                <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Status</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {links.map(link => (
+                <tr key={link.id} className={`border-b border-gray-50 last:border-0 ${!link.is_active ? "opacity-40" : ""}`}>
+                  <td className="px-4 py-3 font-mono text-xs text-[#C9A84C] font-semibold">
+                    {getCreatorHandle(link)}
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 max-w-[160px] truncate">{link.label || "—"}</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-400 max-w-[140px] truncate">{link.destination_path}</td>
+                  <td className="px-4 py-3 text-right font-black text-gray-900">{(link.click_count || 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-xs text-gray-400">
+                    {new Date(link.created_at).toLocaleDateString("en-GH", { day: "numeric", month: "short" })}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={link.is_active ? "active" : "inactive"} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {link.is_active && (
+                      <button
+                        onClick={() => deactivate(link.id)}
+                        disabled={deactivating === link.id}
+                        className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg disabled:opacity-50"
+                      >
+                        {deactivating === link.id ? "…" : "Disable"}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Per-creator click summary */}
+      {links.length > 0 && (() => {
+        const byCreator: Record<string, { handle: string; clicks: number; count: number }> = {};
+        links.forEach(l => {
+          const handle = getCreatorHandle(l);
+          if (!byCreator[handle]) byCreator[handle] = { handle, clicks: 0, count: 0 };
+          byCreator[handle].clicks += l.click_count || 0;
+          byCreator[handle].count++;
+        });
+        const rows = Object.values(byCreator).sort((a, b) => b.clicks - a.clicks);
+        return (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Clicks by Creator</p>
+            <div className="space-y-2">
+              {rows.map(r => (
+                <div key={r.handle} className="flex items-center gap-3">
+                  <span className="font-mono text-sm text-gray-700 w-28 shrink-0">{r.handle}</span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full bg-[#C9A84C] transition-all"
+                      style={{ width: `${totalClicks > 0 ? (r.clicks / totalClicks) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-black text-gray-900 w-12 text-right shrink-0">{r.clicks.toLocaleString()}</span>
+                  <span className="text-xs text-gray-400 shrink-0">{r.count} link{r.count !== 1 ? "s" : ""}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
