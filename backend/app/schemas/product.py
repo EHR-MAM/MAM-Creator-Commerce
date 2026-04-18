@@ -49,6 +49,7 @@ class ProductOut(BaseModel):
     video_url: Optional[str] = None
     rating: Optional[float] = None
     review_count: Optional[int] = None
+    creator_handle: Optional[str] = None
 
     class Config:
         from_attributes = True

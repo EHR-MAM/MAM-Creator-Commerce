@@ -30,6 +30,7 @@ interface Product {
   sales: string;
   desc: string;
   specs: [string, string][];
+  creator_handle?: string;
 }
 interface CartItem extends Product {
   infId: string;
@@ -49,6 +50,7 @@ interface ApiProduct {
   rating?: number;
   review_count?: number;
   vendor_id: string;
+  creator_handle?: string;
 }
 
 const FALLBACK_IMGS: Record<string, string> = {
@@ -72,7 +74,7 @@ function mapApiProduct(p: ApiProduct): Product {
     price: Number(p.price),
     orig: 0,
     img,
-    inf: "sweet200723", // default influencer tag for marketplace view
+    inf: p.creator_handle || "sweet200723",
     rating: Number(p.rating || 4.5),
     reviews: Number(p.review_count || 0),
     sales: `${p.inventory_count > 0 ? "In stock" : "Limited"}`,
@@ -82,6 +84,7 @@ function mapApiProduct(p: ApiProduct): Product {
       ["Currency", p.currency],
       ["Stock", String(p.inventory_count)],
     ],
+    creator_handle: p.creator_handle,
   };
 }
 
@@ -1064,7 +1067,15 @@ export default function ShopPage() {
                   <ProductCard
                     key={p.id}
                     p={p}
-                    onView={prod => { setActiveProduct(prod); setView("product"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    onView={prod => {
+                      if (prod.creator_handle) {
+                        window.location.href = `/mam/${prod.creator_handle}/${prod.id}`;
+                      } else {
+                        setActiveProduct(prod);
+                        setView("product");
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }
+                    }}
                     onAddCart={(prod, e) => addToCart(prod, 1, e)}
                   />
                 ))}

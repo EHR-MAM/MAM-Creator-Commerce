@@ -16,6 +16,35 @@ from app.schemas.product import ProductCreate, ProductUpdate, ProductOut
 router = APIRouter()
 
 
+async def _build_handle_map(product_ids: list, db: AsyncSession) -> dict:
+    """Return {product_id: creator_handle} for all products that appear in active campaigns."""
+    if not product_ids:
+        return {}
+    rows = await db.execute(
+        select(ProductCampaignLink.product_id, Influencer.handle)
+        .join(Campaign, Campaign.id == ProductCampaignLink.campaign_id)
+        .join(Influencer, Influencer.id == Campaign.influencer_id)
+        .where(ProductCampaignLink.product_id.in_(product_ids))
+        .where(ProductCampaignLink.active == True)
+    )
+    # First handle wins per product
+    result: dict = {}
+    for product_id, handle in rows.all():
+        if product_id not in result:
+            result[product_id] = handle
+    return result
+
+
+def _enrich(products: list, handle_map: dict) -> list[dict]:
+    """Add creator_handle field to each product dict."""
+    out = []
+    for p in products:
+        d = {c.key: getattr(p, c.key) for c in p.__table__.columns}
+        d["creator_handle"] = handle_map.get(p.id)
+        out.append(d)
+    return out
+
+
 @router.get("", response_model=list[ProductOut])
 async def list_products(
     category: Optional[str] = Query(None),
@@ -45,7 +74,9 @@ async def list_products(
             query = query.where(Product.category == category)
         query = query.order_by(Product.name).offset(offset).limit(limit)
         result = await db.execute(query)
-        return result.scalars().all()
+        products = result.scalars().all()
+        handle_map = await _build_handle_map([p.id for p in products], db)
+        return _enrich(products, handle_map)
 
     query = select(Product)
     if status:
@@ -58,7 +89,9 @@ async def list_products(
         query = query.where(Product.name.ilike(f"%{search}%"))
     query = query.offset(offset).limit(limit)
     result = await db.execute(query)
-    return result.scalars().all()
+    products = result.scalars().all()
+    handle_map = await _build_handle_map([p.id for p in products], db)
+    return _enrich(products, handle_map)
 
 
 @router.get("/mine", response_model=list[ProductOut])
