@@ -13,13 +13,26 @@ from app.schemas.vendor import VendorCreate, VendorUpdate, VendorOut
 router = APIRouter()
 
 
-@router.get("", response_model=list[VendorOut])
+@router.get("")
 async def list_vendors(
     current_user: User = Depends(require_admin_or_operator),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Vendor).where(Vendor.status == "active"))
-    return result.scalars().all()
+    """Admin: list all vendors (all statuses) enriched with user email."""
+    result = await db.execute(
+        select(Vendor, User.email)
+        .outerjoin(User, User.id == Vendor.user_id)
+        .order_by(Vendor.business_name)
+    )
+    rows = result.all()
+    out = []
+    for vendor, email in rows:
+        d = {c.key: getattr(vendor, c.key) for c in vendor.__table__.columns}
+        d["id"] = str(d["id"])
+        d["user_id"] = str(d["user_id"]) if d.get("user_id") else None
+        d["email"] = email
+        out.append(d)
+    return out
 
 
 @router.get("/me", response_model=VendorOut)

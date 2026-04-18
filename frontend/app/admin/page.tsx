@@ -229,6 +229,13 @@ export default function AdminPage() {
     reload();
   }
 
+  async function toggleVendorStatus(vendorId: string, currentStatus: string) {
+    const newStatus = currentStatus === "active" ? "inactive" : "active";
+    const r = await fetch(`${API}/vendors/${vendorId}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: newStatus }) });
+    if (!r.ok) { setMsg("Error updating vendor"); return; }
+    reload();
+  }
+
   // Show spinner while auth loads or redirecting
   if (authLoading || !user || (user.role !== "admin" && user.role !== "operator")) {
     return (
@@ -488,21 +495,39 @@ export default function AdminPage() {
                     <tr className="border-b border-gray-50">
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Business</th>
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Contact</th>
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Email</th>
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Location</th>
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Status</th>
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {vendors.map((v: any) => (
                       <tr key={v.id} className="border-b border-gray-50 last:border-0">
-                        <td className="px-4 py-3 font-semibold">{v.business_name || v.name || "—"}</td>
-                        <td className="px-4 py-3 text-gray-400">{v.email || "—"}</td>
+                        <td className="px-4 py-3 font-semibold">{v.business_name || "—"}</td>
+                        <td className="px-4 py-3 text-gray-500 text-xs">
+                          <div>{v.contact_name || "—"}</div>
+                          {v.contact_phone && <div className="text-gray-400">{v.contact_phone}</div>}
+                        </td>
+                        <td className="px-4 py-3 text-gray-400 text-xs">{v.email || "—"}</td>
                         <td className="px-4 py-3 text-gray-400">{v.location || "—"}</td>
                         <td className="px-4 py-3"><StatusBadge status={v.status || "active"} /></td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => toggleVendorStatus(v.id, v.status || "active")}
+                            className={`px-2.5 py-1 text-xs rounded-lg font-medium ${
+                              v.status === "active"
+                                ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                : "bg-green-100 text-green-700 hover:bg-green-200"
+                            }`}
+                          >
+                            {v.status === "active" ? "Deactivate" : "Activate"}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                     {vendors.length === 0 && (
-                      <tr><td colSpan={4} className="px-4 py-6 text-center text-gray-400">No vendors yet</td></tr>
+                      <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">No vendors yet</td></tr>
                     )}
                   </tbody>
                 </table>
