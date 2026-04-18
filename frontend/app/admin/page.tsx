@@ -183,6 +183,7 @@ export default function AdminPage() {
   const [msg, setMsg] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
+  const [orderDateFilter, setOrderDateFilter] = useState<string>("all");
 
   // Redirect to login if not authenticated or wrong role
   useEffect(() => {
@@ -348,7 +349,7 @@ export default function AdminPage() {
             {/* Header + filters */}
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
               <h2 className="font-bold text-gray-900">All Orders ({orders.length})</h2>
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex gap-2 w-full sm:w-auto flex-wrap">
                 <input
                   type="search"
                   placeholder="Search name or phone…"
@@ -372,6 +373,52 @@ export default function AdminPage() {
                 </select>
               </div>
             </div>
+            {/* Date range + export row */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex gap-1.5 flex-wrap">
+                {[["all", "All time"], ["today", "Today"], ["7d", "Last 7d"], ["30d", "Last 30d"]].map(([val, label]) => (
+                  <button
+                    key={val}
+                    onClick={() => setOrderDateFilter(val)}
+                    className={`text-xs px-3 py-1 rounded-full font-medium border transition-colors ${
+                      orderDateFilter === val
+                        ? "bg-[#C9A84C] text-black border-[#C9A84C]"
+                        : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
+                    }`}
+                  >{label}</button>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  const now = Date.now();
+                  const cutoff: Record<string, number> = { today: 86400000, "7d": 7 * 86400000, "30d": 30 * 86400000 };
+                  const ms = cutoff[orderDateFilter] || Infinity;
+                  const rows = orders.filter((o: any) => {
+                    if (!o.created_at) return true;
+                    return now - new Date(o.created_at).getTime() <= ms;
+                  });
+                  const headers = ["Order ID", "Date", "Customer", "Phone", "Address", "Total", "Status", "Items"];
+                  const lines = [headers.join(","), ...rows.map((o: any) => [
+                    o.id,
+                    o.created_at ? new Date(o.created_at).toISOString().slice(0, 10) : "",
+                    `"${(o.customer_name || "").replace(/"/g, '""')}"`,
+                    o.customer_phone || "",
+                    `"${(o.delivery_address || "").replace(/"/g, '""')}"`,
+                    o.total,
+                    o.status,
+                    `"${(o.items || []).map((it: any) => `${it.product_name} x${it.quantity}`).join("; ")}"`,
+                  ].join(","))];
+                  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url; a.download = `mam-orders-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors border border-gray-200"
+              >
+                ↓ Export CSV
+              </button>
+            </div>
             {/* Status tab pills */}
             <div className="flex gap-2 flex-wrap">
               {["all", "pending", "confirmed", "processing", "shipped", "delivered", "cancelled"].map(s => {
@@ -394,10 +441,14 @@ export default function AdminPage() {
             {/* Order list */}
             {(() => {
               const q = orderSearch.toLowerCase();
+              const now = Date.now();
+              const dateCutoff: Record<string, number> = { today: 86400000, "7d": 7 * 86400000, "30d": 30 * 86400000 };
+              const dateCutoffMs = dateCutoff[orderDateFilter] || Infinity;
               const filtered = orders.filter((o: any) => {
                 const matchStatus = orderStatusFilter === "all" || o.status === orderStatusFilter;
                 const matchSearch = !q || (o.customer_name || "").toLowerCase().includes(q) || (o.customer_phone || "").includes(q);
-                return matchStatus && matchSearch;
+                const matchDate = !o.created_at || now - new Date(o.created_at).getTime() <= dateCutoffMs;
+                return matchStatus && matchSearch && matchDate;
               });
               if (filtered.length === 0) return (
                 <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-400">
