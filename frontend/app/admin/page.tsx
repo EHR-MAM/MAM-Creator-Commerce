@@ -183,6 +183,7 @@ export default function AdminPage() {
   const [msg, setMsg] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const [vendorSearch, setVendorSearch] = useState("");
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
   const [orderDateFilter, setOrderDateFilter] = useState<string>("all");
@@ -240,6 +241,18 @@ export default function AdminPage() {
   async function updateProductPrice(productId: string, price: number) {
     const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify({ price }) });
     if (!r.ok) { setMsg("Error updating price"); return; }
+    reload();
+  }
+
+  async function bulkUpdateProductStatus(newStatus: "active" | "inactive") {
+    const ids = Array.from(selectedProducts);
+    if (ids.length === 0) return;
+    setMsg(`Updating ${ids.length} products…`);
+    await Promise.all(
+      ids.map(id => fetch(`${API}/products/${id}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: newStatus }) }))
+    );
+    setSelectedProducts(new Set());
+    setMsg(`${ids.length} products set to ${newStatus}`);
     reload();
   }
 
@@ -599,9 +612,9 @@ export default function AdminPage() {
                   : products;
                 return (
                   <>
-                    <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-3 mb-3 flex-wrap">
                       <h2 className="font-bold text-gray-900">Products ({filteredProducts.length}{productSearch ? ` of ${products.length}` : ""})</h2>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-40">
                         <input
                           value={productSearch}
                           onChange={e => setProductSearch(e.target.value)}
@@ -611,6 +624,30 @@ export default function AdminPage() {
                       </div>
                       {productSearch && (
                         <button onClick={() => setProductSearch("")} className="text-xs text-gray-400 hover:text-gray-700 px-2 py-2 border border-gray-200 rounded-lg">✕</button>
+                      )}
+                      {/* Bulk action bar — shown when 1+ products selected */}
+                      {selectedProducts.size > 0 && (
+                        <div className="flex items-center gap-2 bg-black text-white rounded-lg px-3 py-2">
+                          <span className="text-xs font-bold">{selectedProducts.size} selected</span>
+                          <button
+                            onClick={() => bulkUpdateProductStatus("active")}
+                            className="text-xs bg-green-500 hover:bg-green-400 text-black font-bold px-2 py-1 rounded transition-colors"
+                          >
+                            Activate
+                          </button>
+                          <button
+                            onClick={() => bulkUpdateProductStatus("inactive")}
+                            className="text-xs bg-red-500 hover:bg-red-400 text-white font-bold px-2 py-1 rounded transition-colors"
+                          >
+                            Deactivate
+                          </button>
+                          <button
+                            onClick={() => setSelectedProducts(new Set())}
+                            className="text-xs text-gray-400 hover:text-white px-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       )}
                     </div>
               {/* Low stock summary banner */}
@@ -637,6 +674,18 @@ export default function AdminPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-50">
+                      <th className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={filteredProducts.length > 0 && filteredProducts.every(p => selectedProducts.has(p.id))}
+                          onChange={e => {
+                            if (e.target.checked) setSelectedProducts(new Set(filteredProducts.map(p => p.id)));
+                            else setSelectedProducts(new Set());
+                          }}
+                          className="cursor-pointer"
+                          title="Select all"
+                        />
+                      </th>
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Name</th>
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">SKU</th>
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Vendor</th>
@@ -655,7 +704,20 @@ export default function AdminPage() {
                           ? "font-semibold text-amber-600"
                           : "text-gray-700";
                       return (
-                        <tr key={p.id} className={`border-b border-gray-50 last:border-0 ${stockQty === 0 ? "bg-red-50/30" : stockQty <= 10 ? "bg-amber-50/30" : ""}`}>
+                        <tr key={p.id} className={`border-b border-gray-50 last:border-0 ${selectedProducts.has(p.id) ? "bg-blue-50" : stockQty === 0 ? "bg-red-50/30" : stockQty <= 10 ? "bg-amber-50/30" : ""}`}>
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedProducts.has(p.id)}
+                              onChange={e => {
+                                const next = new Set(selectedProducts);
+                                if (e.target.checked) next.add(p.id);
+                                else next.delete(p.id);
+                                setSelectedProducts(next);
+                              }}
+                              className="cursor-pointer"
+                            />
+                          </td>
                           <td className="px-4 py-3 font-semibold">
                             <div>{p.name}</div>
                             <div className="text-xs text-gray-400 capitalize">{p.category}</div>
@@ -710,7 +772,7 @@ export default function AdminPage() {
                       );
                     })}
                     {filteredProducts.length === 0 && (
-                      <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">
+                      <tr><td colSpan={8} className="px-4 py-6 text-center text-gray-400">
                         {productSearch ? `No products match "${productSearch}"` : "No products yet"}
                       </td></tr>
                     )}
