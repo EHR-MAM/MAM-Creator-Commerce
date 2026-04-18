@@ -413,6 +413,30 @@ export default function VendorDashboard() {
     setLoading(false);
   }
 
+  function exportOrdersCSV() {
+    const rows = [
+      ["Order ID", "Status", "Date", "Customer Name", "Phone", "Address", "Items", "Total (GHS)"],
+      ...orders.map(o => [
+        o.id,
+        o.status,
+        new Date(o.created_at).toLocaleDateString(),
+        o.customer_name,
+        o.customer_phone,
+        o.delivery_address,
+        o.items ? o.items.map(i => `${i.quantity}x ${i.product_name}`).join("; ") : "",
+        Number(o.total).toFixed(2),
+      ]),
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function advanceStatus(order: Order) {
     const next = NEXT_STATUS[order.status];
     if (!next) return;
@@ -511,6 +535,16 @@ export default function VendorDashboard() {
         {/* ── ORDERS TAB ── */}
         {tab === "orders" && (
           <div className="space-y-3">
+            {orders.length > 0 && (
+              <div className="flex justify-end">
+                <button
+                  onClick={exportOrdersCSV}
+                  className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 text-gray-500 hover:bg-gray-50 font-medium"
+                >
+                  Export CSV ({orders.length})
+                </button>
+              </div>
+            )}
             {loading ? (
               <div className="text-center py-12 text-gray-400">Loading…</div>
             ) : activeOrders.length === 0 && recentOrders.length === 0 ? (

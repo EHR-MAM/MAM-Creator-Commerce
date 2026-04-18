@@ -231,6 +231,12 @@ export default function AdminPage() {
     reload();
   }
 
+  async function updateProductStock(productId: string, qty: number) {
+    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify({ inventory_count: qty }) });
+    if (!r.ok) { setMsg("Error updating stock"); return; }
+    reload();
+  }
+
   async function toggleVendorStatus(vendorId: string, currentStatus: string) {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     const r = await fetch(`${API}/vendors/${vendorId}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: newStatus }) });
@@ -643,8 +649,23 @@ export default function AdminPage() {
                           <td className="px-4 py-3 font-mono text-xs text-gray-400">{p.sku}</td>
                           <td className="px-4 py-3 text-gray-500 capitalize">{p.category}</td>
                           <td className="px-4 py-3 font-semibold">{p.currency} {Number(p.price).toFixed(2)}</td>
-                          <td className={`px-4 py-3 ${stockStyle}`}>
-                            {stockQty === 0 ? "🚫 0" : stockQty <= 10 ? `⚠️ ${stockQty}` : stockQty}
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              min="0"
+                              defaultValue={stockQty}
+                              key={`${p.id}-${stockQty}`}
+                              onBlur={e => {
+                                const newQty = parseInt(e.target.value, 10);
+                                if (!isNaN(newQty) && newQty !== stockQty) updateProductStock(p.id, newQty);
+                              }}
+                              onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                              className={`w-16 border rounded px-2 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-black ${
+                                stockQty === 0 ? "border-red-300 text-red-600 bg-red-50" :
+                                stockQty <= 10 ? "border-amber-300 text-amber-700 bg-amber-50" :
+                                "border-gray-200 text-gray-700"
+                              }`}
+                            />
                           </td>
                           <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                           <td className="px-4 py-3">
