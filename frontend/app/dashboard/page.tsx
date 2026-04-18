@@ -208,11 +208,42 @@ function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
 
 // ─── Tab: Home ─────────────────────────────────────────────────────────────────
 
+interface Payout {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  payment_method: string | null;
+  external_reference: string | null;
+  period_end: string | null;
+  influencer_handle: string | null;
+  influencer_momo: string | null;
+}
+
 function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commissions: Commission[]; profile: InfluencerProfile | null; token: string }) {
   const pendingCommission = commissions.filter(c => c.commission_status === "payable");
   const pendingTotal = pendingCommission.reduce((s, c) => s + Number(c.influencer_amount), 0);
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutMsg, setPayoutMsg] = useState("");
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_URL}/payouts/mine`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setPayouts(data))
+      .catch(() => {/* silent */});
+  }, [token]);
+
+  // Onboarding checklist — items checked against profile state
+  const onboardingItems = [
+    { label: "Profile set up", done: !!profile?.handle },
+    { label: "Bio added", done: !!profile?.bio },
+    { label: "Avatar uploaded", done: !!profile?.avatar_url },
+    { label: "Payout method configured", done: !!profile?.payout_method },
+  ];
+  const onboardingDone = onboardingItems.filter(i => i.done).length;
+  const showChecklist = onboardingDone < onboardingItems.length;
 
   return (
     <div className="space-y-5">
@@ -224,6 +255,41 @@ function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commis
         </h2>
         <p className="text-gray-400 text-sm mt-0.5">Here's how your store is doing</p>
       </div>
+
+      {/* Onboarding checklist — shown until all steps complete */}
+      {showChecklist && (
+        <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#C9A84C]/20">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold text-white">Get started checklist</p>
+            <span className="text-xs text-[#C9A84C] font-semibold">{onboardingDone}/{onboardingItems.length}</span>
+          </div>
+          {/* Progress bar */}
+          <div className="w-full bg-[#2A2A2A] rounded-full h-1.5 mb-3">
+            <div
+              className="h-1.5 rounded-full bg-[#C9A84C] transition-all"
+              style={{ width: `${(onboardingDone / onboardingItems.length) * 100}%` }}
+            />
+          </div>
+          <div className="space-y-2">
+            {onboardingItems.map((item, i) => (
+              <div key={i} className="flex items-center gap-2.5">
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${
+                  item.done ? "bg-green-500 text-white" : "border border-gray-600 text-gray-600"
+                }`}>
+                  {item.done ? "✓" : ""}
+                </span>
+                <span className={`text-xs ${item.done ? "line-through text-gray-600" : "text-gray-300"}`}>
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-600 mt-3">
+            Complete your profile in the{" "}
+            <span className="text-[#C9A84C]">Store</span> tab
+          </p>
+        </div>
+      )}
 
       {/* KPI grid */}
       {kpi ? (
@@ -341,6 +407,51 @@ function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commis
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Payout History */}
+      <div>
+        <h3 className="text-sm font-bold text-white mb-3">Payout History</h3>
+        {payouts.length === 0 ? (
+          <div className="text-center py-6 bg-[#1A1A1A] rounded-2xl border border-white/8">
+            <p className="text-3xl mb-2">🏦</p>
+            <p className="text-gray-400 text-sm">No payouts yet</p>
+            <p className="text-xs text-gray-600 mt-1">Completed payouts will appear here</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {payouts.map(p => {
+              const statusStyle =
+                p.status === "paid" ? "bg-green-900/40 text-green-400 border border-green-500/30" :
+                p.status === "pending" ? "bg-amber-900/40 text-amber-400 border border-amber-500/30" :
+                p.status === "processing" ? "bg-blue-900/40 text-blue-400 border border-blue-500/30" :
+                "bg-white/5 text-gray-400";
+              return (
+                <div key={p.id} className="bg-[#1A1A1A] rounded-xl p-4 border border-white/8">
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-white text-base">GHS {Number(p.amount).toFixed(2)}</p>
+                      {p.period_end && (
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Period ending {new Date(p.period_end).toLocaleDateString("en-GH", { day: "numeric", month: "short", year: "numeric" })}
+                        </p>
+                      )}
+                      {p.payment_method && (
+                        <p className="text-xs text-gray-600 mt-0.5 capitalize">{p.payment_method.replace(/_/g, " ")}</p>
+                      )}
+                      {p.external_reference && (
+                        <p className="text-xs text-gray-600 font-mono mt-0.5">Ref: {p.external_reference}</p>
+                      )}
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${statusStyle}`}>
+                      {p.status}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
