@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Optional
 import uuid
@@ -10,6 +10,8 @@ from app.core.deps import require_admin_or_operator, get_current_user
 from app.core.security import hash_password
 from app.models.influencer import Influencer
 from app.models.user import User
+from app.models.commission import Commission
+from app.models.order import Order
 
 router = APIRouter()
 
@@ -110,6 +112,53 @@ async def update_my_profile(
     await db.commit()
     await db.refresh(influencer)
     return influencer
+
+
+
+@router.get("/leaderboard")
+async def get_leaderboard(
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db),
+):
+    stats_q = (
+        select(
+            Order.influencer_id,
+            func.sum(Commission.influencer_amount).label("total_earned"),
+            func.count(Commission.id).label("orders_count"),
+        )
+        .join(Commission, Commission.order_id == Order.id)
+        .where(Commission.commission_status.in_(["payable", "paid"]))
+        .group_by(Order.influencer_id)
+        .order_by(func.sum(Commission.influencer_amount).desc())
+        .limit(limit)
+    )
+    stats_result = await db.execute(stats_q)
+    rows = stats_result.all()
+
+    if not rows:
+        return []
+
+    influencer_ids = [r.influencer_id for r in rows]
+    inf_result = await db.execute(
+        select(Influencer).where(Influencer.id.in_(influencer_ids), Influencer.status == "active")
+    )
+    influencer_map = {inf.id: inf for inf in inf_result.scalars().all()}
+
+    leaderboard = []
+    for r in rows:
+        inf = influencer_map.get(r.influencer_id)
+        if not inf:
+            continue
+        leaderboard.append({
+            "handle": inf.handle,
+            "platform_name": inf.platform_name,
+            "avatar_url": inf.avatar_url,
+            "bio": inf.bio,
+            "total_earned": float(r.total_earned),
+            "orders_count": int(r.orders_count),
+        })
+
+    return leaderboard
 
 
 @router.get("", response_model=list[InfluencerOut])

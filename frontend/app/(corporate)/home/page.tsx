@@ -391,18 +391,19 @@ function CreatorLeaderboard() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_URL}/influencers?status=active&limit=10`)
+    // Sprint XXIX: use dedicated leaderboard endpoint with real earnings aggregation
+    fetch(`${API_URL}/influencers/leaderboard?limit=10`)
       .then(r => r.ok ? r.json() : [])
       .then((data: any[]) => {
         if (data && data.length > 0) {
-          // Sort by orders_count desc, take top 3
-          // Falls back to placeholder when orders_count not available
-          const sorted = [...data]
-            .sort((a, b) => (b.orders_count || 0) - (a.orders_count || 0))
-            .slice(0, 3);
-          const hasMetrics = sorted.some(c => (c.orders_count || 0) > 0);
-          if (hasMetrics) setCreators(sorted);
-          // else: leave creators empty → fallback to PLACEHOLDERS
+          const mapped: LeaderEntry[] = data.slice(0, 3).map((c: any) => ({
+            handle: c.handle,
+            platform_name: c.platform_name,
+            avatar_url: c.avatar_url,
+            orders_count: c.orders_count,
+            earnings: c.total_earned,  // leaderboard returns total_earned
+          }));
+          setCreators(mapped);
         }
       })
       .catch(() => {})
