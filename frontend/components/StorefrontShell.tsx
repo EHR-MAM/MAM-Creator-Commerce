@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { type TemplateConfig, TEMPLATES, type TemplateId } from "@/lib/templates";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import CartDrawer from "@/components/CartDrawer";
 import { useCart } from "@/lib/cart";
 
@@ -36,6 +36,24 @@ const CATEGORY_EMOJI: Record<string, string> = {
   accessories: "💍",
   skincare: "🧴",
   wellness: "🌿",
+};
+
+const PLATFORM_ICON: Record<string, string> = {
+  tiktok: "TikTok",
+  instagram: "Instagram",
+  youtube: "YouTube",
+  twitter: "Twitter",
+  facebook: "Facebook",
+  snapchat: "Snapchat",
+};
+
+const PLATFORM_COLOR: Record<string, string> = {
+  tiktok: "#000000",
+  instagram: "#E1306C",
+  youtube: "#FF0000",
+  twitter: "#1DA1F2",
+  facebook: "#1877F2",
+  snapchat: "#FFFC00",
 };
 
 const CATEGORY_GRADIENT: Record<string, string> = {
@@ -167,7 +185,20 @@ export default function StorefrontShell({
   const [cartOpen, setCartOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [shareCopied, setShareCopied] = useState(false);
   const { count } = useCart();
+
+  const handleShare = useCallback(() => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    if (navigator.share) {
+      navigator.share({ title: `@${handle}'s store`, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      }).catch(() => {});
+    }
+  }, [handle]);
   const t = TEMPLATES[activeTemplate];
 
   const displayName = creator.name || `@${handle}`;
@@ -264,9 +295,23 @@ export default function StorefrontShell({
                 Creator Store
               </span>
               <h1 className={`text-2xl font-black leading-tight ${t.headerText}`}>{displayName}</h1>
-              <p className="text-sm opacity-50 mt-0.5" style={{ color: t.accentHex }}>
-                @{handle}
-              </p>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <p className="text-sm opacity-50" style={{ color: t.accentHex }}>
+                  @{handle}
+                </p>
+                {creator.platform_name && PLATFORM_ICON[creator.platform_name] && (
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: `${PLATFORM_COLOR[creator.platform_name] || t.accentHex}22`,
+                      color: PLATFORM_COLOR[creator.platform_name] || t.accentHex,
+                      border: `1px solid ${PLATFORM_COLOR[creator.platform_name] || t.accentHex}44`,
+                    }}
+                  >
+                    {PLATFORM_ICON[creator.platform_name]}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -276,6 +321,19 @@ export default function StorefrontShell({
               {creator.bio}
             </p>
           )}
+
+          {/* Share button */}
+          <button
+            onClick={handleShare}
+            className="mb-4 flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
+            style={{
+              backgroundColor: shareCopied ? `${t.accentHex}30` : `${t.accentHex}15`,
+              color: t.accentHex,
+              border: `1px solid ${t.accentHex}30`,
+            }}
+          >
+            {shareCopied ? "✓ Link copied!" : "⬆ Share store"}
+          </button>
 
           {/* Stats row */}
           <div className="flex gap-5">
