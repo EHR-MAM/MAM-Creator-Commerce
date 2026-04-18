@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from typing import Optional
 import uuid
 
@@ -71,7 +71,7 @@ async def list_products(
         if status:
             query = query.where(Product.status == status)
         if category:
-            query = query.where(Product.category == category)
+            query = query.where(func.lower(Product.category) == category.lower())
         query = query.order_by(Product.name).offset(offset).limit(limit)
         result = await db.execute(query)
         products = result.scalars().all()
@@ -82,7 +82,7 @@ async def list_products(
     if status:
         query = query.where(Product.status == status)
     if category:
-        query = query.where(Product.category == category)
+        query = query.where(func.lower(Product.category) == category.lower())
     if vendor_id:
         query = query.where(Product.vendor_id == vendor_id)
     if search:

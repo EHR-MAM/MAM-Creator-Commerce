@@ -65,19 +65,26 @@ interface ApiProduct {
 const FALLBACK_IMGS: Record<string, string> = {
   fashion: "https://images.unsplash.com/photo-1594938298603-c8148c4b4d0a?w=500&q=80&auto=format&fit=crop",
   hair: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500&q=80&auto=format&fit=crop",
+  "hair & beauty": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500&q=80&auto=format&fit=crop",
   beauty: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80&auto=format&fit=crop",
   accessories: "https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?w=500&q=80&auto=format&fit=crop",
   skincare: "https://images.unsplash.com/photo-1570194065650-d99fb4bedf0a?w=500&q=80&auto=format&fit=crop",
   footwear: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=500&q=80&auto=format&fit=crop",
   electronics: "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=500&q=80&auto=format&fit=crop",
+  fitness: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&q=80&auto=format&fit=crop",
+  "home & living": "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=500&q=80&auto=format&fit=crop",
+  "mother & baby": "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=500&q=80&auto=format&fit=crop",
+  "books & culture": "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=500&q=80&auto=format&fit=crop",
+  jewelry: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&q=80&auto=format&fit=crop",
   wellness: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500&q=80&auto=format&fit=crop",
 };
 
 function mapApiProduct(p: ApiProduct): Product {
-  const img = (p.media_urls && p.media_urls[0]) || FALLBACK_IMGS[p.category] || FALLBACK_IMGS.fashion;
+  const catKey = p.category.toLowerCase();
+  const img = (p.media_urls && p.media_urls[0]) || FALLBACK_IMGS[catKey] || FALLBACK_IMGS.fashion;
   return {
     id: p.id,
-    cat: p.category,
+    cat: catKey,
     badge: "",
     title: p.name,
     price: Number(p.price),
@@ -140,10 +147,16 @@ const PRODUCTS: Product[] = [
 const CATS = [
   { key: "all", label: "All Products", icon: "🛍️" },
   { key: "fashion", label: "Fashion", icon: "👗" },
-  { key: "hair", label: "Hair & Wigs", icon: "💇" },
-  { key: "beauty", label: "Beauty", icon: "💄" },
-  { key: "accessories", label: "Accessories", icon: "💍" },
+  { key: "hair & beauty", label: "Hair & Beauty", icon: "💇" },
   { key: "skincare", label: "Skincare", icon: "🧴" },
+  { key: "electronics", label: "Electronics", icon: "📱" },
+  { key: "fitness", label: "Fitness", icon: "🏋️" },
+  { key: "home & living", label: "Home & Living", icon: "🏡" },
+  { key: "mother & baby", label: "Mother & Baby", icon: "🍼" },
+  { key: "jewelry", label: "Jewelry", icon: "💎" },
+  { key: "books & culture", label: "Books & Culture", icon: "📚" },
+  { key: "beauty", label: "Beauty", icon: "💄" },
+  { key: "accessories", label: "Accessories", icon: "👜" },
   { key: "footwear", label: "Footwear", icon: "👠" },
 ];
 
@@ -152,7 +165,7 @@ const TICKER_MSGS = [
   "18% commission for influencers — join today",
   "Pay on delivery · MTN MoMo accepted",
   "New arrivals every week",
-  "100+ products across 6 categories",
+  "1,200+ products across 11 categories",
   "500+ African creators earning with Yes MAM",
   "Telecel Cash now accepted",
   "Shop confidently — free returns within 7 days",
