@@ -1,5 +1,6 @@
-// MAM Admin Dashboard -- full 6-tab back-office
+// MAM Admin Dashboard -- full 7-tab back-office
 // Sprint III: auth gate via useAuth + redirect to /login
+// Sprint XXX: Reviews moderation tab
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -8,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 
-type Tab = "overview" | "orders" | "creators" | "vendors" | "products" | "campaigns" | "commissions";
+type Tab = "overview" | "orders" | "creators" | "vendors" | "products" | "campaigns" | "commissions" | "reviews";
 
 function useAdminData(token: string) {
   const [kpis, setKpis] = useState<any>(null);
@@ -244,6 +245,7 @@ export default function AdminPage() {
     { id: "products", label: "Products" },
     { id: "campaigns", label: "Campaigns" },
     { id: "commissions", label: "Commissions" },
+    { id: "reviews", label: "Reviews" },
   ];
 
   const payableTotal = commissions
@@ -537,6 +539,8 @@ export default function AdminPage() {
         )}
 
         {/* COMMISSIONS */}
+        {tab === "reviews" && <ReviewsTab token={token} h={h} />}
+
         {tab === "commissions" && (
           <div className="space-y-4">
             {payableTotal > 0 && (
@@ -580,6 +584,131 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Sprint XXX: Reviews Moderation Tab ──────────────────────────────────────
+
+function ReviewsTab({ token, h }: { token: string; h: Record<string, string> }) {
+  const [statusFilter, setStatusFilter] = useState<"pending" | "approved" | "rejected">("pending");
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [actionMsg, setActionMsg] = useState<Record<string, string>>({});
+
+  async function fetchReviews(st: "pending" | "approved" | "rejected") {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/products/reviews/admin?status=${st}&limit=50`, { headers: h });
+      setReviews(res.ok ? await res.json() : []);
+    } catch { setReviews([]); }
+    setLoading(false);
+  }
+
+  useEffect(() => { fetchReviews(statusFilter); }, [statusFilter, token]);
+
+  async function setStatus(reviewId: string, newStatus: "approved" | "rejected") {
+    setActionMsg(prev => ({ ...prev, [reviewId]: "Saving…" }));
+    try {
+      const res = await fetch(`${API}/products/reviews/${reviewId}/status?new_status=${newStatus}`, { method: "PATCH", headers: h });
+      if (res.ok) {
+        setReviews(prev => prev.filter(r => r.id !== reviewId));
+        setActionMsg(prev => ({ ...prev, [reviewId]: newStatus === "approved" ? "Approved!" : "Rejected" }));
+      } else {
+        setActionMsg(prev => ({ ...prev, [reviewId]: "Error" }));
+      }
+    } catch {
+      setActionMsg(prev => ({ ...prev, [reviewId]: "Error" }));
+    }
+  }
+
+  const formatDate = (iso: string) => {
+    try { return new Date(iso).toLocaleDateString("en-GH", { day: "numeric", month: "short", year: "numeric" }); }
+    catch { return ""; }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bold text-gray-900">Customer Reviews</h2>
+        <div className="flex gap-1">
+          {(["pending", "approved", "rejected"] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-colors ${
+                statusFilter === s
+                  ? s === "pending" ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                    : s === "approved" ? "bg-green-100 text-green-800 border border-green-200"
+                    : "bg-red-100 text-red-800 border border-red-200"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && (
+        <div className="flex items-center justify-center py-10">
+          <div className="w-6 h-6 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
+      {!loading && reviews.length === 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+          <p className="text-3xl mb-2">✓</p>
+          <p className="font-bold text-gray-700">No {statusFilter} reviews</p>
+        </div>
+      )}
+
+      {!loading && reviews.map((r: any) => (
+        <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="flex">
+                  {[1,2,3,4,5].map(s => (
+                    <span key={s} className={`text-sm ${s <= r.rating ? "text-[#C9A84C]" : "text-gray-200"}`}>★</span>
+                  ))}
+                </div>
+                <span className="text-xs text-gray-400">{formatDate(r.created_at)}</span>
+              </div>
+              {r.headline && <p className="font-bold text-sm text-gray-800 mb-1">{r.headline}</p>}
+              {r.body && <p className="text-sm text-gray-600 leading-relaxed mb-2">{r.body}</p>}
+              <p className="text-xs text-gray-400">
+                {r.customer_name}{r.customer_phone_last4 ? ` · ···${r.customer_phone_last4}` : ""}
+              </p>
+              <p className="text-[10px] text-gray-300 font-mono mt-0.5">{r.id}</p>
+            </div>
+            {statusFilter === "pending" && (
+              <div className="flex flex-col gap-2 shrink-0">
+                {actionMsg[r.id] ? (
+                  <span className={`text-xs font-bold px-3 py-1.5 rounded-xl ${
+                    actionMsg[r.id] === "Approved!" ? "text-green-700 bg-green-50" : "text-red-700 bg-red-50"
+                  }`}>{actionMsg[r.id]}</span>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setStatus(r.id, "approved")}
+                      className="text-xs font-bold px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-colors"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => setStatus(r.id, "rejected")}
+                      className="text-xs font-bold px-4 py-2 rounded-xl bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
