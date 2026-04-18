@@ -794,7 +794,7 @@ function CatalogTab({ token, handle }: { token: string; handle: string }) {
         const data = await res.json();
         if (data.short_url) shareUrl = data.short_url;
       }
-      const shareText = `Check out ${product.name} on Yes MAM! 🛍️\n\n${shareUrl}\n\n#YesMAM #Ghana #ShopNow`;
+      const shareText = `Check out ${product.name} on Yes MAM!\n\n${shareUrl}\n\n#YesMAM #Ghana #ShopNow`;
       await navigator.clipboard.writeText(shareText);
       setShareState(prev => ({ ...prev, [product.id]: "copied" }));
       setTimeout(() => setShareState(prev => ({ ...prev, [product.id]: "idle" })), 2500);
@@ -900,7 +900,8 @@ function CatalogTab({ token, handle }: { token: string; handle: string }) {
                   </button>
                 )}
               </div>
-            );})
+            );
+            })}
           </div>
 
           <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
