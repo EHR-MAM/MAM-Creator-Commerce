@@ -758,10 +758,11 @@ function LinksTab({ token, profile }: {
 
 // ─── Tab: Catalog ──────────────────────────────────────────────────────────────
 
-function CatalogTab({ token }: { token: string }) {
+function CatalogTab({ token, handle }: { token: string; handle: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [shareState, setShareState] = useState<Record<string, "idle" | "loading" | "copied">>({});
 
   useEffect(() => {
     async function load() {
@@ -779,6 +780,28 @@ function CatalogTab({ token }: { token: string }) {
     }
     load();
   }, [token]);
+
+  async function shareProduct(product: Product) {
+    setShareState(prev => ({ ...prev, [product.id]: "loading" }));
+    try {
+      let shareUrl = `https://sensedirector.com/mam/${handle}/${product.id}`;
+      const res = await fetch(`${API_URL}/tracking/links`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ destination_path: `/${handle}/${product.id}` }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.short_url) shareUrl = data.short_url;
+      }
+      const shareText = `Check out ${product.name} on Yes MAM! 🛍️\n\n${shareUrl}\n\n#YesMAM #Ghana #ShopNow`;
+      await navigator.clipboard.writeText(shareText);
+      setShareState(prev => ({ ...prev, [product.id]: "copied" }));
+      setTimeout(() => setShareState(prev => ({ ...prev, [product.id]: "idle" })), 2500);
+    } catch {
+      setShareState(prev => ({ ...prev, [product.id]: "idle" }));
+    }
+  }
 
   const STATUS_STYLE: Record<string, string> = {
     active: "bg-green-900/40 text-green-400 border-green-500/30",
@@ -824,40 +847,60 @@ function CatalogTab({ token }: { token: string }) {
             </span>
           </div>
           <div className="space-y-3">
-            {products.map(p => (
-              <div key={p.id} className="bg-[#1A1A1A] rounded-2xl border border-white/8 p-4 flex items-center gap-4">
-                {/* Thumbnail */}
-                <div className="w-14 h-14 rounded-xl bg-[#2A2A2A] flex items-center justify-center shrink-0 overflow-hidden">
-                  {p.media_urls && p.media_urls[0] ? (
-                    <img src={p.media_urls[0]} alt={p.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-2xl">{CATEGORY_EMOJI[p.category] || "🛍️"}</span>
-                  )}
-                </div>
+            {products.map(p => {
+              const pShare = shareState[p.id] || "idle";
+              return (
+              <div key={p.id} className="bg-[#1A1A1A] rounded-2xl border border-white/8 p-4">
+                <div className="flex items-center gap-4">
+                  {/* Thumbnail */}
+                  <div className="w-14 h-14 rounded-xl bg-[#2A2A2A] flex items-center justify-center shrink-0 overflow-hidden">
+                    {p.media_urls && p.media_urls[0] ? (
+                      <img src={p.media_urls[0]} alt={p.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-2xl">{CATEGORY_EMOJI[p.category] || "🛍️"}</span>
+                    )}
+                  </div>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-white text-sm leading-tight line-clamp-2">{p.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5 capitalize">{p.category}</p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="font-bold text-[#C9A84C] text-sm">
-                      {p.currency} {Number(p.price).toFixed(2)}
-                    </span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[p.status] || STATUS_STYLE.inactive}`}>
-                      {p.status === "out_of_stock" ? "Out of stock" : p.status}
-                    </span>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-white text-sm leading-tight line-clamp-2">{p.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 capitalize">{p.category}</p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="font-bold text-[#C9A84C] text-sm">
+                        {p.currency} {Number(p.price).toFixed(2)}
+                      </span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[p.status] || STATUS_STYLE.inactive}`}>
+                        {p.status === "out_of_stock" ? "Out of stock" : p.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Stock */}
+                  <div className="text-right shrink-0">
+                    <p className="text-xs text-gray-500">Stock</p>
+                    <p className={`font-bold text-sm ${p.inventory_count === 0 ? "text-red-400" : p.inventory_count <= 3 ? "text-amber-400" : "text-white"}`}>
+                      {p.inventory_count}
+                    </p>
                   </div>
                 </div>
 
-                {/* Stock */}
-                <div className="text-right shrink-0">
-                  <p className="text-xs text-gray-500">Stock</p>
-                  <p className={`font-bold text-sm ${p.inventory_count === 0 ? "text-red-400" : p.inventory_count <= 3 ? "text-amber-400" : "text-white"}`}>
-                    {p.inventory_count}
-                  </p>
-                </div>
+                {/* Quick share button — only for active products */}
+                {p.status === "active" && handle && (
+                  <button
+                    onClick={() => shareProduct(p)}
+                    disabled={pShare === "loading"}
+                    className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all"
+                    style={{
+                      borderColor: pShare === "copied" ? "#4ade8066" : "#C9A84C40",
+                      color: pShare === "copied" ? "#4ade80" : "#C9A84C",
+                      backgroundColor: pShare === "copied" ? "#052e1633" : "#C9A84C0d",
+                    }}
+                  >
+                    {pShare === "loading" ? "⏳ Generating link…" : pShare === "copied" ? "✓ Share text copied!" : "🔗 Share this product"}
+                  </button>
+                )}
               </div>
-            ))}
+            );})
           </div>
 
           <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-white/8">
@@ -1424,7 +1467,7 @@ export default function InfluencerDashboard() {
       <div className="max-w-lg mx-auto px-4 py-6">
         {tab === "home" && <HomeTab kpi={kpi} commissions={commissions} profile={profile} token={token ?? ""} />}
         {tab === "orders" && <OrdersTab orders={orders} />}
-        {tab === "catalog" && <CatalogTab token={token ?? ""} />}
+        {tab === "catalog" && <CatalogTab token={token ?? ""} handle={profile?.handle ?? ""} />}
         {tab === "analytics" && <AnalyticsTab token={token ?? ""} />}
         {tab === "links" && <LinksTab token={token ?? ""} profile={profile} />}
         {tab === "store" && (
