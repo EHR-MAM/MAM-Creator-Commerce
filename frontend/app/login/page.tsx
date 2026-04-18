@@ -22,7 +22,11 @@ function LoginForm() {
   // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
-      const dest = next || (user.role === "admin" || user.role === "operator" ? `${BASE}/admin` : `${BASE}/dashboard`);
+      const dest = next || (
+        user.role === "admin" || user.role === "operator" ? `${BASE}/admin` :
+        user.role === "vendor" ? `${BASE}/vendor` :
+        `${BASE}/dashboard`
+      );
       router.replace(dest);
     }
   }, [user, loading, next, router]);
