@@ -513,6 +513,7 @@ export default function AdminPage() {
             token={token}
             h={h}
             onCreateCreator={(data) => createUser("influencer", data)}
+            onReload={reload}
           />
         )}
 
@@ -1271,13 +1272,14 @@ function OrderCard({ order: o, onAdvance, token, h, creatorHandle }: { order: an
 }
 
 // ─── Sprint XXIII: Full Creators Tab ─────────────────────────────────────────
-function CreatorsTab({ creators, products, commissions, token, h, onCreateCreator }: {
+function CreatorsTab({ creators, products, commissions, token, h, onCreateCreator, onReload }: {
   creators: any[];
   products: any[];
   commissions: any[];
   token: string;
   h: Record<string, string>;
   onCreateCreator: (data: object) => void;
+  onReload?: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [inviteResult, setInviteResult] = useState<{ handle: string; email: string; loginUrl: string } | null>(null);
@@ -1355,6 +1357,7 @@ function CreatorsTab({ creators, products, commissions, token, h, onCreateCreato
               h={h}
               earnedTotal={earned}
               commissionCount={creatorCommissions.length}
+              onReload={onReload}
             />
           );
         })}
@@ -1366,13 +1369,14 @@ function CreatorsTab({ creators, products, commissions, token, h, onCreateCreato
   );
 }
 
-function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCount }: {
+function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCount, onReload }: {
   creator: any;
   allProducts: any[];
   token: string;
   h: Record<string, string>;
   earnedTotal: number;
   commissionCount: number;
+  onReload?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [campaignId, setCampaignId] = useState<string | null>(null);
@@ -1389,6 +1393,27 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
   const [selectedCat, setSelectedCat] = useState("");
   const [catAssigning, setCatAssigning] = useState(false);
   const [catMsg, setCatMsg] = useState("");
+  // Status toggle state
+  const [creatorStatus, setCreatorStatus] = useState<string>(creator.status || "active");
+  const [statusToggling, setStatusToggling] = useState(false);
+
+  async function toggleStatus(e: React.MouseEvent) {
+    e.stopPropagation();
+    setStatusToggling(true);
+    const newStatus = creatorStatus === "active" ? "inactive" : "active";
+    try {
+      const res = await fetch(`${API}/influencers/${creator.id}`, {
+        method: "PATCH",
+        headers: h,
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setCreatorStatus(newStatus);
+        onReload?.();
+      }
+    } catch { /* silent */ }
+    setStatusToggling(false);
+  }
 
   async function openPanel() {
     if (open) { setOpen(false); return; }
@@ -1519,7 +1544,18 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
             GHS {earnedTotal.toFixed(0)} earned
           </span>
         )}
-        <StatusBadge status={creator.status || "active"} />
+        <StatusBadge status={creatorStatus} />
+        <button
+          onClick={toggleStatus}
+          disabled={statusToggling}
+          className={`text-xs font-bold px-2 py-0.5 rounded-lg border transition-colors shrink-0 ${
+            creatorStatus === "active"
+              ? "border-red-200 text-red-500 hover:bg-red-50"
+              : "border-green-200 text-green-600 hover:bg-green-50"
+          } disabled:opacity-40`}
+        >
+          {statusToggling ? "…" : creatorStatus === "active" ? "Deactivate" : "Activate"}
+        </button>
         <span className="text-gray-300 text-xs ml-1 shrink-0">{open ? "▲" : "▼"}</span>
       </button>
 

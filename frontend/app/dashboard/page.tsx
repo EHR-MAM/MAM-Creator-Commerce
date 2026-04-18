@@ -456,6 +456,25 @@ function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commis
         )}
       </div>
 
+      {/* Your Store Link */}
+      {profile?.handle && (() => {
+        const storeUrl = typeof window !== "undefined"
+          ? `${window.location.origin}${BASE}/${profile.handle}`
+          : `${BASE}/${profile.handle}`;
+        return (
+          <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#C9A84C]/20">
+            <p className="text-sm font-bold text-white mb-1">Your Store Link</p>
+            <p className="text-xs text-gray-500 mb-3">Share on TikTok, Instagram, and WhatsApp to drive sales</p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-[#111] border border-white/10 rounded-xl px-3 py-2.5 overflow-hidden">
+                <p className="text-xs text-[#C9A84C] font-mono truncate">{storeUrl}</p>
+              </div>
+              <StoreLinkCopyButton url={storeUrl} />
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Payout footer note */}
       <div className="bg-[#111] rounded-2xl p-3 border border-white/5">
         <p className="text-xs text-gray-600 leading-relaxed text-center">
@@ -466,6 +485,26 @@ function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commis
         </p>
       </div>
     </div>
+  );
+}
+
+function StoreLinkCopyButton({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  }
+  return (
+    <button
+      onClick={copy}
+      className={`shrink-0 text-xs font-bold px-3 py-2.5 rounded-xl transition-all ${
+        copied ? "bg-green-500 text-white" : "bg-[#C9A84C] text-black hover:bg-[#E8C97A]"
+      }`}
+    >
+      {copied ? "✓ Copied!" : "Copy"}
+    </button>
   );
 }
 
