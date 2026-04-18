@@ -22,6 +22,7 @@ class Order(Base):
     size_variant: Mapped[str | None] = mapped_column(String(100))
     special_instructions: Mapped[str | None] = mapped_column(String(1000))
 
+    admin_notes: Mapped[str | None] = mapped_column(String(2000))
     status: Mapped[str] = mapped_column(default="pending", nullable=False)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     delivery_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)

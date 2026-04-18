@@ -405,7 +405,7 @@ export default function AdminPage() {
                 </div>
               );
               return filtered.map((o: any) => (
-                <OrderCard key={o.id} order={o} onAdvance={advanceOrder} />
+                <OrderCard key={o.id} order={o} onAdvance={advanceOrder} token={token} h={h} />
               ));
             })()}
           </div>
@@ -715,11 +715,28 @@ function ReviewsTab({ token, h }: { token: string; h: Record<string, string> }) 
   );
 }
 
-function OrderCard({ order: o, onAdvance }: { order: any; onAdvance: (id: string, status: string) => void }) {
+function OrderCard({ order: o, onAdvance, token, h }: { order: any; onAdvance: (id: string, status: string) => void; token: string; h: Record<string, string> }) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [notesText, setNotesText] = useState<string>(o.admin_notes || "");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
 
   const orderIdShort = (o.id || "").slice(0, 8).toUpperCase();
+
+  async function saveNotes() {
+    setNotesSaving(true);
+    try {
+      await fetch(`${API}/orders/${o.id}/notes`, {
+        method: "PATCH",
+        headers: { ...h, "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: notesText }),
+      });
+      setNotesSaved(true);
+      setTimeout(() => setNotesSaved(false), 2000);
+    } catch { /* silent */ }
+    setNotesSaving(false);
+  }
 
   // Build vendor summary text for copy-paste / WhatsApp forward
   function buildVendorSummary() {
@@ -922,6 +939,25 @@ function OrderCard({ order: o, onAdvance }: { order: any; onAdvance: (id: string
                 Cancel Order
               </button>
             )}
+          </div>
+
+          {/* Internal notes */}
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Internal Notes</p>
+            <textarea
+              value={notesText}
+              onChange={e => setNotesText(e.target.value)}
+              placeholder="Add internal notes for this order (visible to ops only)…"
+              rows={2}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 resize-none focus:outline-none focus:border-gray-400 placeholder-gray-300"
+            />
+            <button
+              onClick={saveNotes}
+              disabled={notesSaving}
+              className="mt-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 transition-colors"
+            >
+              {notesSaved ? "✓ Saved" : notesSaving ? "Saving…" : "Save note"}
+            </button>
           </div>
         </div>
       )}

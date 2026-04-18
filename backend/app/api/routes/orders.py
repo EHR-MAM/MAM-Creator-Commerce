@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
 from decimal import Decimal
+from pydantic import BaseModel
 import uuid
 
 from app.core.database import get_db
@@ -426,6 +427,31 @@ async def update_order_status(
 
 # ---------------------------------------------------------------------------
 # Sprint XXII: Payment initialization for an existing order
+# ---------------------------------------------------------------------------
+# Sprint LI: Admin order notes
+# ---------------------------------------------------------------------------
+
+class OrderNotesUpdate(BaseModel):
+    notes: str
+
+
+@router.patch("/{order_id}/notes")
+async def update_order_notes(
+    order_id: uuid.UUID,
+    body: OrderNotesUpdate,
+    current_user: User = Depends(require_admin_or_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: set or clear internal notes on an order."""
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    order.admin_notes = body.notes.strip() or None
+    await db.commit()
+    return {"id": str(order.id), "admin_notes": order.admin_notes}
+
+
 # ---------------------------------------------------------------------------
 
 from pydantic import BaseModel as _PayBaseModel
