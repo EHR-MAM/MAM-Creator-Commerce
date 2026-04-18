@@ -44,6 +44,8 @@ class ProductOut(BaseModel):
     status: str
     media_urls: Optional[List[str]]
     affiliate_url: Optional[str]
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
 
     class Config:
         from_attributes = True
