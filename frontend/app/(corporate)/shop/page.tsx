@@ -968,20 +968,16 @@ export default function ShopPage() {
     fetchInitial();
   }, []);
 
-  // Debounced search against real API
-  function handleLiveSearch(q: string) {
+  // Debounced search against real API — preserves active category filter
+  function handleLiveSearch(q: string, cat?: string) {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    const effectiveCat = cat !== undefined ? cat : activeCat;
     searchTimerRef.current = setTimeout(async () => {
-      if (!q.trim()) {
-        // Reload default products
-        try {
-          const res = await fetch(`${API_URL}/products?status=active&limit=60`);
-          if (res.ok) setApiProducts((await res.json()).map(mapApiProduct));
-        } catch { /* silent */ }
-        return;
-      }
       try {
-        const res = await fetch(`${API_URL}/products?status=active&limit=60&search=${encodeURIComponent(q)}`);
+        const params = new URLSearchParams({ status: "active", limit: "60" });
+        if (q.trim()) params.set("search", q.trim());
+        if (effectiveCat && effectiveCat !== "all" && effectiveCat !== "deals") params.set("category", effectiveCat);
+        const res = await fetch(`${API_URL}/products?${params}`);
         if (res.ok) setApiProducts((await res.json()).map(mapApiProduct));
       } catch { /* silent */ }
     }, 400);
@@ -1014,7 +1010,7 @@ export default function ShopPage() {
   }
 
   function handleSearch(q: string) {
-    setActiveCat("all");
+    // Keep current category — search within the active category
     setActiveInfFilter(null);
     handleLiveSearch(q);
   }
@@ -1022,15 +1018,9 @@ export default function ShopPage() {
   async function filterCat(k: string) {
     setActiveCat(k);
     setActiveInfFilter(null);
-    setSearchQuery("");
     setView("home");
-    // Fetch products for this category from API
-    try {
-      const params = new URLSearchParams({ status: "active", limit: "60" });
-      if (k !== "all" && k !== "deals") params.set("category", k);
-      const res = await fetch(`${API_URL}/products?${params}`);
-      if (res.ok) setApiProducts((await res.json()).map(mapApiProduct));
-    } catch { /* silent */ }
+    // Keep current search query — fetch category + search combined
+    handleLiveSearch(searchQuery, k);
     setTimeout(() => document.getElementById("product-grid-section")?.scrollIntoView({ behavior: "smooth" }), 50);
   }
 
@@ -1064,7 +1054,9 @@ export default function ShopPage() {
 
   const gridTitle = activeInfFilter
     ? <>{inf(activeInfFilter).name}&apos;s <span className="text-[#C9A84C]">Store</span></>
-    : searchQuery ? <>Results for &quot;<span className="text-[#C9A84C]">{searchQuery}</span>&quot;</>
+    : searchQuery && activeCat !== "all" && activeCat !== "deals"
+      ? <>&quot;<span className="text-[#C9A84C]">{searchQuery}</span>&quot; in <span className="text-[#C9A84C] capitalize">{activeCat}</span> <span className="text-[#555] text-sm font-normal">({visibleProducts.length})</span></>
+    : searchQuery ? <>Results for &quot;<span className="text-[#C9A84C]">{searchQuery}</span>&quot; <span className="text-[#555] text-sm font-normal">({visibleProducts.length})</span></>
     : activeCat === "all" ? <>Featured by <span className="text-[#C9A84C]">Influencers</span> <span className="text-[#555] text-sm font-normal">({visibleProducts.length} products)</span></>
     : activeCat === "deals" ? <>🔥 <span className="text-[#C9A84C]">Deals</span></>
     : <><span className="text-[#C9A84C] capitalize">{activeCat}</span> Products <span className="text-[#555] text-sm font-normal">({visibleProducts.length})</span></>;
@@ -1110,11 +1102,18 @@ export default function ShopPage() {
           <div id="product-grid-section">
             <div className="flex items-center justify-between px-4 pt-5 pb-3">
               <h2 className="text-lg font-black text-white">{gridTitle}</h2>
-              {activeInfFilter && (
-                <button onClick={() => { setActiveInfFilter(null); setActiveCat("all"); }} className="text-xs text-[#C9A84C] hover:underline">
-                  Clear filter ×
-                </button>
-              )}
+              <div className="flex gap-3">
+                {searchQuery && (
+                  <button onClick={() => { setSearchQuery(""); handleLiveSearch(""); }} className="text-xs text-[#C9A84C] hover:underline">
+                    × clear search
+                  </button>
+                )}
+                {activeInfFilter && (
+                  <button onClick={() => { setActiveInfFilter(null); setActiveCat("all"); }} className="text-xs text-[#C9A84C] hover:underline">
+                    Clear filter ×
+                  </button>
+                )}
+              </div>
             </div>
             {apiLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 px-4 pb-6">
