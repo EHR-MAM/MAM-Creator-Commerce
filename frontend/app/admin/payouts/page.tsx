@@ -27,6 +27,8 @@ export default function AdminPayouts() {
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState<Record<string, string>>({});
+  // Per-payout reference inputs for Mark Completed flow
+  const [refInputs, setRefInputs] = useState<Record<string, string>>({});
 
   // Pick up token from sessionStorage (set by main admin page login)
   useEffect(() => {
@@ -50,16 +52,21 @@ export default function AdminPayouts() {
     if (token) fetchPayouts(token);
   }, [token, fetchPayouts]);
 
-  async function updateStatus(payoutId: string, status: string) {
+  async function updateStatus(payoutId: string, status: string, externalRef?: string) {
     setActionMsg(m => ({ ...m, [payoutId]: "…" }));
     try {
+      const body: Record<string, string> = { status };
+      if (externalRef?.trim()) body.external_reference = externalRef.trim();
       const res = await fetch(`${API_URL}/payouts/${payoutId}/status`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
-        setActionMsg(m => ({ ...m, [payoutId]: status === "completed" ? "Marked completed ✓" : "Marked failed" }));
+        const label = status === "completed" ? "Marked paid ✓" : status === "processing" ? "Marked processing ✓" : "Marked failed";
+        setActionMsg(m => ({ ...m, [payoutId]: label }));
+        // Clear reference input after successful action
+        setRefInputs(r => { const next = { ...r }; delete next[payoutId]; return next; });
         await fetchPayouts(token);
       } else {
         const err = await res.json();
@@ -71,9 +78,11 @@ export default function AdminPayouts() {
   }
 
   const pending = payouts.filter(p => p.status === "pending");
+  const processing = payouts.filter(p => p.status === "processing");
   const completed = payouts.filter(p => p.status === "completed");
   const failed = payouts.filter(p => p.status === "failed");
-  const totalPending = pending.reduce((s, p) => s + Number(p.amount), 0);
+  const actionable = [...pending, ...processing]; // shown in the "needs action" list
+  const totalPending = actionable.reduce((s, p) => s + Number(p.amount), 0);
 
   if (!token) {
     return (
@@ -104,10 +113,11 @@ export default function AdminPayouts() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
 
         {/* Summary */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-3">
           {[
             { label: "Pending", value: pending.length, color: "text-amber-600" },
-            { label: "Completed", value: completed.length, color: "text-green-600" },
+            { label: "Processing", value: processing.length, color: "text-blue-600" },
+            { label: "Paid", value: completed.length, color: "text-green-600" },
             { label: "Failed", value: failed.length, color: "text-red-500" },
           ].map(k => (
             <div key={k.label} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm text-center">
@@ -118,39 +128,46 @@ export default function AdminPayouts() {
         </div>
 
         {/* Pending Approval Banner */}
-        {pending.length > 0 && (
+        {actionable.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
             <p className="font-semibold text-amber-800 text-sm">
-              GHS {totalPending.toFixed(2)} awaiting approval across {pending.length} request{pending.length > 1 ? "s" : ""}
+              GHS {totalPending.toFixed(2)} to action across {actionable.length} request{actionable.length > 1 ? "s" : ""}
             </p>
             <p className="text-xs text-amber-700 mt-1">
-              Transfer the amount to the creator's MoMo number, then click "Mark Completed". If payment fails, click "Mark Failed" to return commissions to the creator so they can request again.
+              1. Transfer the amount to the creator's MoMo number.
+              2. Enter the MoMo transaction ID in the reference field.
+              3. Click "Mark Paid". If payment fails, click "Mark Failed" — commissions return to the creator.
             </p>
           </div>
         )}
 
-        {/* Pending payouts */}
+        {/* Actionable payouts (pending + processing) */}
         <div>
-          <h2 className="font-bold text-base mb-3">Pending Requests ({pending.length})</h2>
+          <h2 className="font-bold text-base mb-3">Needs Action ({actionable.length})</h2>
           {loading ? (
             <div className="text-center py-8 text-gray-400">Loading…</div>
-          ) : pending.length === 0 ? (
+          ) : actionable.length === 0 ? (
             <div className="text-center py-8 text-gray-400 bg-white rounded-xl border border-gray-100">
               No pending payout requests.
             </div>
           ) : (
             <div className="space-y-3">
-              {pending.map(p => (
-                <div key={p.id} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+              {actionable.map(p => (
+                <div key={p.id} className={`bg-white rounded-xl p-4 border shadow-sm ${p.status === "processing" ? "border-blue-200 bg-blue-50/30" : "border-gray-100"}`}>
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <p className="font-black text-xl">GHS {Number(p.amount).toFixed(2)}</p>
                         {p.influencer_handle && (
                           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
                             @{p.influencer_handle}
                           </span>
                         )}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                          p.status === "processing" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {p.status}
+                        </span>
                       </div>
                       {/* MoMo number — prominently shown for admin to transfer */}
                       {p.influencer_momo ? (
@@ -158,7 +175,7 @@ export default function AdminPayouts() {
                           <span className="text-amber-700 text-sm">📱</span>
                           <div>
                             <p className="text-[10px] text-amber-600 font-medium uppercase tracking-wider">Send MoMo to</p>
-                            <p className="font-bold text-amber-800 text-sm">{p.influencer_momo}</p>
+                            <p className="font-bold text-amber-800 text-sm select-all">{p.influencer_momo}</p>
                           </div>
                         </div>
                       ) : (
@@ -167,16 +184,34 @@ export default function AdminPayouts() {
                       <p className="text-xs text-gray-400">
                         Requested: {p.period_end ? new Date(p.period_end).toLocaleString() : "—"}
                       </p>
-                      {p.payment_method && (
-                        <p className="text-xs text-gray-500 mt-0.5">Method: {p.payment_method}</p>
-                      )}
+                      {/* MoMo transaction reference input */}
+                      <div className="mt-3">
+                        <label className="text-[10px] text-gray-500 uppercase tracking-wider font-medium block mb-1">
+                          MoMo Transaction ID (optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. GHA-2026-123456"
+                          value={refInputs[p.id] || ""}
+                          onChange={e => setRefInputs(r => ({ ...r, [p.id]: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-black font-mono"
+                        />
+                      </div>
                     </div>
                     <div className="flex flex-col gap-2 shrink-0">
+                      {p.status === "pending" && (
+                        <button
+                          onClick={() => updateStatus(p.id, "processing", refInputs[p.id])}
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Mark Processing
+                        </button>
+                      )}
                       <button
-                        onClick={() => updateStatus(p.id, "completed")}
+                        onClick={() => updateStatus(p.id, "completed", refInputs[p.id])}
                         className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
                       >
-                        Mark Completed
+                        Mark Paid ✓
                       </button>
                       <button
                         onClick={() => updateStatus(p.id, "failed")}
