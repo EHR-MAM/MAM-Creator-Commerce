@@ -16,7 +16,7 @@ from app.models.influencer import Influencer
 from app.models.user import User
 from app.schemas.order import OrderCreate, OrderOut
 from app.core.config import settings
-from app.services.notifications import send_order_notifications, send_order_status_notification, send_creator_order_notification
+from app.services.notifications import send_order_notifications, send_order_status_notification, send_creator_order_notification, send_customer_order_confirmation
 
 router = APIRouter()
 
@@ -146,6 +146,7 @@ async def create_order(
     }
     background_tasks.add_task(send_order_notifications, notification_data)
     background_tasks.add_task(send_creator_order_notification, notification_data)
+    background_tasks.add_task(send_customer_order_confirmation, notification_data)
 
     return order
 

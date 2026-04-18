@@ -370,6 +370,71 @@ async def send_order_status_notification(order_data: dict) -> None:
 
 
 
+async def send_customer_order_confirmation(order_data: dict) -> None:
+    """
+    Sprint XLIII: Fire-and-forget WhatsApp confirmation to the customer immediately
+    after they place an order. Gives them their order ID, total, and tracking link.
+
+    order_data keys (same as notification_data in create_order):
+        order_id, customer_name, customer_phone, items, total, creator_handle
+    """
+    customer_phone = order_data.get("customer_phone", "")
+    if not customer_phone:
+        logger.warning(
+            "No customer phone — skipping customer confirmation for order %s",
+            str(order_data.get("order_id", ""))[:8].upper(),
+        )
+        return
+
+    order_id_short = str(order_data.get("order_id", ""))[:8].upper()
+    full_order_id = str(order_data.get("order_id", ""))
+    customer_name = order_data.get("customer_name", "there")
+    first_name = customer_name.split()[0] if customer_name else "there"
+    total = float(order_data.get("total", 0))
+    handle = order_data.get("creator_handle", "")
+    items = order_data.get("items", [])
+
+    # Build item summary (max 3 lines)
+    if items:
+        item_lines = "\n".join(
+            "  • {} x{}".format(item["name"], item["qty"])
+            for item in items[:3]
+        )
+        if len(items) > 3:
+            item_lines += "\n  • +{} more item{}".format(len(items) - 3, "s" if len(items) - 3 > 1 else "")
+    else:
+        item_lines = "  (see order details)"
+
+    # Tracking URL — uses the order-status page
+    tracking_url = "https://sensedirector.com/mam/order-status?order_id={}".format(full_order_id)
+
+    message = (
+        "\U0001f6d2 *Order Confirmed — Yes MAM*\n\n"
+        "Hi {first_name}, thank you for your order!\n\n"
+        "*Order #{order_id}*\n"
+        "{items}\n\n"
+        "*Total: GHS {total:.2f}* (pay on delivery)\n\n"
+        "Track your order:\n{tracking}\n\n"
+        "We'll send you updates when your order is shipped.\n"
+        "Questions? WhatsApp us: +13107763650\n\n"
+        "— Yes MAM"
+        + ("\n_(via @{handle}'s store)_".format(handle=handle) if handle else "")
+    ).format(
+        first_name=first_name,
+        order_id=order_id_short,
+        items=item_lines,
+        total=total,
+        tracking=tracking_url,
+    )
+
+    await _send_whatsapp_twilio(customer_phone, message)
+    logger.info(
+        "Customer order confirmation sent to %s for order %s",
+        customer_phone,
+        order_id_short,
+    )
+
+
 async def send_creator_order_notification(order_data: dict) -> None:
     """
     Sprint XXIV: Fire-and-forget WhatsApp alert to the creator when someone
