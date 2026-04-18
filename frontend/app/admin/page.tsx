@@ -411,20 +411,14 @@ export default function AdminPage() {
 
         {/* CREATORS */}
         {tab === "creators" && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="font-bold text-gray-900 mb-3">Creators ({creators.length})</h2>
-              <div className="space-y-2">
-                {creators.length === 0 && (
-                  <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center text-gray-400">No creators yet</div>
-                )}
-                {creators.map((c: any) => (
-                  <CreatorRow key={c.id} creator={c} allProducts={products} token={token} h={h} />
-                ))}
-              </div>
-            </div>
-            <AddCreatorForm onSubmit={(data) => createUser("influencer", data)} />
-          </div>
+          <CreatorsTab
+            creators={creators}
+            products={products}
+            commissions={commissions}
+            token={token}
+            h={h}
+            onCreateCreator={(data) => createUser("influencer", data)}
+          />
         )}
 
         {/* VENDORS */}
@@ -777,25 +771,129 @@ function OrderCard({ order: o, onAdvance }: { order: any; onAdvance: (id: string
   );
 }
 
-function CreatorRow({ creator, allProducts, token, h }: {
+// ─── Sprint XXIII: Full Creators Tab ─────────────────────────────────────────
+function CreatorsTab({ creators, products, commissions, token, h, onCreateCreator }: {
+  creators: any[];
+  products: any[];
+  commissions: any[];
+  token: string;
+  h: Record<string, string>;
+  onCreateCreator: (data: object) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [inviteResult, setInviteResult] = useState<{ handle: string; email: string; loginUrl: string } | null>(null);
+
+  const filtered = creators.filter((c: any) => {
+    const q = search.toLowerCase();
+    return !q || (c.handle || "").toLowerCase().includes(q) || (c.display_name || "").toLowerCase().includes(q);
+  });
+
+  async function handleInvite(data: object) {
+    onCreateCreator(data);
+    const d = data as any;
+    const loginUrl = `${window.location.origin}${BASE}/login`;
+    setInviteResult({ handle: d.handle, email: d.email, loginUrl });
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Invite result banner */}
+      {inviteResult && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 space-y-2">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="font-bold text-green-800 text-sm">Creator account created for @{inviteResult.handle}</p>
+              <p className="text-xs text-green-600 mt-0.5">Share this login link with them:</p>
+            </div>
+            <button onClick={() => setInviteResult(null)} className="text-green-400 hover:text-green-600 text-lg leading-none">×</button>
+          </div>
+          <div className="bg-white rounded-xl border border-green-200 px-3 py-2 flex items-center gap-2">
+            <span className="text-xs font-mono text-gray-700 flex-1 break-all">{inviteResult.loginUrl}</span>
+            <button
+              onClick={() => navigator.clipboard.writeText(inviteResult.loginUrl)}
+              className="text-xs bg-green-600 text-white px-2 py-1 rounded-lg font-semibold shrink-0"
+            >
+              Copy
+            </button>
+          </div>
+          <p className="text-xs text-green-600">
+            Email: <span className="font-mono">{inviteResult.email}</span> — forward their password separately.
+          </p>
+        </div>
+      )}
+
+      {/* Header + search */}
+      <div className="flex items-center gap-3">
+        <h2 className="font-bold text-gray-900 shrink-0">Creators ({creators.length})</h2>
+        <input
+          type="search"
+          placeholder="Search by handle or name…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="flex-1 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:border-gray-400"
+        />
+      </div>
+
+      {/* Creator rows */}
+      <div className="space-y-2">
+        {filtered.length === 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center text-gray-400">
+            {creators.length === 0 ? "No creators yet" : "No creators match your search"}
+          </div>
+        )}
+        {filtered.map((c: any) => {
+          const creatorCommissions = commissions.filter((cm: any) => {
+            // Best-effort match — commissions don't have influencer_id directly, use order attribution
+            return cm.influencer_id === c.id || cm.influencer_handle === c.handle;
+          });
+          const earned = creatorCommissions.reduce((s: number, cm: any) => s + Number(cm.influencer_amount || 0), 0);
+          return (
+            <CreatorRow
+              key={c.id}
+              creator={c}
+              allProducts={products}
+              token={token}
+              h={h}
+              earnedTotal={earned}
+              commissionCount={creatorCommissions.length}
+            />
+          );
+        })}
+      </div>
+
+      {/* Add / Invite creator form */}
+      <AddCreatorForm onSubmit={handleInvite} />
+    </div>
+  );
+}
+
+function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCount }: {
   creator: any;
   allProducts: any[];
   token: string;
   h: Record<string, string>;
+  earnedTotal: number;
+  commissionCount: number;
 }) {
   const [open, setOpen] = useState(false);
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [assigned, setAssigned] = useState<any[]>([]);
   const [loadingCamp, setLoadingCamp] = useState(false);
   const [msg, setMsg] = useState("");
+  // Bulk assign state
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  // Product search within panel
+  const [productSearch, setProductSearch] = useState("");
 
   async function openPanel() {
     if (open) { setOpen(false); return; }
     setOpen(true);
     setLoadingCamp(true);
     setMsg("");
+    setSelected(new Set());
+    setProductSearch("");
     try {
-      // Get or create a default campaign for this influencer
       const cpRes = await fetch(`${API}/campaigns/ensure-for-influencer`, {
         method: "POST",
         headers: h,
@@ -804,7 +902,6 @@ function CreatorRow({ creator, allProducts, token, h }: {
       if (!cpRes.ok) { setMsg("Could not load campaign"); setLoadingCamp(false); return; }
       const cp = await cpRes.json();
       setCampaignId(cp.id);
-      // Load assigned products
       const prRes = await fetch(`${API}/campaigns/${cp.id}/products`, { headers: h });
       if (prRes.ok) setAssigned(await prRes.json());
     } catch { setMsg("Network error"); }
@@ -813,7 +910,6 @@ function CreatorRow({ creator, allProducts, token, h }: {
 
   async function assignProduct(productId: string) {
     if (!campaignId) return;
-    setMsg("");
     const res = await fetch(`${API}/campaigns/${campaignId}/products`, {
       method: "POST",
       headers: h,
@@ -822,8 +918,27 @@ function CreatorRow({ creator, allProducts, token, h }: {
     if (res.ok) {
       const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h });
       if (prRes.ok) setAssigned(await prRes.json());
-      setMsg("Product assigned");
-    } else { setMsg("Failed to assign"); }
+    }
+  }
+
+  async function bulkAssign() {
+    if (!campaignId || selected.size === 0) return;
+    setBulkAssigning(true);
+    setMsg("");
+    let count = 0;
+    for (const pid of Array.from(selected)) {
+      const res = await fetch(`${API}/campaigns/${campaignId}/products`, {
+        method: "POST",
+        headers: h,
+        body: JSON.stringify({ product_id: pid, featured_rank: 0 }),
+      });
+      if (res.ok) count++;
+    }
+    const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h });
+    if (prRes.ok) setAssigned(await prRes.json());
+    setSelected(new Set());
+    setMsg(`${count} product${count !== 1 ? "s" : ""} assigned`);
+    setBulkAssigning(false);
   }
 
   async function removeProduct(productId: string) {
@@ -839,26 +954,47 @@ function CreatorRow({ creator, allProducts, token, h }: {
     } else { setMsg("Failed to remove"); }
   }
 
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const assignedIds = new Set(assigned.map((p: any) => p.id));
   const unassigned = allProducts.filter((p: any) => !assignedIds.has(p.id));
+  const filteredUnassigned = productSearch
+    ? unassigned.filter((p: any) => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+    : unassigned;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
       <button
         onClick={openPanel}
-        className="w-full flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
       >
-        <span className="font-mono text-sm font-semibold text-gray-900 w-32">@{creator.handle}</span>
-        <span className="flex-1 text-sm text-gray-700">{creator.display_name || creator.handle}</span>
-        <span className="text-xs text-gray-400 capitalize">{creator.platform_name || creator.platform || "—"}</span>
+        <span className="font-mono text-sm font-semibold text-gray-900 w-28 shrink-0">@{creator.handle}</span>
+        <span className="flex-1 text-sm text-gray-700 truncate">{creator.display_name || creator.handle}</span>
+        <span className="text-xs text-gray-400 capitalize hidden sm:block shrink-0">{creator.platform_name || creator.platform || "—"}</span>
+        {commissionCount > 0 && (
+          <span className="text-xs bg-[#C9A84C]/10 text-[#8B6914] font-semibold px-2 py-0.5 rounded-full shrink-0">
+            GHS {earnedTotal.toFixed(0)} earned
+          </span>
+        )}
         <StatusBadge status={creator.status || "active"} />
-        <span className="text-gray-300 text-xs ml-2">{open ? "▲" : "▼"}</span>
+        <span className="text-gray-300 text-xs ml-1 shrink-0">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
         <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-4">
           {loadingCamp && <p className="text-xs text-gray-400">Loading catalog…</p>}
-          {msg && <p className="text-xs text-[#C9A84C] font-medium">{msg}</p>}
+          {msg && (
+            <p className={`text-xs font-medium ${msg.includes("Failed") || msg.includes("error") ? "text-red-500" : "text-green-600"}`}>
+              {msg}
+            </p>
+          )}
 
           {!loadingCamp && (
             <>
@@ -868,16 +1004,16 @@ function CreatorRow({ creator, allProducts, token, h }: {
                   Assigned Products ({assigned.length})
                 </p>
                 {assigned.length === 0 && (
-                  <p className="text-xs text-gray-400 italic">No products assigned yet. Add from the list below.</p>
+                  <p className="text-xs text-gray-400 italic">No products assigned yet.</p>
                 )}
                 <div className="space-y-1">
                   {assigned.map((p: any) => (
                     <div key={p.id} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-gray-100">
-                      <span className="text-sm flex-1 font-medium text-gray-800">{p.name}</span>
-                      <span className="text-xs text-gray-400">GHS {Number(p.price).toFixed(2)}</span>
+                      <span className="text-sm flex-1 font-medium text-gray-800 truncate">{p.name}</span>
+                      <span className="text-xs text-gray-400 shrink-0">GHS {Number(p.price).toFixed(2)}</span>
                       <button
                         onClick={() => removeProduct(p.id)}
-                        className="text-xs text-red-400 hover:text-red-600 font-semibold px-2 py-0.5 rounded"
+                        className="text-xs text-red-400 hover:text-red-600 font-semibold px-2 py-0.5 rounded shrink-0"
                       >
                         Remove
                       </button>
@@ -886,25 +1022,71 @@ function CreatorRow({ creator, allProducts, token, h }: {
                 </div>
               </div>
 
-              {/* Add products */}
+              {/* Add products — with search + bulk select */}
               {unassigned.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                    Add Products ({unassigned.length} available)
-                  </p>
-                  <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                    {unassigned.map((p: any) => (
+                  <div className="flex items-center justify-between mb-2 gap-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider shrink-0">
+                      Add Products ({filteredUnassigned.length}{productSearch ? ` of ${unassigned.length}` : ""})
+                    </p>
+                    {selected.size > 0 && (
+                      <button
+                        onClick={bulkAssign}
+                        disabled={bulkAssigning}
+                        className="text-xs bg-[#111] text-white font-bold px-3 py-1 rounded-lg disabled:opacity-50 shrink-0"
+                      >
+                        {bulkAssigning ? "Assigning…" : `Assign Selected (${selected.size})`}
+                      </button>
+                    )}
+                  </div>
+                  {/* Product search */}
+                  <input
+                    type="search"
+                    placeholder="Filter products…"
+                    value={productSearch}
+                    onChange={e => setProductSearch(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-1.5 text-xs mb-2 focus:outline-none focus:border-gray-400"
+                  />
+                  {/* Select all row */}
+                  {filteredUnassigned.length > 1 && (
+                    <div className="flex items-center gap-2 mb-1 px-1">
+                      <input
+                        type="checkbox"
+                        id={`select-all-${creator.id}`}
+                        checked={filteredUnassigned.length > 0 && filteredUnassigned.every(p => selected.has(p.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelected(new Set(filteredUnassigned.map((p: any) => p.id)));
+                          else setSelected(new Set());
+                        }}
+                        className="accent-[#C9A84C]"
+                      />
+                      <label htmlFor={`select-all-${creator.id}`} className="text-xs text-gray-500 cursor-pointer">
+                        Select all {filteredUnassigned.length > 0 ? `(${filteredUnassigned.length})` : ""}
+                      </label>
+                    </div>
+                  )}
+                  <div className="space-y-1 max-h-52 overflow-y-auto pr-1">
+                    {filteredUnassigned.map((p: any) => (
                       <div key={p.id} className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-gray-100">
-                        <span className="text-sm flex-1 text-gray-700">{p.name}</span>
-                        <span className="text-xs text-gray-400">GHS {Number(p.price).toFixed(2)}</span>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(p.id)}
+                          onChange={() => toggleSelect(p.id)}
+                          className="accent-[#C9A84C] shrink-0"
+                        />
+                        <span className="text-sm flex-1 text-gray-700 truncate">{p.name}</span>
+                        <span className="text-xs text-gray-400 shrink-0">GHS {Number(p.price).toFixed(2)}</span>
                         <button
-                          onClick={() => assignProduct(p.id)}
-                          className="text-xs bg-[#C9A84C] text-black font-bold px-3 py-0.5 rounded-lg hover:bg-[#E8C97A] transition-colors"
+                          onClick={() => { assignProduct(p.id); setSelected(prev => { const n = new Set(prev); n.delete(p.id); return n; }); }}
+                          className="text-xs bg-[#C9A84C] text-black font-bold px-2 py-0.5 rounded-lg hover:bg-[#E8C97A] transition-colors shrink-0"
                         >
-                          Assign
+                          + Add
                         </button>
                       </div>
                     ))}
+                    {filteredUnassigned.length === 0 && productSearch && (
+                      <p className="text-xs text-gray-400 px-2 py-2">No products match "{productSearch}"</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -918,31 +1100,70 @@ function CreatorRow({ creator, allProducts, token, h }: {
 
 function AddCreatorForm({ onSubmit }: { onSubmit: (data: object) => void }) {
   const [form, setForm] = useState({ name: "", email: "", password: "", handle: "", platform: "tiktok" });
+  const [open, setOpen] = useState(false);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  function generatePassword() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  }
+
+  function handleOpen() {
+    setOpen(o => !o);
+    if (!form.password) setForm(f => ({ ...f, password: generatePassword() }));
+  }
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <h3 className="font-bold text-gray-900 mb-4">Add Creator</h3>
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <input placeholder="Full name" value={form.name} onChange={set("name")}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-        <input placeholder="Email" value={form.email} onChange={set("email")}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-        <input placeholder="Password" type="password" value={form.password} onChange={set("password")}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-        <input placeholder="Handle (no @)" value={form.handle} onChange={set("handle")}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-        <select value={form.platform} onChange={set("platform")}
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm col-span-2">
-          <option value="tiktok">TikTok</option>
-          <option value="instagram">Instagram</option>
-          <option value="youtube">YouTube</option>
-        </select>
-      </div>
-      <button onClick={() => onSubmit(form)}
-        className="bg-[#111111] text-white px-4 py-2 rounded-xl text-sm font-semibold">
-        Create Creator Account
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <button
+        onClick={handleOpen}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+      >
+        <span className="font-bold text-gray-900 text-sm">Invite New Creator</span>
+        <span className="text-xs text-[#C9A84C] font-semibold">{open ? "Cancel" : "+ Invite"}</span>
       </button>
+
+      {open && (
+        <div className="border-t border-gray-100 px-5 pb-5 pt-4">
+          <p className="text-xs text-gray-400 mb-3">Creates their account and generates a login link to share.</p>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <input placeholder="Full name" value={form.name} onChange={set("name")}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+            <input placeholder="Handle (no @)" value={form.handle} onChange={set("handle")}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+            <input placeholder="Email" type="email" value={form.email} onChange={set("email")}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm" />
+            <div className="flex gap-2">
+              <input placeholder="Temp password" value={form.password} onChange={set("password")}
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm flex-1 font-mono text-xs" />
+              <button
+                onClick={() => setForm(f => ({ ...f, password: generatePassword() }))}
+                className="text-xs border border-gray-200 rounded-xl px-2 text-gray-400 hover:text-gray-700 shrink-0"
+                title="Regenerate password"
+              >
+                ↺
+              </button>
+            </div>
+            <select value={form.platform} onChange={set("platform")}
+              className="border border-gray-200 rounded-xl px-3 py-2 text-sm col-span-2">
+              <option value="tiktok">TikTok</option>
+              <option value="instagram">Instagram</option>
+              <option value="youtube">YouTube</option>
+            </select>
+          </div>
+          <div className="flex gap-3 items-center">
+            <button
+              onClick={() => { onSubmit(form); setForm({ name: "", email: "", password: generatePassword(), handle: "", platform: "tiktok" }); setOpen(false); }}
+              disabled={!form.name || !form.email || !form.password || !form.handle}
+              className="bg-[#111111] text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-40"
+            >
+              Create + Get Invite Link
+            </button>
+            <p className="text-xs text-gray-400">Password is shown once — copy it before sharing.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
