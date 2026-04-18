@@ -196,6 +196,82 @@ async def list_my_orders(
     return result.scalars().all()
 
 
+@router.get("/track")
+async def track_order(
+    order_id: uuid.UUID,
+    phone: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Sprint XXVI: Public order tracking — no auth required.
+    Customers look up their order by order_id + customer_phone.
+    Returns a limited status view (no internal IDs, no PII beyond what the
+    customer already knows).
+    """
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Verify ownership: normalize both phones to digits only for comparison
+    def digits_only(s: str) -> str:
+        return "".join(c for c in (s or "") if c.isdigit())
+
+    if digits_only(order.customer_phone) != digits_only(phone):
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Resolve influencer handle for display
+    creator_handle = None
+    try:
+        if order.influencer_id:
+            inf_result = await db.execute(select(Influencer).where(Influencer.id == order.influencer_id))
+            inf = inf_result.scalar_one_or_none()
+            if inf:
+                creator_handle = inf.handle
+    except Exception:
+        pass
+
+    # Load order items
+    items_result = await db.execute(
+        select(OrderItem).where(OrderItem.order_id == order.id)
+    )
+    items = items_result.scalars().all()
+
+    STATUS_MESSAGES = {
+        "pending":    ("Your order has been received.", "We are reviewing it now."),
+        "confirmed":  ("Order confirmed!", "We have confirmed your order and are preparing it."),
+        "processing": ("Being prepared.", "Your items are being packed and checked."),
+        "shipped":    ("On its way!", "Your order has been dispatched. Expect delivery within 24-72 hours."),
+        "delivered":  ("Delivered!", "Your order has been delivered. Enjoy your purchase!"),
+        "cancelled":  ("Order cancelled.", "This order has been cancelled. Contact us on WhatsApp if you have questions."),
+        "refunded":   ("Refunded.", "A refund has been processed for this order."),
+    }
+    status_msg, status_detail = STATUS_MESSAGES.get(order.status, ("Status unknown.", ""))
+
+    return {
+        "order_id": str(order.id),
+        "order_id_short": str(order.id)[:8].upper(),
+        "status": order.status,
+        "status_message": status_msg,
+        "status_detail": status_detail,
+        "customer_name": order.customer_name,
+        "total": str(order.total),
+        "currency": order.currency,
+        "delivery_address": order.delivery_address,
+        "creator_handle": creator_handle,
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+        "updated_at": order.updated_at.isoformat() if order.updated_at else None,
+        "items": [
+            {
+                "quantity": item.quantity,
+                "unit_price": str(item.unit_price),
+                "line_total": str(item.line_total),
+            }
+            for item in items
+        ],
+    }
+
 @router.get("/{order_id}", response_model=OrderOut)
 async def get_order(
     order_id: uuid.UUID,
