@@ -1,7 +1,7 @@
 "use client";
-// ProductDetailClient — Sprint IV + Sprint XIX (multi-product cart)
-// Image carousel, Add to Cart, cart drawer, affiliate CTA, related products
-import { useState } from "react";
+// ProductDetailClient — Sprint IV + Sprint XIX (multi-product cart) + Sprint XXVIII (reviews)
+// Image carousel, Add to Cart, cart drawer, affiliate CTA, related products, reviews
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import WhatsAppFallback from "@/components/WhatsAppFallback";
 import CartDrawer from "@/components/CartDrawer";
@@ -9,6 +9,7 @@ import { useCart } from "@/lib/cart";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   hair: "💆‍♀️",
@@ -149,6 +150,229 @@ function RelatedCard({ product, handle }: { product: Product; handle: string }) 
         </div>
       </div>
     </Link>
+  );
+}
+
+// ─── Reviews Section ─────────────────────────────────────────────────────────
+
+interface Review {
+  id: string;
+  customer_name: string;
+  customer_phone_last4: string | null;
+  rating: number;
+  headline: string | null;
+  body: string | null;
+  created_at: string;
+}
+
+function InteractiveStar({ index, value, onChange }: { index: number; value: number; onChange: (v: number) => void }) {
+  const [hovered, setHovered] = useState(0);
+  const filled = hovered ? index <= hovered : index <= value;
+  return (
+    <button
+      type="button"
+      onMouseEnter={() => setHovered(index)}
+      onMouseLeave={() => setHovered(0)}
+      onClick={() => onChange(index)}
+      className={`text-2xl transition-colors ${filled ? "text-[#C9A84C]" : "text-gray-200"}`}
+    >★</button>
+  );
+}
+
+function ReviewsSection({ productId }: { productId: string }) {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitDone, setSubmitDone] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  // Form state
+  const [rating, setRating] = useState(0);
+  const [name, setName] = useState("");
+  const [headline, setHeadline] = useState("");
+  const [body, setBody] = useState("");
+
+  useEffect(() => {
+    fetch(`${API_URL}/products/${productId}/reviews`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Review[]) => setReviews(Array.isArray(data) ? data : []))
+      .catch(() => setReviews([]))
+      .finally(() => setLoaded(true));
+  }, [productId]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!rating || !name.trim()) return;
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const res = await fetch(`${API_URL}/products/${productId}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_name: name.trim(), rating, headline: headline.trim() || null, body: body.trim() || null }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const newReview: Review = await res.json();
+      setReviews(prev => [newReview, ...prev]);
+      setSubmitDone(true);
+      setShowForm(false);
+      setRating(0); setName(""); setHeadline(""); setBody("");
+    } catch {
+      setSubmitError("Something went wrong. Please try again.");
+    }
+    setSubmitting(false);
+  }
+
+  const avgRating = reviews.length
+    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+    : 0;
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString("en-GH", { day: "numeric", month: "short", year: "numeric" });
+    } catch { return ""; }
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-black text-lg text-gray-900">
+            Reviews {reviews.length > 0 && <span className="text-gray-400 font-normal text-base">({reviews.length})</span>}
+          </h2>
+          {reviews.length > 0 && (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="flex">
+                {[1,2,3,4,5].map(s => (
+                  <span key={s} className={`text-sm ${s <= Math.round(avgRating) ? "text-[#C9A84C]" : "text-gray-200"}`}>★</span>
+                ))}
+              </div>
+              <span className="text-xs text-gray-500">{avgRating.toFixed(1)} avg</span>
+            </div>
+          )}
+        </div>
+        {!submitDone && !showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="text-xs font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-3 py-1.5 rounded-xl hover:bg-[#C9A84C]/10 transition-colors"
+          >
+            + Write a review
+          </button>
+        )}
+        {submitDone && (
+          <span className="text-xs text-green-700 font-semibold bg-green-50 border border-green-200 px-3 py-1.5 rounded-xl">
+            ✓ Review submitted!
+          </span>
+        )}
+      </div>
+
+      {/* Submit form */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-[#C9A84C]/30 p-5 shadow-sm">
+          <p className="font-bold text-sm text-gray-800 mb-4">Share your experience</p>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Star picker */}
+            <div>
+              <p className="text-xs text-gray-500 mb-1.5">Rating *</p>
+              <div className="flex gap-0.5">
+                {[1,2,3,4,5].map(i => (
+                  <InteractiveStar key={i} index={i} value={rating} onChange={setRating} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Your name *</label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="e.g. Akua M."
+                required
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Headline</label>
+              <input
+                type="text"
+                value={headline}
+                onChange={e => setHeadline(e.target.value)}
+                placeholder="e.g. Great quality, fast delivery"
+                maxLength={150}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Review</label>
+              <textarea
+                value={body}
+                onChange={e => setBody(e.target.value)}
+                placeholder="Tell others what you think..."
+                maxLength={2000}
+                rows={3}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#C9A84C] resize-none"
+              />
+            </div>
+            {submitError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2">{submitError}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || !rating || !name.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-black text-white text-sm font-bold disabled:opacity-40"
+              >
+                {submitting ? "Submitting…" : "Submit Review"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Reviews list */}
+      {reviews.length === 0 && !showForm && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
+          <p className="text-2xl mb-2">⭐</p>
+          <p className="text-sm font-bold text-gray-700">No reviews yet</p>
+          <p className="text-xs text-gray-400 mt-1">Be the first to share your experience!</p>
+        </div>
+      )}
+
+      {reviews.length > 0 && (
+        <div className="space-y-3">
+          {reviews.map(r => (
+            <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex gap-0.5 mb-0.5">
+                    {[1,2,3,4,5].map(s => (
+                      <span key={s} className={`text-sm ${s <= r.rating ? "text-[#C9A84C]" : "text-gray-200"}`}>★</span>
+                    ))}
+                  </div>
+                  {r.headline && <p className="font-bold text-sm text-gray-800">{r.headline}</p>}
+                </div>
+                <span className="text-[10px] text-gray-400 shrink-0 mt-0.5">{formatDate(r.created_at)}</span>
+              </div>
+              {r.body && <p className="text-sm text-gray-600 mt-1.5 leading-relaxed">{r.body}</p>}
+              <p className="text-xs text-gray-400 mt-2">
+                {r.customer_name}{r.customer_phone_last4 ? ` · ···${r.customer_phone_last4}` : ""}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -361,6 +585,9 @@ export default function ProductDetailClient({
             </div>
           ))}
         </div>
+
+        {/* ── Reviews ── */}
+        <ReviewsSection productId={product.id} />
 
         {/* ── Related Products ── */}
         {related.length > 0 && (
