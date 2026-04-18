@@ -27,6 +27,7 @@ interface Creator {
   campaign_name?: string;
   template_id?: string;
   avatar_url?: string;
+  platform_name?: string;
 }
 
 const CATEGORY_EMOJI: Record<string, string> = {
