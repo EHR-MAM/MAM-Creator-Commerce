@@ -33,6 +33,13 @@ interface Commission {
   calculated_at: string;
 }
 
+interface OrderItem {
+  product_name: string;
+  quantity: number;
+  unit_price: string;
+  line_total: string;
+}
+
 interface Order {
   id: string;
   status: string;
@@ -47,6 +54,7 @@ interface Order {
   special_instructions?: string;
   fulfillment_status: string;
   created_at: string;
+  items?: OrderItem[];
 }
 
 interface KPI {
@@ -464,6 +472,22 @@ function OrdersTab({ orders }: { orders: Order[] }) {
                       <div className="bg-amber-900/20 border border-amber-500/20 rounded-xl px-3 py-2">
                         <p className="text-xs text-amber-400/70 mb-0.5">Customer note</p>
                         <p className="text-sm text-amber-300">{o.special_instructions}</p>
+                      </div>
+                    )}
+
+                    {/* Items ordered */}
+                    {o.items && o.items.length > 0 && (
+                      <div className="bg-white/5 rounded-xl px-3 py-2 space-y-1.5">
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Items ordered</p>
+                        {o.items.map((it, i) => (
+                          <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                            <div className="flex-1 min-w-0">
+                              <span className="text-gray-200 font-medium truncate block">{it.product_name}</span>
+                              <span className="text-gray-500">qty {it.quantity} × GHS {Number(it.unit_price).toFixed(2)}</span>
+                            </div>
+                            <span className="text-white font-semibold shrink-0">GHS {Number(it.line_total).toFixed(2)}</span>
+                          </div>
+                        ))}
                       </div>
                     )}
 
