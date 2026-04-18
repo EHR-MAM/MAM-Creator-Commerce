@@ -42,6 +42,8 @@ interface Product {
   media_urls?: string[];
   video_url?: string;
   sizes?: string[];
+  color?: string;
+  size?: string;
   vendor_id: string;
   affiliate_url?: string;
   rating?: number;
@@ -55,6 +57,7 @@ interface Influencer {
   name?: string;
   bio?: string;
   avatar_url?: string;
+  payout_details_ref?: string | null;
 }
 
 // ─── Image Carousel ──────────────────────────────────────────────────────────
@@ -608,6 +611,22 @@ export default function ProductDetailClient({
             </p>
           )}
 
+          {/* Color / Size attribute badges */}
+          {(product.color || product.size) && (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {product.color && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                  <span>🎨</span> {product.color}
+                </span>
+              )}
+              {product.size && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                  <span>📐</span> Size: {product.size}
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Share row: copy link + WhatsApp share */}
           <div className="mt-3 flex items-center gap-2">
             <button
@@ -728,6 +747,7 @@ export default function ProductDetailClient({
           productPrice={Number(product.price).toFixed(2)}
           currency={product.currency}
           productId={product.id}
+          creatorPhone={influencer?.payout_details_ref}
         />
 
         {/* ── Trust signals ── */}

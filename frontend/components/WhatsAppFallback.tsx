@@ -9,6 +9,15 @@ interface Props {
   productPrice?: string;
   currency?: string;
   productId?: string;
+  creatorPhone?: string | null;
+}
+
+function formatPhone(phone: string | null | undefined): string {
+  if (!phone) return process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "233000000000";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10 && digits.startsWith("0")) return "233" + digits.slice(1);
+  if (digits.length >= 10) return digits;
+  return process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "233000000000";
 }
 
 export default function WhatsAppFallback({
@@ -17,8 +26,9 @@ export default function WhatsAppFallback({
   productPrice,
   currency = "GHS",
   productId,
+  creatorPhone,
 }: Props) {
-  const whatsappNumber = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "233000000000";
+  const whatsappNumber = formatPhone(creatorPhone);
 
   // Structured message — operator uses this to manually log order in admin panel
   const message = productName

@@ -9,7 +9,17 @@ import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
 import { currencySymbol } from "@/lib/currency";
 
-const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
+const OPS_WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
+
+/** Convert a Ghana local number (0244...) to international E.164 (233244...).
+ *  Falls back to the ops number if the ref is null/empty or non-numeric. */
+function resolveWhatsApp(payoutRef: string | null | undefined): string {
+  if (!payoutRef) return OPS_WHATSAPP;
+  const digits = payoutRef.replace(/\D/g, "");
+  if (digits.length === 10 && digits.startsWith("0")) return "233" + digits.slice(1);
+  if (digits.length >= 10) return digits; // already international or close enough
+  return OPS_WHATSAPP;
+}
 
 interface Product {
   id: string;
@@ -33,6 +43,7 @@ interface Creator {
   template_id?: string;
   avatar_url?: string;
   platform_name?: string;
+  payout_details_ref?: string | null;
 }
 
 const CATEGORY_EMOJI: Record<string, string> = {
@@ -254,6 +265,7 @@ export default function StorefrontShell({
     }
   }, [handle]);
   const t = TEMPLATES[activeTemplate];
+  const creatorWA = resolveWhatsApp(creator.payout_details_ref);
 
   const displayName = creator.name || `@${handle}`;
   const inStock = products.filter((p) => p.inventory_count > 0).length;
@@ -468,7 +480,7 @@ export default function StorefrontShell({
             )}
           </button>
           <a
-            href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi @${handle}! I found your Yes MAM store and want to order. Can you help?`)}`}
+            href={`https://wa.me/${creatorWA}?text=${encodeURIComponent(`Hi @${handle}! I found your Yes MAM store and want to order. Can you help?`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 bg-[#25D366] text-white text-xs font-black px-3 py-1.5 rounded-xl"
@@ -576,7 +588,7 @@ export default function StorefrontShell({
             <div className="mt-8 text-center">
               <p className={`text-sm ${textSub} mb-3`}>Don't see what you want?</p>
               <a
-                href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi @${handle}! I'm on your Yes MAM store. Can you help me find something?`)}`}
+                href={`https://wa.me/${creatorWA}?text=${encodeURIComponent(`Hi @${handle}! I'm on your Yes MAM store. Can you help me find something?`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-xl border transition-colors"
@@ -600,7 +612,7 @@ export default function StorefrontShell({
               Follow me on TikTok <strong>@{handle}</strong> for the drop.
             </p>
             <a
-              href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi @${handle}! I visited your store but there are no products yet. When will you have items?`)}`}
+              href={`https://wa.me/${creatorWA}?text=${encodeURIComponent(`Hi @${handle}! I visited your store but there are no products yet. When will you have items?`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-[#25D366] text-white text-sm font-bold px-5 py-2.5 rounded-xl"
@@ -627,7 +639,7 @@ export default function StorefrontShell({
                 Prefer chatting? Message me directly and I'll handle your order personally. I reply within 2 hours.
               </p>
               <a
-                href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`Hi @${handle}! I want to order from your Yes MAM store. Can you help me?`)}`}
+                href={`https://wa.me/${creatorWA}?text=${encodeURIComponent(`Hi @${handle}! I want to order from your Yes MAM store. Can you help me?`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block bg-[#25D366] text-white text-sm font-black px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
