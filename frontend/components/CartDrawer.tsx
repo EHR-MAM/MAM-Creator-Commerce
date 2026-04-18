@@ -1,8 +1,9 @@
 "use client";
-// CartDrawer — Sprint XIX + Sprint XXII (payment method selector + Paystack redirect)
+// CartDrawer — Sprint XIX + Sprint XXII (payment method selector + Paystack redirect) + Sprint XXXIV (multi-currency)
 // Slide-up cart panel: shows items, quantities, payment method, and inline checkout form.
 import { useState, useEffect } from "react";
 import { useCart } from "@/lib/cart";
+import { currencySymbol } from "@/lib/currency";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 const DELIVERY_FEE = 20;
@@ -43,6 +44,9 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   const [error, setError] = useState("");
   const [step, setStep] = useState<"cart" | "checkout">("cart");
 
+  // Derive cart currency from first item (all items in a creator's cart share one currency)
+  const cartCurrency = items[0]?.currency || "GHS";
+  const currSym = currencySymbol(cartCurrency);
   const orderTotal = (total + DELIVERY_FEE).toFixed(2);
 
   // Fetch payment methods on mount
@@ -203,7 +207,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                     rel="noopener noreferrer"
                     className="block w-full bg-[#FFB81C] text-black py-4 rounded-xl font-black text-base mt-2 text-center"
                   >
-                    Pay Now — GHS {orderTotal}
+                    Pay Now — {currSym} {orderTotal}
                   </a>
                   <p className="text-xs text-gray-400">Opens Paystack secure payment page</p>
                 </>
@@ -278,15 +282,15 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                 <div className="border-t border-gray-100 pt-3 space-y-1">
                   <div className="flex justify-between text-sm text-gray-500">
                     <span>Subtotal</span>
-                    <span>GHS {total.toFixed(2)}</span>
+                    <span>{currSym} {total.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-gray-500">
                     <span>Delivery</span>
-                    <span>GHS {DELIVERY_FEE.toFixed(2)}</span>
+                    <span>{currSym} {DELIVERY_FEE.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-black text-base">
                     <span>Total</span>
-                    <span>GHS {orderTotal}</span>
+                    <span>{currSym} {orderTotal}</span>
                   </div>
                 </div>
 
@@ -294,7 +298,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                   onClick={() => setStep("checkout")}
                   className="w-full bg-black text-white py-4 rounded-xl font-black text-base mt-2"
                 >
-                  Checkout — GHS {orderTotal}
+                  Checkout — {currSym} {orderTotal}
                 </button>
               </div>
             )}
@@ -315,7 +319,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
             {/* Order summary mini */}
             <div className="bg-gray-50 rounded-xl p-3 text-sm">
-              <p className="font-semibold mb-1">{count} item{count !== 1 ? "s" : ""} · GHS {orderTotal}</p>
+              <p className="font-semibold mb-1">{count} item{count !== 1 ? "s" : ""} · {currSym} {orderTotal}</p>
               {items.map(i => (
                 <p key={i.productId} className="text-xs text-gray-500">
                   {i.productName} × {i.quantity}
@@ -433,8 +437,8 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
               className="w-full bg-black text-white py-4 rounded-xl font-black text-base disabled:opacity-50"
             >
               {submitting ? "Placing order…" : methodId === "pay_on_delivery"
-                ? `Place Order — GHS ${orderTotal}`
-                : `Place Order + Pay — GHS ${orderTotal}`}
+                ? `Place Order — ${currSym} ${orderTotal}`
+                : `Place Order + Pay — ${currSym} ${orderTotal}`}
             </button>
 
             {methodId !== "pay_on_delivery" && (

@@ -1,5 +1,5 @@
 "use client";
-// ProductDetailClient — Sprint IV + Sprint XIX (multi-product cart) + Sprint XXVIII (reviews) + Sprint XXXIII (wishlist)
+// ProductDetailClient — Sprint IV + Sprint XIX (multi-product cart) + Sprint XXVIII (reviews) + Sprint XXXIII (wishlist) + Sprint XXXIV (multi-currency)
 // Image carousel, Add to Cart, cart drawer, affiliate CTA, related products, reviews, save for later
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import CartDrawer from "@/components/CartDrawer";
 import WishlistDrawer from "@/components/WishlistDrawer";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
+import { currencySymbol } from "@/lib/currency";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
@@ -148,7 +149,7 @@ function RelatedCard({ product, handle }: { product: Product; handle: string }) 
         </div>
         <div className="p-2.5">
           <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-tight mb-1">{product.name}</p>
-          <p className="text-sm font-black text-[#C9A84C]">{product.currency} {Number(product.price).toFixed(2)}</p>
+          <p className="text-sm font-black text-[#C9A84C]">{currencySymbol(product.currency)} {Number(product.price).toFixed(2)}</p>
         </div>
       </div>
     </Link>
@@ -496,7 +497,7 @@ export default function ProductDetailClient({
 
           <div className="flex items-baseline gap-3 mt-3">
             <p className="text-3xl font-black text-gray-900">
-              {product.currency} {Number(product.price).toFixed(2)}
+              {currencySymbol(product.currency)} {Number(product.price).toFixed(2)}
             </p>
           </div>
 
@@ -552,7 +553,7 @@ export default function ProductDetailClient({
                   : "bg-black text-white hover:bg-gray-900"
               }`}
             >
-              {addedFeedback ? "✓ Added to cart!" : `Add to Cart — ${product.currency} ${(Number(product.price) * qty).toFixed(2)}`}
+              {addedFeedback ? "✓ Added to cart!" : `Add to Cart — ${currencySymbol(product.currency)} ${(Number(product.price) * qty).toFixed(2)}`}
             </button>
 
             {/* Save for later / Wishlist toggle */}
@@ -598,7 +599,7 @@ export default function ProductDetailClient({
             className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-black text-base transition-opacity hover:opacity-90"
             style={{ background: "linear-gradient(135deg, #A8832A 0%, #C9A84C 50%, #E8C97A 100%)", color: "#0A0A0A" }}
           >
-            <span>🛒</span> Buy Now — {product.currency} {Number(product.price).toFixed(2)}
+            <span>🛒</span> Buy Now — {currencySymbol(product.currency)} {Number(product.price).toFixed(2)}
           </a>
         )}
 

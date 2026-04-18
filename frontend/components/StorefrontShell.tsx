@@ -1,5 +1,5 @@
 "use client";
-// StorefrontShell — Sprint XIX + Sprint XXXI (bio/share) + Sprint XXXIII (wishlist hearts)
+// StorefrontShell — Sprint XIX + Sprint XXXI (bio/share) + Sprint XXXIII (wishlist hearts) + Sprint XXXIV (multi-currency)
 import Link from "next/link";
 import { type TemplateConfig, TEMPLATES, type TemplateId } from "@/lib/templates";
 import { useState, useCallback } from "react";
@@ -7,6 +7,7 @@ import CartDrawer from "@/components/CartDrawer";
 import WishlistDrawer from "@/components/WishlistDrawer";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
+import { currencySymbol } from "@/lib/currency";
 
 const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
 
@@ -181,7 +182,7 @@ function ProductCard({ product, handle, t }: { product: Product; handle: string;
           )}
           <div className="flex items-center justify-between mt-2">
             <p className={`font-black text-base ${t.priceBold}`}>
-              {product.currency} {Number(product.price).toFixed(2)}
+              {currencySymbol(product.currency)} {Number(product.price).toFixed(2)}
             </p>
           </div>
           {product.inventory_count > 0 && (
