@@ -4,6 +4,8 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
+
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 interface Influencer {
   id: string;
@@ -15,7 +17,7 @@ interface Influencer {
   platform: string;
 }
 interface Product {
-  id: number;
+  id: number | string;
   cat: string;
   badge: "new" | "hot" | "sale" | "";
   title: string;
@@ -33,6 +35,54 @@ interface CartItem extends Product {
   infId: string;
   infHandle: string;
   qty: number;
+}
+interface ApiProduct {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  currency: string;
+  category: string;
+  inventory_count: number;
+  status: string;
+  media_urls?: string[];
+  rating?: number;
+  review_count?: number;
+  vendor_id: string;
+}
+
+const FALLBACK_IMGS: Record<string, string> = {
+  fashion: "https://images.unsplash.com/photo-1594938298603-c8148c4b4d0a?w=500&q=80&auto=format&fit=crop",
+  hair: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500&q=80&auto=format&fit=crop",
+  beauty: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80&auto=format&fit=crop",
+  accessories: "https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?w=500&q=80&auto=format&fit=crop",
+  skincare: "https://images.unsplash.com/photo-1570194065650-d99fb4bedf0a?w=500&q=80&auto=format&fit=crop",
+  footwear: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=500&q=80&auto=format&fit=crop",
+  electronics: "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=500&q=80&auto=format&fit=crop",
+  wellness: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=500&q=80&auto=format&fit=crop",
+};
+
+function mapApiProduct(p: ApiProduct): Product {
+  const img = (p.media_urls && p.media_urls[0]) || FALLBACK_IMGS[p.category] || FALLBACK_IMGS.fashion;
+  return {
+    id: p.id,
+    cat: p.category,
+    badge: "",
+    title: p.name,
+    price: Number(p.price),
+    orig: 0,
+    img,
+    inf: "sweet200723", // default influencer tag for marketplace view
+    rating: Number(p.rating || 4.5),
+    reviews: Number(p.review_count || 0),
+    sales: `${p.inventory_count > 0 ? "In stock" : "Limited"}`,
+    desc: p.description || "",
+    specs: [
+      ["Category", p.category],
+      ["Currency", p.currency],
+      ["Stock", String(p.inventory_count)],
+    ],
+  };
 }
 
 // ─── STATIC DATA ────────────────────────────────────────────────────────────
@@ -529,8 +579,8 @@ function ProductDetail({ p, onBack, onAddCart }: {
 // ─── CART PANEL ───────────────────────────────────────────────────────────────
 function CartPage({ cart, onUpdateQty, onRemove, onBack }: {
   cart: CartItem[];
-  onUpdateQty: (id: number, infId: string, d: number) => void;
-  onRemove: (id: number, infId: string) => void;
+  onUpdateQty: (id: number | string, infId: string, d: number) => void;
+  onRemove: (id: number | string, infId: string) => void;
   onBack: () => void;
 }) {
   const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
@@ -822,6 +872,48 @@ export default function ShopPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [toast, setToast] = useState({ msg: "", visible: false });
+  const [apiProducts, setApiProducts] = useState<Product[]>([]);
+  const [apiLoading, setApiLoading] = useState(true);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load products from real API
+  useEffect(() => {
+    async function fetchProducts(search?: string, category?: string) {
+      setApiLoading(true);
+      try {
+        const params = new URLSearchParams({ status: "active", limit: "60" });
+        if (search) params.set("search", search);
+        if (category && category !== "all" && category !== "deals") params.set("category", category);
+        const res = await fetch(`${API_URL}/products?${params}`);
+        if (res.ok) {
+          const data: ApiProduct[] = await res.json();
+          setApiProducts(data.map(mapApiProduct));
+        }
+      } catch { /* silent — PRODUCTS fallback used */ } finally {
+        setApiLoading(false);
+      }
+    }
+    fetchProducts();
+  }, []);
+
+  // Debounced search against real API
+  function handleLiveSearch(q: string) {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(async () => {
+      if (!q.trim()) {
+        // Reload default products
+        try {
+          const res = await fetch(`${API_URL}/products?status=active&limit=60`);
+          if (res.ok) setApiProducts((await res.json()).map(mapApiProduct));
+        } catch { /* silent */ }
+        return;
+      }
+      try {
+        const res = await fetch(`${API_URL}/products?status=active&limit=60&search=${encodeURIComponent(q)}`);
+        if (res.ok) setApiProducts((await res.json()).map(mapApiProduct));
+      } catch { /* silent */ }
+    }, 400);
+  }
 
   const showToast = useCallback((msg: string) => {
     setToast({ msg, visible: true });
@@ -841,24 +933,32 @@ export default function ShopPage() {
     showToast(`🛒 ${p.title.substring(0, 28)}… added!`);
   }
 
-  function updateCartQty(id: number, infId: string, d: number) {
+  function updateCartQty(id: number | string, infId: string, d: number) {
     setCart(prev => prev.map(c => c.id === id && c.infId === infId ? { ...c, qty: Math.max(1, c.qty + d) } : c));
   }
 
-  function removeFromCart(id: number, infId: string) {
+  function removeFromCart(id: number | string, infId: string) {
     setCart(prev => prev.filter(c => !(c.id === id && c.infId === infId)));
   }
 
   function handleSearch(q: string) {
     setActiveCat("all");
     setActiveInfFilter(null);
+    handleLiveSearch(q);
   }
 
-  function filterCat(k: string) {
+  async function filterCat(k: string) {
     setActiveCat(k);
     setActiveInfFilter(null);
     setSearchQuery("");
     setView("home");
+    // Fetch products for this category from API
+    try {
+      const params = new URLSearchParams({ status: "active", limit: "60" });
+      if (k !== "all" && k !== "deals") params.set("category", k);
+      const res = await fetch(`${API_URL}/products?${params}`);
+      if (res.ok) setApiProducts((await res.json()).map(mapApiProduct));
+    } catch { /* silent */ }
     setTimeout(() => document.getElementById("product-grid-section")?.scrollIntoView({ behavior: "smooth" }), 50);
   }
 
@@ -870,25 +970,28 @@ export default function ShopPage() {
     setTimeout(() => document.getElementById("product-grid-section")?.scrollIntoView({ behavior: "smooth" }), 50);
   }
 
-  // Compute visible products
-  let visibleProducts = PRODUCTS;
+  // Compute visible products — use real API products with demo fallback
+  const baseProducts = apiProducts.length > 0 ? apiProducts : PRODUCTS;
+  let visibleProducts = baseProducts;
   if (activeInfFilter) {
+    // Influencer filter: use demo products filtered by influencer (real API doesn't have inf filter yet)
     visibleProducts = PRODUCTS.filter(p => p.inf === activeInfFilter);
   } else if (searchQuery.trim()) {
+    // Search: API already filtered via handleLiveSearch; local filter as backup
     const q = searchQuery.toLowerCase();
-    visibleProducts = PRODUCTS.filter(p => p.title.toLowerCase().includes(q) || p.cat.includes(q) || p.desc.toLowerCase().includes(q));
+    visibleProducts = baseProducts.filter(p => p.title.toLowerCase().includes(q) || p.cat.includes(q) || p.desc.toLowerCase().includes(q));
   } else if (activeCat === "deals") {
-    visibleProducts = PRODUCTS.filter(p => p.orig > 0);
+    visibleProducts = baseProducts.filter(p => p.orig > 0);
   } else if (activeCat !== "all") {
-    visibleProducts = PRODUCTS.filter(p => p.cat === activeCat);
+    visibleProducts = baseProducts.filter(p => p.cat === activeCat);
   }
 
   const gridTitle = activeInfFilter
     ? <>{inf(activeInfFilter).name}&apos;s <span className="text-[#C9A84C]">Store</span></>
     : searchQuery ? <>Results for &quot;<span className="text-[#C9A84C]">{searchQuery}</span>&quot;</>
-    : activeCat === "all" ? <>Featured by <span className="text-[#C9A84C]">Influencers</span></>
+    : activeCat === "all" ? <>Featured by <span className="text-[#C9A84C]">Influencers</span> <span className="text-[#555] text-sm font-normal">({visibleProducts.length} products)</span></>
     : activeCat === "deals" ? <>🔥 <span className="text-[#C9A84C]">Deals</span></>
-    : <><span className="text-[#C9A84C] capitalize">{activeCat}</span> Products</>;
+    : <><span className="text-[#C9A84C] capitalize">{activeCat}</span> Products <span className="text-[#555] text-sm font-normal">({visibleProducts.length})</span></>;
 
   return (
     <div className="bg-[#0A0A0A] text-white min-h-screen">
@@ -937,10 +1040,23 @@ export default function ShopPage() {
                 </button>
               )}
             </div>
-            {visibleProducts.length === 0 ? (
+            {apiLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 px-4 pb-6">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="bg-[#141414] border border-[#222] rounded-xl overflow-hidden animate-pulse">
+                    <div className="bg-[#222]" style={{ aspectRatio: "1/1" }} />
+                    <div className="p-3 space-y-2">
+                      <div className="h-3 bg-[#222] rounded w-3/4" />
+                      <div className="h-3 bg-[#222] rounded w-1/2" />
+                      <div className="h-5 bg-[#222] rounded w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : visibleProducts.length === 0 ? (
               <div className="text-center py-12 text-[#555]">
                 <div className="text-4xl mb-3">🔍</div>
-                <p>No products found for &quot;{searchQuery}&quot;</p>
+                <p>No products found{searchQuery ? ` for "${searchQuery}"` : ""}</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 px-4 pb-6">
