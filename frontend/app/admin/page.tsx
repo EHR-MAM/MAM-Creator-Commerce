@@ -187,6 +187,7 @@ export default function AdminPage() {
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
   const [orderDateFilter, setOrderDateFilter] = useState<string>("all");
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
   // Redirect to login if not authenticated or wrong role
   useEffect(() => {
@@ -256,6 +257,20 @@ export default function AdminPage() {
     reload();
   }
 
+  async function saveProductEdit(productId: string, fields: { name: string; description: string; imageUrl: string; affiliateUrl: string }) {
+    const body: Record<string, unknown> = {
+      name: fields.name.trim() || undefined,
+      description: fields.description.trim() || undefined,
+      affiliate_url: fields.affiliateUrl.trim() || undefined,
+    };
+    if (fields.imageUrl.trim()) body.media_urls = [fields.imageUrl.trim()];
+    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify(body) });
+    if (!r.ok) { setMsg("Error saving product"); return; }
+    setEditingProduct(null);
+    setMsg("Product updated");
+    reload();
+  }
+
   async function toggleVendorStatus(vendorId: string, currentStatus: string) {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     const r = await fetch(`${API}/vendors/${vendorId}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: newStatus }) });
@@ -289,6 +304,14 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#FAF7F2]">
+      {/* Product edit modal */}
+      {editingProduct && (
+        <ProductEditModal
+          product={editingProduct}
+          onSave={saveProductEdit}
+          onClose={() => setEditingProduct(null)}
+        />
+      )}
       {/* Header */}
       <div className="bg-[#111111] text-white">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -762,12 +785,20 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                           <td className="px-4 py-3">
-                            <button
-                              onClick={() => toggleProductStatus(p.id, p.status)}
-                              className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg"
-                            >
-                              {p.status === "active" ? "Deactivate" : "Activate"}
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => toggleProductStatus(p.id, p.status)}
+                                className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg"
+                              >
+                                {p.status === "active" ? "Deactivate" : "Activate"}
+                              </button>
+                              <button
+                                onClick={() => setEditingProduct(p)}
+                                className="text-xs text-blue-500 hover:text-blue-700 border border-blue-200 px-2 py-1 rounded-lg"
+                              >
+                                Edit
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1820,6 +1851,86 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ProductEditModal({ product, onSave, onClose }: {
+  product: any;
+  onSave: (id: string, fields: { name: string; description: string; imageUrl: string; affiliateUrl: string }) => void;
+  onClose: () => void;
+}) {
+  const currentImage = (product.media_urls && product.media_urls[0]) || "";
+  const [name, setName] = useState<string>(product.name || "");
+  const [description, setDescription] = useState<string>(product.description || "");
+  const [imageUrl, setImageUrl] = useState<string>(currentImage);
+  const [affiliateUrl, setAffiliateUrl] = useState<string>(product.affiliate_url || "");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <p className="font-black text-gray-900 text-lg">Edit Product</p>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 font-medium block mb-1">Product Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 font-medium block mb-1">Description</label>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            rows={3}
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-black resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 font-medium block mb-1">Image URL</label>
+          <input
+            type="url"
+            value={imageUrl}
+            onChange={e => setImageUrl(e.target.value)}
+            placeholder="https://…"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-black"
+          />
+          {imageUrl && (
+            <img src={imageUrl} alt="preview" className="mt-2 w-16 h-16 object-cover rounded-lg border border-gray-200" />
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-500 font-medium block mb-1">Affiliate / Buy URL</label>
+          <input
+            type="url"
+            value={affiliateUrl}
+            onChange={e => setAffiliateUrl(e.target.value)}
+            placeholder="https://…"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:border-black"
+          />
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={() => onSave(product.id, { name, description, imageUrl, affiliateUrl })}
+            className="flex-1 bg-black text-white font-bold py-2.5 rounded-xl text-sm hover:bg-gray-900 transition-colors"
+          >
+            Save Changes
+          </button>
+          <button onClick={onClose} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
