@@ -1,7 +1,8 @@
 // Sprint XXVI: Customer order tracking page — public, no auth required
 // Customers look up their order by order ID + phone number
+// Sprint XLVIII: pre-fill order_id from URL ?order_id= param; show product names in items
 "use client";
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
@@ -32,7 +33,7 @@ interface TrackResult {
   creator_handle: string | null;
   created_at: string | null;
   updated_at: string | null;
-  items: { quantity: number; unit_price: string; line_total: string }[];
+  items: { product_name: string; quantity: number; unit_price: string; line_total: string }[];
 }
 
 export default function OrderStatusPage() {
@@ -41,6 +42,13 @@ export default function OrderStatusPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TrackResult | null>(null);
   const [error, setError] = useState("");
+
+  // Pre-fill order_id from URL ?order_id= param (sent in customer WhatsApp confirmation)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("order_id");
+    if (id) setOrderId(id);
+  }, []);
 
   async function handleLookup(e: FormEvent) {
     e.preventDefault();
@@ -119,7 +127,7 @@ export default function OrderStatusPage() {
                 type="text"
                 value={orderId}
                 onChange={e => setOrderId(e.target.value)}
-                placeholder="e.g. 082a19bb-5f59-43d1-b134-9068a25b2fab"
+                placeholder="e.g. 082a19bb-5f59-43d1-b134-9068a25b2fab (auto-filled from link)"
                 required
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-gray-400 placeholder-gray-300"
               />
@@ -246,14 +254,16 @@ export default function OrderStatusPage() {
               {result.items.length > 0 && (
                 <div className="border-t border-gray-50 pt-3">
                   <p className="text-xs text-gray-400 mb-2">Items ({result.items.length})</p>
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     {result.items.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-700">× {item.quantity}</span>
-                        <span className="text-xs text-gray-400">
-                          {result.currency} {Number(item.unit_price).toFixed(2)} each
-                        </span>
-                        <span className="font-semibold text-gray-800">
+                      <div key={i} className="flex items-start justify-between gap-2 text-sm">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-800 truncate">{item.product_name}</p>
+                          <p className="text-xs text-gray-400">
+                            qty {item.quantity} × {result.currency} {Number(item.unit_price).toFixed(2)}
+                          </p>
+                        </div>
+                        <span className="font-semibold text-gray-900 shrink-0">
                           {result.currency} {Number(item.line_total).toFixed(2)}
                         </span>
                       </div>

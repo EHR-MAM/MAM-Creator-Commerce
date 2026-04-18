@@ -233,11 +233,13 @@ async def track_order(
     except Exception:
         pass
 
-    # Load order items
+    # Load order items with product names
     items_result = await db.execute(
-        select(OrderItem).where(OrderItem.order_id == order.id)
+        select(OrderItem, Product.name).outerjoin(
+            Product, Product.id == OrderItem.product_id
+        ).where(OrderItem.order_id == order.id)
     )
-    items = items_result.scalars().all()
+    items_with_names = items_result.all()
 
     STATUS_MESSAGES = {
         "pending":    ("Your order has been received.", "We are reviewing it now."),
@@ -265,11 +267,12 @@ async def track_order(
         "updated_at": order.updated_at.isoformat() if order.updated_at else None,
         "items": [
             {
+                "product_name": product_name or "Product",
                 "quantity": item.quantity,
                 "unit_price": str(item.unit_price),
                 "line_total": str(item.line_total),
             }
-            for item in items
+            for item, product_name in items_with_names
         ],
     }
 
