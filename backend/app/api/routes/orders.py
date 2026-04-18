@@ -298,3 +298,75 @@ async def update_order_status(
         })
 
     return order
+
+
+# ---------------------------------------------------------------------------
+# Sprint XXII: Payment initialization for an existing order
+# ---------------------------------------------------------------------------
+
+from pydantic import BaseModel as _PayBaseModel
+from typing import Optional as _Opt
+
+class OrderPayRequest(_PayBaseModel):
+    method_id: str
+    email: str
+    phone: _Opt[str] = None
+    callback_url: _Opt[str] = None
+
+
+@router.post('/{order_id}/pay')
+async def initiate_payment(
+    order_id: uuid.UUID,
+    body: OrderPayRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.payments import initialize_payment, PAYSTACK_SECRET
+
+    result = await db.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail='Order not found')
+
+    if order.status not in ('pending', 'confirmed'):
+        raise HTTPException(status_code=400, detail='Order is not payable in current status')
+
+    if body.method_id == 'pay_on_delivery':
+        return {
+            'provider': 'cod',
+            'status': 'pending_delivery',
+            'message': "Pay on delivery — we'll collect cash or MoMo when your order arrives.",
+            'order_id': str(order.id),
+        }
+
+    if not PAYSTACK_SECRET and body.method_id in ('card', 'mtn_momo_gh', 'telecel_cash', 'airtel_money_gh', 'bank_transfer'):
+        raise HTTPException(
+            status_code=503,
+            detail='Online payments not yet configured. Please use Pay on Delivery.',
+        )
+
+    try:
+        payment = await initialize_payment(
+            order_id=str(order.id),
+            email=body.email,
+            amount=Decimal(str(order.total)),
+            currency=order.currency,
+            country_code='GH',
+            method_id=body.method_id,
+            phone=body.phone,
+            callback_url=body.callback_url,
+            metadata={
+                'order_id': str(order.id),
+                'customer_name': order.customer_name,
+                'customer_phone': order.customer_phone,
+            },
+        )
+        return {
+            'provider': payment.get('provider'),
+            'redirect_url': payment.get('redirect_url'),
+            'reference': payment.get('reference'),
+            'order_id': str(order.id),
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f'Payment provider error: {exc}')

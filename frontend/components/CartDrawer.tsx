@@ -1,11 +1,29 @@
 "use client";
-// CartDrawer — Sprint XIX
-// Slide-up cart panel: shows items, quantities, and inline checkout form.
-import { useState } from "react";
+// CartDrawer — Sprint XIX + Sprint XXII (payment method selector + Paystack redirect)
+// Slide-up cart panel: shows items, quantities, payment method, and inline checkout form.
+import { useState, useEffect } from "react";
 import { useCart } from "@/lib/cart";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 const DELIVERY_FEE = 20;
+
+// Payment methods fetched from backend — typed inline
+interface PayMethod {
+  id: string;
+  name: string;
+  provider: string;
+  icon: string;
+}
+
+const ICON_MAP: Record<string, string> = {
+  mobile: "📱",
+  card: "💳",
+  bank: "🏦",
+  home: "🏠",
+  phone: "📞",
+  lightning: "⚡",
+  store: "🏪",
+};
 
 export default function CartDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { items, count, total, removeItem, updateQty, clear } = useCart();
@@ -16,13 +34,41 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [methodId, setMethodId] = useState("pay_on_delivery");
+  const [payMethods, setPayMethods] = useState<PayMethod[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [paymentRedirect, setPaymentRedirect] = useState<string | null>(null);
   const [orderId, setOrderId] = useState("");
   const [error, setError] = useState("");
   const [step, setStep] = useState<"cart" | "checkout">("cart");
 
   const orderTotal = (total + DELIVERY_FEE).toFixed(2);
+
+  // Fetch payment methods on mount
+  useEffect(() => {
+    fetch(`${API_URL}/payments/methods?country=GH`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.methods) {
+          setPayMethods(data.methods);
+          // Default to cod if available
+          const cod = data.methods.find((m: PayMethod) => m.id === "pay_on_delivery");
+          if (cod) setMethodId("pay_on_delivery");
+        }
+      })
+      .catch(() => {/* use fallback */});
+  }, []);
+
+  // Reset when drawer opens
+  useEffect(() => {
+    if (open) {
+      setSuccess(false);
+      setPaymentRedirect(null);
+      setError("");
+      setStep("cart");
+    }
+  }, [open]);
 
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault();
@@ -30,13 +76,13 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
     setSubmitting(true);
     setError("");
 
-    // Use first item's vendorId + influencerId (all from same storefront)
     const first = items[0];
     const vendorId = first.vendorId;
     const influencerId = first.influencerId;
     const influencerParam = influencerId ? `&influencer_id=${influencerId}` : "";
 
     try {
+      // Step 1: Create the order
       const res = await fetch(
         `${API_URL}/orders?vendor_id=${vendorId}${influencerParam}`,
         {
@@ -66,10 +112,34 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
         throw new Error(errData.detail || "Order failed");
       }
 
-      const data = await res.json();
-      setOrderId(String(data.id).slice(0, 8).toUpperCase());
-      setSuccess(true);
+      const orderData = await res.json();
+      const shortId = String(orderData.id).slice(0, 8).toUpperCase();
+      setOrderId(shortId);
       clear();
+
+      // Step 2: Initiate payment if not COD
+      if (methodId !== "pay_on_delivery") {
+        const payRes = await fetch(`${API_URL}/orders/${orderData.id}/pay`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            method_id: methodId,
+            email: email || `${phone}@yesmam.shop`,
+            phone: phone,
+            callback_url: `${window.location.origin}/payment-complete?order_id=${orderData.id}`,
+          }),
+        });
+
+        if (payRes.ok) {
+          const payData = await payRes.json();
+          if (payData.redirect_url) {
+            setPaymentRedirect(payData.redirect_url);
+          }
+        }
+        // If pay endpoint fails (503 — Paystack not configured), fall through to COD success
+      }
+
+      setSuccess(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
       setError(msg + " You can also order via WhatsApp.");
@@ -80,13 +150,23 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
   if (!open) return null;
 
+  // Determine which methods to show — prioritize cod first, then mobile money, then card
+  const displayMethods = payMethods.length > 0
+    ? [
+        ...payMethods.filter(m => m.id === "pay_on_delivery"),
+        ...payMethods.filter(m => m.provider === "paystack" && m.id !== "pay_on_delivery"),
+        ...payMethods.filter(m => m.provider !== "paystack" && m.id !== "pay_on_delivery"),
+      ]
+    : [
+        { id: "pay_on_delivery", name: "Pay on Delivery", provider: "cod", icon: "home" },
+        { id: "mtn_momo_gh", name: "MTN Mobile Money", provider: "paystack", icon: "mobile" },
+        { id: "card", name: "Debit / Credit Card", provider: "paystack", icon: "card" },
+      ];
+
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
 
       {/* Drawer */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -98,12 +178,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
               {step === "cart" ? `Cart (${count})` : "Checkout"}
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
-          >
-            ×
-          </button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
         </div>
 
         <div className="px-5 py-4">
@@ -111,14 +186,36 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
           {/* ── SUCCESS STATE ── */}
           {success ? (
             <div className="text-center py-8 space-y-3">
-              <p className="text-5xl">✅</p>
-              <p className="font-black text-xl">Order placed!</p>
+              <p className="text-5xl">{paymentRedirect ? "🔗" : "✅"}</p>
+              <p className="font-black text-xl">{paymentRedirect ? "Order placed!" : "Order placed!"}</p>
               <p className="text-xs font-mono bg-gray-100 rounded px-3 py-1 inline-block">
                 Order #{orderId}
               </p>
-              <p className="text-sm text-gray-600">
-                We'll reach you on WhatsApp at <span className="font-semibold">{phone}</span> to confirm.
-              </p>
+
+              {paymentRedirect ? (
+                <>
+                  <p className="text-sm text-gray-600">
+                    Your order is saved. Complete payment below to confirm.
+                  </p>
+                  <a
+                    href={paymentRedirect}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full bg-[#FFB81C] text-black py-4 rounded-xl font-black text-base mt-2 text-center"
+                  >
+                    Pay Now — GHS {orderTotal}
+                  </a>
+                  <p className="text-xs text-gray-400">Opens Paystack secure payment page</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600">
+                    We'll reach you on WhatsApp at <span className="font-semibold">{phone}</span> to confirm and arrange delivery.
+                  </p>
+                  <p className="text-xs text-gray-400">Pay on delivery — cash or MoMo accepted</p>
+                </>
+              )}
+
               <button
                 onClick={onClose}
                 className="mt-4 bg-black text-white px-8 py-3 rounded-xl font-bold text-sm"
@@ -126,6 +223,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                 Done
               </button>
             </div>
+
           ) : step === "cart" ? (
 
           /* ── CART STEP ── */
@@ -159,16 +257,12 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                       <button
                         onClick={() => updateQty(item.productId, item.quantity - 1)}
                         className="w-7 h-7 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-sm flex items-center justify-center"
-                      >
-                        −
-                      </button>
+                      >−</button>
                       <span className="text-sm font-bold w-5 text-center">{item.quantity}</span>
                       <button
                         onClick={() => updateQty(item.productId, item.quantity + 1)}
                         className="w-7 h-7 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-sm flex items-center justify-center"
-                      >
-                        +
-                      </button>
+                      >+</button>
                     </div>
                     <p className="text-sm font-bold shrink-0 w-16 text-right">
                       {item.currency} {(item.price * item.quantity).toFixed(2)}
@@ -176,9 +270,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                     <button
                       onClick={() => removeItem(item.productId)}
                       className="text-gray-300 hover:text-red-400 shrink-0"
-                    >
-                      ×
-                    </button>
+                    >×</button>
                   </div>
                 ))}
 
@@ -278,6 +370,9 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
                 placeholder="for order receipt"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
               />
+              {methodId !== "pay_on_delivery" && !email && (
+                <p className="text-xs text-amber-500 mt-0.5">Email recommended for online payment receipt</p>
+              )}
             </div>
 
             <div>
@@ -290,12 +385,41 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
               />
             </div>
 
-            {/* Payment */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
-              <span className="text-xl">🏠</span>
-              <div>
-                <p className="font-semibold text-sm">Pay on Delivery</p>
-                <p className="text-xs text-gray-500">Cash or MoMo when your order arrives</p>
+            {/* Payment method selector */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-2">Payment Method</label>
+              <div className="space-y-2">
+                {displayMethods.map(method => (
+                  <label
+                    key={method.id}
+                    className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
+                      methodId === method.id
+                        ? "border-black bg-gray-50"
+                        : "border-gray-100 hover:border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value={method.id}
+                      checked={methodId === method.id}
+                      onChange={() => setMethodId(method.id)}
+                      className="sr-only"
+                    />
+                    <span className="text-xl shrink-0">{ICON_MAP[method.icon] || "💰"}</span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">{method.name}</p>
+                      <p className="text-xs text-gray-400">
+                        {method.provider === "paystack" ? "Secure · Powered by Paystack" :
+                         method.provider === "cod" ? "Cash or MoMo when delivered" :
+                         method.provider}
+                      </p>
+                    </div>
+                    {methodId === method.id && (
+                      <span className="text-black font-black text-sm">✓</span>
+                    )}
+                  </label>
+                ))}
               </div>
             </div>
 
@@ -308,8 +432,16 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
               disabled={submitting}
               className="w-full bg-black text-white py-4 rounded-xl font-black text-base disabled:opacity-50"
             >
-              {submitting ? "Placing order…" : `Place Order — GHS ${orderTotal}`}
+              {submitting ? "Placing order…" : methodId === "pay_on_delivery"
+                ? `Place Order — GHS ${orderTotal}`
+                : `Place Order + Pay — GHS ${orderTotal}`}
             </button>
+
+            {methodId !== "pay_on_delivery" && (
+              <p className="text-center text-xs text-gray-400">
+                You'll be redirected to Paystack to complete payment securely
+              </p>
+            )}
           </form>
 
           )}
