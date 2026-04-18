@@ -151,17 +151,54 @@ async def create_order(
     return order
 
 
-@router.get("", response_model=list[OrderOut])
+@router.get("")
 async def list_orders(
     current_user: User = Depends(require_admin_or_operator),
     status_filter: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
+    """Admin: list all orders with items and product names."""
     query = select(Order)
     if status_filter:
         query = query.where(Order.status == status_filter)
     result = await db.execute(query.order_by(Order.created_at.desc()).limit(100))
-    return result.scalars().all()
+    orders = result.scalars().all()
+
+    if not orders:
+        return []
+
+    # Bulk-fetch all items for these orders + product names in one query
+    order_ids = [o.id for o in orders]
+    items_result = await db.execute(
+        select(OrderItem, Product.name)
+        .outerjoin(Product, Product.id == OrderItem.product_id)
+        .where(OrderItem.order_id.in_(order_ids))
+    )
+    items_by_order: dict = {}
+    for item, product_name in items_result.all():
+        items_by_order.setdefault(item.order_id, []).append({
+            "product_name": product_name or "Product",
+            "quantity": item.quantity,
+            "unit_price": str(item.unit_price),
+            "line_total": str(item.line_total),
+        })
+
+    out = []
+    for o in orders:
+        d = {c.key: getattr(o, c.key) for c in o.__table__.columns}
+        d["id"] = str(d["id"])
+        d["subtotal"] = str(d["subtotal"])
+        d["delivery_fee"] = str(d["delivery_fee"])
+        d["total"] = str(d["total"])
+        d["influencer_id"] = str(d["influencer_id"]) if d.get("influencer_id") else None
+        d["vendor_id"] = str(d["vendor_id"]) if d.get("vendor_id") else None
+        d["customer_id"] = str(d["customer_id"]) if d.get("customer_id") else None
+        d["campaign_id"] = str(d["campaign_id"]) if d.get("campaign_id") else None
+        d["created_at"] = o.created_at.isoformat() if o.created_at else None
+        d["updated_at"] = o.updated_at.isoformat() if o.updated_at else None
+        d["items"] = items_by_order.get(o.id, [])
+        out.append(d)
+    return out
 
 
 @router.get("/mine", response_model=list[OrderOut])

@@ -721,6 +721,9 @@ function OrderCard({ order: o, onAdvance }: { order: any; onAdvance: (id: string
 
   // Build vendor summary text for copy-paste / WhatsApp forward
   function buildVendorSummary() {
+    const itemLines = (o.items || []).map((it: any) =>
+      `  • ${it.product_name} × ${it.quantity} — GHS ${Number(it.line_total).toFixed(2)}`
+    );
     const lines = [
       `📦 ORDER TO FULFIL — #${orderIdShort}`,
       ``,
@@ -733,6 +736,7 @@ function OrderCard({ order: o, onAdvance }: { order: any; onAdvance: (id: string
       o.size_variant ? `Size/Variant: ${o.size_variant}` : null,
       o.special_instructions ? `Instructions: ${o.special_instructions}` : null,
       ``,
+      ...(itemLines.length > 0 ? ["Items:", ...itemLines, ""] : []),
       `Total: GHS ${Number(o.total).toFixed(2)}`,
       `SLA: Dispatch within 48 hours`,
       ``,
@@ -806,6 +810,24 @@ function OrderCard({ order: o, onAdvance }: { order: any; onAdvance: (id: string
               </div>
             )}
           </div>
+
+          {/* Order items */}
+          {o.items && o.items.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Items ({o.items.length})</p>
+              <div className="space-y-1.5">
+                {o.items.map((it: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-gray-800 truncate block">{it.product_name}</span>
+                      <span className="text-xs text-gray-400">qty {it.quantity} × GHS {Number(it.unit_price).toFixed(2)}</span>
+                    </div>
+                    <span className="font-semibold text-gray-900 shrink-0 ml-3">GHS {Number(it.line_total).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Order totals */}
           <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
