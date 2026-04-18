@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import uuid
 
@@ -194,3 +194,78 @@ async def ensure_campaign_for_influencer(
     await db.commit()
     await db.refresh(campaign)
     return campaign
+
+
+@router.get("/product-categories")
+async def list_product_categories(
+    current_user: User = Depends(require_admin_or_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: return list of {category, count} for all active products, sorted by count desc."""
+    result = await db.execute(
+        select(Product.category, func.count(Product.id).label("cnt"))
+        .where(Product.status == "active")
+        .group_by(Product.category)
+        .order_by(func.count(Product.id).desc())
+    )
+    return [{"category": row[0], "count": row[1]} for row in result.all()]
+
+
+class BulkCategoryRequest(BaseModel):
+    category: str
+
+
+@router.post("/{campaign_id}/products/bulk-category")
+async def bulk_assign_by_category(
+    campaign_id: uuid.UUID,
+    body: BulkCategoryRequest,
+    current_user: User = Depends(require_admin_or_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: assign all active products in a category to a campaign in one operation.
+    Already-linked products are skipped. Returns assigned + skipped counts.
+    """
+    # Verify campaign exists
+    cp_result = await db.execute(select(Campaign).where(Campaign.id == campaign_id))
+    if not cp_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # Fetch all active products in this category (no limit — server-side bulk op)
+    prod_result = await db.execute(
+        select(Product.id).where(
+            and_(
+                func.lower(Product.category) == body.category.lower(),
+                Product.status == "active",
+            )
+        )
+    )
+    product_ids = [row[0] for row in prod_result.all()]
+
+    if not product_ids:
+        return {"assigned": 0, "skipped": 0, "total_in_category": 0}
+
+    # Fetch already-linked product IDs for this campaign
+    linked_result = await db.execute(
+        select(ProductCampaignLink.product_id).where(
+            ProductCampaignLink.campaign_id == campaign_id
+        )
+    )
+    already_linked = {row[0] for row in linked_result.all()}
+
+    assigned = 0
+    skipped = 0
+    for pid in product_ids:
+        if pid in already_linked:
+            skipped += 1
+            continue
+        db.add(ProductCampaignLink(
+            campaign_id=campaign_id,
+            product_id=pid,
+            featured_rank=0,
+        ))
+        assigned += 1
+
+    if assigned > 0:
+        await db.commit()
+
+    return {"assigned": assigned, "skipped": skipped, "total_in_category": len(product_ids)}
