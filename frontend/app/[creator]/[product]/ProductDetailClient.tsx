@@ -403,8 +403,46 @@ export default function ProductDetailClient({
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState(false);
   const [qty, setQty] = useState(1);
+  const [shareState, setShareState] = useState<"idle" | "loading" | "copied">("idle");
 
   const saved = isSaved(product.id);
+
+  async function handleShareProduct() {
+    setShareState("loading");
+    try {
+      // Try to generate an affiliate-tracked short link if creator token exists
+      const token = typeof window !== "undefined"
+        ? localStorage.getItem("mam_token") || sessionStorage.getItem("mam_token")
+        : null;
+
+      let shareUrl = typeof window !== "undefined" ? window.location.href : "";
+
+      if (token) {
+        const res = await fetch(`${API_URL}/tracking/links`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ destination_path: `/${creatorHandle}/${product.id}` }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          shareUrl = data.short_url || shareUrl;
+        }
+      }
+
+      const shareText = `Check out ${product.name} on Yes MAM! 🛍️\n\n${shareUrl}\n\n#YesMAM #Ghana #ShopNow`;
+
+      if (navigator.share) {
+        await navigator.share({ title: product.name, text: shareText, url: shareUrl }).catch(() => {});
+      } else {
+        await navigator.clipboard.writeText(shareText);
+      }
+
+      setShareState("copied");
+      setTimeout(() => setShareState("idle"), 2500);
+    } catch {
+      setShareState("idle");
+    }
+  }
 
   function handleWishlistToggle() {
     toggleWishlist({
@@ -561,6 +599,20 @@ export default function ProductDetailClient({
               {product.description}
             </p>
           )}
+
+          {/* Share product link */}
+          <button
+            onClick={handleShareProduct}
+            disabled={shareState === "loading"}
+            className="mt-3 flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-xl border transition-all"
+            style={{
+              borderColor: shareState === "copied" ? "#4ade80" : "#C9A84C40",
+              color: shareState === "copied" ? "#15803d" : "#C9A84C",
+              backgroundColor: shareState === "copied" ? "#f0fdf4" : "#C9A84C0d",
+            }}
+          >
+            {shareState === "loading" ? "⏳ Generating link…" : shareState === "copied" ? "✓ Link copied!" : "🔗 Share product link"}
+          </button>
         </div>
 
         {/* ── Add to Cart section ── */}
