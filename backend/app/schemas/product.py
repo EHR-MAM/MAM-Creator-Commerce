@@ -17,6 +17,7 @@ class ProductCreate(BaseModel):
     inventory_count: int = Field(default=0, ge=0)
     media_urls: Optional[List[str]] = None
     affiliate_url: Optional[str] = None
+    video_url: Optional[str] = None
 
 
 class ProductUpdate(BaseModel):
@@ -27,6 +28,7 @@ class ProductUpdate(BaseModel):
     status: Optional[str] = None
     media_urls: Optional[List[str]] = None
     affiliate_url: Optional[str] = None
+    video_url: Optional[str] = None
 
 
 class ProductOut(BaseModel):
@@ -44,6 +46,7 @@ class ProductOut(BaseModel):
     status: str
     media_urls: Optional[List[str]]
     affiliate_url: Optional[str]
+    video_url: Optional[str] = None
     rating: Optional[float] = None
     review_count: Optional[int] = None
 

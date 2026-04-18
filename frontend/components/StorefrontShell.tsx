@@ -19,6 +19,7 @@ interface Product {
   category: string;
   color?: string;
   media_urls?: string[];
+  video_url?: string;
   inventory_count: number;
 }
 
@@ -155,13 +156,25 @@ function ProductCard({ product, handle, t }: { product: Product; handle: string;
           )}
 
           {/* New badge (placeholder — shows for first 2 products) */}
-          {product.inventory_count > 3 && (
+          {product.inventory_count > 3 && !product.video_url && (
             <div className="absolute top-2.5 left-2.5">
               <span
                 className="text-[10px] font-black px-2 py-0.5 rounded-full"
                 style={{ backgroundColor: `${t.accentHex}dd`, color: "#0A0A0A" }}
               >
                 NEW
+              </span>
+            </div>
+          )}
+
+          {/* Video badge */}
+          {product.video_url && (
+            <div className="absolute top-2.5 left-2.5">
+              <span
+                className="text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-0.5"
+                style={{ backgroundColor: "rgba(0,0,0,0.75)", color: "#fff" }}
+              >
+                ▶ Video
               </span>
             </div>
           )}

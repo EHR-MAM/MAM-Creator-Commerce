@@ -34,6 +34,7 @@ interface Product {
   category: string;
   inventory_count: number;
   media_urls?: string[];
+  video_url?: string;
   sizes?: string[];
   vendor_id: string;
   affiliate_url?: string;
@@ -483,6 +484,49 @@ export default function ProductDetailClient({
 
         {/* ── Image Carousel ── */}
         <ImageCarousel images={images} name={product.name} category={product.category} />
+
+        {/* ── Product Video ── */}
+        {product.video_url && (() => {
+          const url = product.video_url!;
+          const isDirectVideo = /\.(mp4|webm|ogg)(\?|$)/i.test(url);
+          const isYouTube = /youtube\.com|youtu\.be/.test(url);
+          const isTikTok = /tiktok\.com/.test(url);
+
+          if (isDirectVideo) {
+            return (
+              <div className="rounded-2xl overflow-hidden bg-black">
+                <video
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full max-h-[480px] object-contain"
+                  src={url}
+                >
+                  Your browser does not support video.
+                </video>
+              </div>
+            );
+          }
+
+          const platform = isYouTube ? "YouTube" : isTikTok ? "TikTok" : "Video";
+          const icon = isYouTube ? "▶" : isTikTok ? "♪" : "▶";
+
+          return (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 bg-black text-white rounded-2xl px-5 py-4 hover:opacity-90 transition-opacity"
+            >
+              <span className="text-2xl">{icon}</span>
+              <div>
+                <p className="font-black text-sm">Watch on {platform}</p>
+                <p className="text-xs text-gray-400">See this product in action</p>
+              </div>
+              <span className="ml-auto text-gray-400 text-lg">→</span>
+            </a>
+          );
+        })()}
 
         {/* ── Product Info ── */}
         <div>

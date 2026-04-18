@@ -41,6 +41,7 @@ class Product(Base):
     affiliate_source: Mapped[str | None] = mapped_column(String(50), index=True)
     affiliate_product_id: Mapped[str | None] = mapped_column(String(255), index=True)
     affiliate_url: Mapped[str | None] = mapped_column(String(1000))
+    video_url: Mapped[str | None] = mapped_column(String(1000))
     affiliate_commission_rate: Mapped[float | None] = mapped_column(Float)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime)
     sync_enabled: Mapped[bool] = mapped_column(Boolean, default=True)

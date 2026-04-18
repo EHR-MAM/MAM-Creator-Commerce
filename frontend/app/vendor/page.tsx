@@ -35,6 +35,7 @@ interface Product {
   status: string;
   media_urls?: string[];
   affiliate_url?: string;
+  video_url?: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -69,6 +70,7 @@ function emptyForm() {
     inventory_count: "0",
     media_url: "",
     affiliate_url: "",
+    video_url: "",
   };
 }
 
@@ -150,6 +152,7 @@ function ProductForm({
             inventory_count: Number(form.inventory_count),
             media_urls: mediaUrls,
             affiliate_url: form.affiliate_url || undefined,
+            video_url: form.video_url || undefined,
           }),
         });
       } else {
@@ -166,6 +169,7 @@ function ProductForm({
             inventory_count: Number(form.inventory_count),
             media_urls: mediaUrls,
             affiliate_url: form.affiliate_url || undefined,
+            video_url: form.video_url || undefined,
           }),
         });
       }
@@ -277,6 +281,13 @@ function ProductForm({
         <input type="url" value={form.affiliate_url} onChange={e => set("affiliate_url", e.target.value)}
           placeholder="https://jumia.com.gh/product/…" className={inputCls} />
         <p className="text-xs text-gray-400 mt-0.5">Jumia, SHEIN, or other affiliate link — earns commission on clicks</p>
+      </div>
+
+      <div>
+        <label className={labelCls}>Product Video URL (optional)</label>
+        <input type="url" value={form.video_url} onChange={e => set("video_url", e.target.value)}
+          placeholder="https://www.tiktok.com/@handle/video/… or YouTube link" className={inputCls} />
+        <p className="text-xs text-gray-400 mt-0.5">TikTok, YouTube, or direct .mp4 link — shown on product page</p>
       </div>
 
       {error && <p className="text-red-500 text-xs bg-red-50 rounded-lg px-3 py-2">{error}</p>}
@@ -555,6 +566,7 @@ export default function VendorDashboard() {
                             inventory_count: String(product.inventory_count),
                             media_url: product.media_urls?.[0] || "",
                             affiliate_url: product.affiliate_url || "",
+                            video_url: product.video_url || "",
                           }}
                           vendorId={vendorId}
                           token={token}
