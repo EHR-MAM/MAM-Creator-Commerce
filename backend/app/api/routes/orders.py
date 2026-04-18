@@ -16,7 +16,7 @@ from app.models.influencer import Influencer
 from app.models.user import User
 from app.schemas.order import OrderCreate, OrderOut
 from app.core.config import settings
-from app.services.notifications import send_order_notifications, send_order_status_notification
+from app.services.notifications import send_order_notifications, send_order_status_notification, send_creator_order_notification
 
 router = APIRouter()
 
@@ -103,13 +103,18 @@ async def create_order(
     await db.commit()
     await db.refresh(order)
 
-    # Resolve influencer handle for notification (non-blocking)
+    # Resolve influencer handle + phone for notification (non-blocking)
     creator_handle = None
+    creator_phone = None
     try:
         inf_result = await db.execute(select(Influencer).where(Influencer.id == influencer_id))
         influencer = inf_result.scalar_one_or_none()
         if influencer:
             creator_handle = influencer.handle
+            # Use MoMo/payout number as WhatsApp target, fall back to user.phone
+            creator_phone = influencer.payout_details_ref or None
+            if not creator_phone and influencer.user:
+                creator_phone = getattr(influencer.user, "phone", None)
     except Exception:
         pass
 
@@ -137,8 +142,10 @@ async def create_order(
         "creator_handle": creator_handle,
         "influencer_id": str(influencer_id),
         "source_channel": body.source_channel,
+        "creator_phone": creator_phone,
     }
     background_tasks.add_task(send_order_notifications, notification_data)
+    background_tasks.add_task(send_creator_order_notification, notification_data)
 
     return order
 

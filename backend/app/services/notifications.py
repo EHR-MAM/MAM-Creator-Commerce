@@ -367,3 +367,63 @@ async def send_order_status_notification(order_data: dict) -> None:
         "Order status notification sent to %s for order %s (status: %s)",
         customer_phone, order_id_short, new_status,
     )
+
+
+
+async def send_creator_order_notification(order_data: dict) -> None:
+    """
+    Sprint XXIV: Fire-and-forget WhatsApp alert to the creator when someone
+    orders from their store. Sends to payout_details_ref (MoMo/WhatsApp number)
+    or user.phone as fallback. Falls back silently if no phone is set.
+
+    order_data keys:
+        order_id, customer_name, items, total, creator_handle, creator_phone
+    """
+    creator_phone = order_data.get("creator_phone", "")
+    if not creator_phone:
+        logger.info(
+            "Creator has no phone set -- skipping creator order notification for order %s",
+            str(order_data.get("order_id", ""))[:8].upper(),
+        )
+        return
+
+    order_id_short = str(order_data.get("order_id", ""))[:8].upper()
+    handle = order_data.get("creator_handle", "your store")
+    customer_name = order_data.get("customer_name", "A customer")
+    total = order_data.get("total", 0)
+    items = order_data.get("items", [])
+
+    if items:
+        item_lines = ", ".join(
+            "{} x{}".format(item["name"], item["qty"]) for item in items[:3]
+        )
+        if len(items) > 3:
+            item_lines += " + {} more".format(len(items) - 3)
+    else:
+        item_lines = "items"
+
+    message = (
+        "*Yes MAM \U0001f6d2 New Order!*\n\n"
+        "Hi @{handle},\n\n"
+        "*{customer}* just placed an order from your store!\n\n"
+        "*Items:* {items}\n"
+        "*Order Total:* GHS {total:.2f}\n"
+        "*Order ID:* #{order_id}\n\n"
+        "Your commission will be added to your dashboard once the order is delivered.\n\n"
+        "Questions? WhatsApp ops: +13107763650\n\n"
+        "Keep sharing your store link to earn more! \U0001f4b0"
+    ).format(
+        handle=handle,
+        customer=customer_name,
+        items=item_lines,
+        total=float(total),
+        order_id=order_id_short,
+    )
+
+    await _send_whatsapp_twilio(creator_phone, message)
+    logger.info(
+        "Creator order notification sent to %s (@%s) for order %s",
+        creator_phone,
+        handle,
+        order_id_short,
+    )
