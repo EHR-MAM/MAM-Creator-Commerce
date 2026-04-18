@@ -345,6 +345,18 @@ export default function VendorDashboard() {
     } catch { /* silently fail */ }
   }
 
+  async function fetchVendorProfile() {
+    try {
+      const res = await fetch(`${API_URL}/vendors/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVendorId(data.id);
+      }
+    } catch { /* silently fail */ }
+  }
+
   async function fetchProducts() {
     try {
       const res = await fetch(`${API_URL}/products/mine`, {
@@ -353,17 +365,13 @@ export default function VendorDashboard() {
       if (res.ok) {
         const data: Product[] = await res.json();
         setProducts(data);
-        // Grab vendor_id from first product for new product creation
-        if (data.length > 0 && !vendorId) {
-          setVendorId(data[0].vendor_id);
-        }
       }
     } catch { /* silently fail */ }
   }
 
   async function fetchData() {
     setLoading(true);
-    await Promise.all([fetchOrders(), fetchProducts()]);
+    await Promise.all([fetchVendorProfile(), fetchOrders(), fetchProducts()]);
     setLoading(false);
   }
 
@@ -658,17 +666,17 @@ export default function VendorDashboard() {
               token={token}
               onSaved={async () => { await fetchProducts(); }}
             />
-          ) : products.length === 0 ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center">
-              <p className="text-2xl mb-2">⚠️</p>
-              <p className="font-bold text-sm text-amber-800">No vendor profile found</p>
-              <p className="text-xs text-amber-600 mt-1">
-                Your account needs to be linked to a vendor profile by the admin team before you can add products.
-              </p>
-            </div>
-          ) : (
+          ) : loading ? (
             <div className="text-center py-12 text-gray-400">
               <div className="w-6 h-6 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto" />
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center">
+              <p className="text-2xl mb-2">⚠️</p>
+              <p className="font-bold text-sm text-amber-800">Vendor profile not found</p>
+              <p className="text-xs text-amber-600 mt-1">
+                Please contact the ops team to link your account to a vendor profile.
+              </p>
             </div>
           )
         )}

@@ -4,7 +4,7 @@ from sqlalchemy import select
 import uuid
 
 from app.core.database import get_db
-from app.core.deps import require_admin_or_operator
+from app.core.deps import require_admin_or_operator, get_current_user
 from app.core.security import hash_password
 from app.models.vendor import Vendor
 from app.models.user import User
@@ -20,6 +20,19 @@ async def list_vendors(
 ):
     result = await db.execute(select(Vendor).where(Vendor.status == "active"))
     return result.scalars().all()
+
+
+@router.get("/me", response_model=VendorOut)
+async def get_my_vendor(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Vendor: return own vendor profile (used by frontend to resolve vendor_id)."""
+    result = await db.execute(select(Vendor).where(Vendor.user_id == current_user.id))
+    vendor = result.scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor profile not found")
+    return vendor
 
 
 @router.get("/{vendor_id}", response_model=VendorOut)
