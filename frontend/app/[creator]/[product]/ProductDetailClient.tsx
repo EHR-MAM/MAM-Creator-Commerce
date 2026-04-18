@@ -1,11 +1,13 @@
 "use client";
-// ProductDetailClient — Sprint IV + Sprint XIX (multi-product cart) + Sprint XXVIII (reviews)
-// Image carousel, Add to Cart, cart drawer, affiliate CTA, related products, reviews
+// ProductDetailClient — Sprint IV + Sprint XIX (multi-product cart) + Sprint XXVIII (reviews) + Sprint XXXIII (wishlist)
+// Image carousel, Add to Cart, cart drawer, affiliate CTA, related products, reviews, save for later
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import WhatsAppFallback from "@/components/WhatsAppFallback";
 import CartDrawer from "@/components/CartDrawer";
+import WishlistDrawer from "@/components/WishlistDrawer";
 import { useCart } from "@/lib/cart";
+import { useWishlist } from "@/lib/wishlist";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
 const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
@@ -394,9 +396,25 @@ export default function ProductDetailClient({
   const influencerId = influencer?.id || null;
 
   const { addItem, count } = useCart();
+  const { isSaved, toggle: toggleWishlist, count: wishlistCount } = useWishlist();
   const [cartOpen, setCartOpen] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState(false);
   const [qty, setQty] = useState(1);
+
+  const saved = isSaved(product.id);
+
+  function handleWishlistToggle() {
+    toggleWishlist({
+      productId: product.id,
+      productName: product.name,
+      price: Number(product.price),
+      currency: product.currency,
+      creatorHandle,
+      imageUrl: images[0],
+      category: product.category,
+    });
+  }
 
   function handleAddToCart() {
     addItem({
@@ -422,6 +440,19 @@ export default function ProductDetailClient({
             ← @{creatorHandle}
           </Link>
           <div className="flex items-center gap-3">
+            {/* Wishlist heart icon with badge */}
+            <button
+              onClick={() => setWishlistOpen(true)}
+              className="relative text-white"
+              aria-label="Open wishlist"
+            >
+              <span className="text-xl">{wishlistCount > 0 ? "❤️" : "🤍"}</span>
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#C9A84C] text-black text-[10px] font-black rounded-full flex items-center justify-center">
+                  {wishlistCount}
+                </span>
+              )}
+            </button>
             {/* Cart icon with badge */}
             <button
               onClick={() => setCartOpen(true)}
@@ -524,6 +555,18 @@ export default function ProductDetailClient({
               {addedFeedback ? "✓ Added to cart!" : `Add to Cart — ${product.currency} ${(Number(product.price) * qty).toFixed(2)}`}
             </button>
 
+            {/* Save for later / Wishlist toggle */}
+            <button
+              onClick={handleWishlistToggle}
+              className={`w-full py-3 rounded-xl font-bold text-sm border transition-colors flex items-center justify-center gap-2 ${
+                saved
+                  ? "border-red-300 text-red-600 bg-red-50 hover:bg-red-100"
+                  : "border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {saved ? "❤️ Saved — tap to remove" : "🤍 Save for later"}
+            </button>
+
             {/* View cart shortcut if items in cart */}
             {count > 0 && (
               <button
@@ -613,6 +656,8 @@ export default function ProductDetailClient({
 
       {/* Cart Drawer */}
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      {/* Wishlist Drawer */}
+      <WishlistDrawer open={wishlistOpen} onClose={() => setWishlistOpen(false)} creatorHandle={creatorHandle} />
     </main>
   );
 }

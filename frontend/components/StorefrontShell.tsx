@@ -1,9 +1,12 @@
 "use client";
+// StorefrontShell — Sprint XIX + Sprint XXXI (bio/share) + Sprint XXXIII (wishlist hearts)
 import Link from "next/link";
 import { type TemplateConfig, TEMPLATES, type TemplateId } from "@/lib/templates";
 import { useState, useCallback } from "react";
 import CartDrawer from "@/components/CartDrawer";
+import WishlistDrawer from "@/components/WishlistDrawer";
 import { useCart } from "@/lib/cart";
+import { useWishlist } from "@/lib/wishlist";
 
 const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
 
@@ -72,6 +75,22 @@ function ProductCard({ product, handle, t }: { product: Product; handle: string;
   const textMain = isDark ? "text-white" : "text-gray-900";
   const textSub = isDark ? "text-gray-400" : "text-gray-500";
   const gradientClass = CATEGORY_GRADIENT[product.category] || "from-gray-900/40 to-gray-700/20";
+  const { isSaved, toggle: toggleWishlist } = useWishlist();
+  const saved = isSaved(product.id);
+
+  function handleHeartClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist({
+      productId: product.id,
+      productName: product.name,
+      price: Number(product.price),
+      currency: product.currency,
+      creatorHandle: handle,
+      imageUrl: product.media_urls?.[0],
+      category: product.category,
+    });
+  }
 
   return (
     <Link href={`/${handle}/${product.id}`} className="block group">
@@ -111,6 +130,16 @@ function ProductCard({ product, handle, t }: { product: Product; handle: string;
               </span>
             </div>
           )}
+
+          {/* Wishlist heart button */}
+          <button
+            onClick={handleHeartClick}
+            className="absolute bottom-2 right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-transform active:scale-90 z-10"
+            style={{ backgroundColor: saved ? "#fff0f0" : "rgba(255,255,255,0.85)" }}
+            aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+          >
+            <span className="text-base leading-none">{saved ? "❤️" : "🤍"}</span>
+          </button>
 
           {/* Low stock badge */}
           {product.inventory_count > 0 && product.inventory_count <= 3 && (
@@ -184,10 +213,12 @@ export default function StorefrontShell({
 }) {
   const [activeTemplate, setActiveTemplate] = useState<TemplateId>(template.id);
   const [cartOpen, setCartOpen] = useState(false);
+  const [wishlistOpen, setWishlistOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [shareCopied, setShareCopied] = useState(false);
   const { count } = useCart();
+  const { count: wishlistCount } = useWishlist();
 
   const handleShare = useCallback(() => {
     const url = typeof window !== "undefined" ? window.location.href : "";
@@ -388,6 +419,19 @@ export default function StorefrontShell({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {/* Wishlist heart icon with badge */}
+          <button
+            onClick={() => setWishlistOpen(true)}
+            className="relative text-gray-700"
+            aria-label="Open wishlist"
+          >
+            <span className="text-lg">{wishlistCount > 0 ? "❤️" : "🤍"}</span>
+            {wishlistCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#C9A84C] text-black text-[10px] font-black rounded-full flex items-center justify-center">
+                {wishlistCount}
+              </span>
+            )}
+          </button>
           {/* Cart icon with badge */}
           <button
             onClick={() => setCartOpen(true)}
@@ -626,6 +670,8 @@ export default function StorefrontShell({
 
       {/* Cart Drawer */}
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      {/* Wishlist Drawer */}
+      <WishlistDrawer open={wishlistOpen} onClose={() => setWishlistOpen(false)} creatorHandle={handle} />
     </main>
   );
 }
