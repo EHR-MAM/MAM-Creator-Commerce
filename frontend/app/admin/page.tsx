@@ -1014,6 +1014,11 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
   const [bulkAssigning, setBulkAssigning] = useState(false);
   // Product search within panel
   const [productSearch, setProductSearch] = useState("");
+  // Category bulk-assign state
+  const [categories, setCategories] = useState<{ category: string; count: number }[]>([]);
+  const [selectedCat, setSelectedCat] = useState("");
+  const [catAssigning, setCatAssigning] = useState(false);
+  const [catMsg, setCatMsg] = useState("");
 
   async function openPanel() {
     if (open) { setOpen(false); return; }
@@ -1022,6 +1027,8 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
     setMsg("");
     setSelected(new Set());
     setProductSearch("");
+    setCatMsg("");
+    setSelectedCat("");
     try {
       const cpRes = await fetch(`${API}/campaigns/ensure-for-influencer`, {
         method: "POST",
@@ -1031,8 +1038,12 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
       if (!cpRes.ok) { setMsg("Could not load campaign"); setLoadingCamp(false); return; }
       const cp = await cpRes.json();
       setCampaignId(cp.id);
-      const prRes = await fetch(`${API}/campaigns/${cp.id}/products`, { headers: h });
+      const [prRes, catRes] = await Promise.all([
+        fetch(`${API}/campaigns/${cp.id}/products`, { headers: h }),
+        fetch(`${API}/campaigns/product-categories`, { headers: h }),
+      ]);
       if (prRes.ok) setAssigned(await prRes.json());
+      if (catRes.ok) setCategories(await catRes.json());
     } catch { setMsg("Network error"); }
     setLoadingCamp(false);
   }
@@ -1081,6 +1092,32 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
       setAssigned((prev) => prev.filter((p: any) => p.id !== productId));
       setMsg("Product removed");
     } else { setMsg("Failed to remove"); }
+  }
+
+  async function bulkAssignByCategory() {
+    if (!campaignId || !selectedCat) return;
+    setCatAssigning(true);
+    setCatMsg("");
+    try {
+      const res = await fetch(`${API}/campaigns/${campaignId}/products/bulk-category`, {
+        method: "POST",
+        headers: h,
+        body: JSON.stringify({ category: selectedCat }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Refresh assigned list
+        const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h });
+        if (prRes.ok) setAssigned(await prRes.json());
+        setCatMsg(`Assigned ${data.assigned} product${data.assigned !== 1 ? "s" : ""} (${data.skipped} already linked)`);
+        setSelectedCat("");
+      } else {
+        setCatMsg("Bulk assign failed");
+      }
+    } catch {
+      setCatMsg("Network error");
+    }
+    setCatAssigning(false);
   }
 
   function toggleSelect(id: string) {
@@ -1150,6 +1187,45 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
                   ))}
                 </div>
               </div>
+
+              {/* Assign by Category — server-side bulk assign entire category */}
+              {categories.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-2">
+                    Assign Entire Category
+                  </p>
+                  <p className="text-xs text-amber-600 mb-2">
+                    Instantly assign all products from a category to this creator&apos;s store.
+                    Already-linked products are skipped automatically.
+                  </p>
+                  <div className="flex gap-2 items-center flex-wrap">
+                    <select
+                      value={selectedCat}
+                      onChange={e => setSelectedCat(e.target.value)}
+                      className="flex-1 min-w-0 border border-amber-300 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="">Choose a category…</option>
+                      {categories.map(c => (
+                        <option key={c.category} value={c.category}>
+                          {c.category} ({c.count} products)
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={bulkAssignByCategory}
+                      disabled={!selectedCat || catAssigning}
+                      className="text-xs bg-amber-600 text-white font-bold px-3 py-1.5 rounded-lg disabled:opacity-50 hover:bg-amber-700 transition-colors shrink-0"
+                    >
+                      {catAssigning ? "Assigning…" : "Assign All"}
+                    </button>
+                  </div>
+                  {catMsg && (
+                    <p className={`text-xs mt-2 font-medium ${catMsg.includes("failed") || catMsg.includes("error") ? "text-red-600" : "text-green-700"}`}>
+                      {catMsg}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Add products — with search + bulk select */}
               {unassigned.length > 0 && (
