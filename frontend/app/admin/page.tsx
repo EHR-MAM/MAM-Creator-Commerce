@@ -237,6 +237,12 @@ export default function AdminPage() {
     reload();
   }
 
+  async function updateProductPrice(productId: string, price: number) {
+    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify({ price }) });
+    if (!r.ok) { setMsg("Error updating price"); return; }
+    reload();
+  }
+
   async function toggleVendorStatus(vendorId: string, currentStatus: string) {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     const r = await fetch(`${API}/vendors/${vendorId}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: newStatus }) });
@@ -628,8 +634,8 @@ export default function AdminPage() {
                     <tr className="border-b border-gray-50">
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Name</th>
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">SKU</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Category</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Price</th>
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Vendor</th>
+                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Price (GHS)</th>
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Stock</th>
                       <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Status</th>
                       <th className="px-4 py-3"></th>
@@ -645,10 +651,29 @@ export default function AdminPage() {
                           : "text-gray-700";
                       return (
                         <tr key={p.id} className={`border-b border-gray-50 last:border-0 ${stockQty === 0 ? "bg-red-50/30" : stockQty <= 10 ? "bg-amber-50/30" : ""}`}>
-                          <td className="px-4 py-3 font-semibold">{p.name}</td>
+                          <td className="px-4 py-3 font-semibold">
+                            <div>{p.name}</div>
+                            <div className="text-xs text-gray-400 capitalize">{p.category}</div>
+                          </td>
                           <td className="px-4 py-3 font-mono text-xs text-gray-400">{p.sku}</td>
-                          <td className="px-4 py-3 text-gray-500 capitalize">{p.category}</td>
-                          <td className="px-4 py-3 font-semibold">{p.currency} {Number(p.price).toFixed(2)}</td>
+                          <td className="px-4 py-3 text-xs text-gray-500">
+                            {vendors.find((v: any) => v.id === p.vendor_id)?.business_name || <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              defaultValue={Number(p.price).toFixed(2)}
+                              key={`${p.id}-price-${p.price}`}
+                              onBlur={e => {
+                                const newPrice = parseFloat(e.target.value);
+                                if (!isNaN(newPrice) && newPrice !== Number(p.price)) updateProductPrice(p.id, newPrice);
+                              }}
+                              onKeyDown={e => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                              className="w-20 border border-gray-200 rounded px-2 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-black text-gray-700"
+                            />
+                          </td>
                           <td className="px-4 py-3">
                             <input
                               type="number"
