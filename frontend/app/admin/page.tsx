@@ -455,8 +455,11 @@ export default function AdminPage() {
                   {orders.length === 0 ? "No orders yet" : "No orders match your search/filter"}
                 </div>
               );
+              // Build influencer_id → handle map for creator attribution
+              const handleMap: Record<string, string> = {};
+              creators.forEach((c: any) => { if (c.id && c.handle) handleMap[c.id] = c.handle; });
               return filtered.map((o: any) => (
-                <OrderCard key={o.id} order={o} onAdvance={advanceOrder} token={token} h={h} />
+                <OrderCard key={o.id} order={o} onAdvance={advanceOrder} token={token} h={h} creatorHandle={o.influencer_id ? (handleMap[o.influencer_id] || null) : null} />
               ));
             })()}
           </div>
@@ -766,7 +769,7 @@ function ReviewsTab({ token, h }: { token: string; h: Record<string, string> }) 
   );
 }
 
-function OrderCard({ order: o, onAdvance, token, h }: { order: any; onAdvance: (id: string, status: string) => void; token: string; h: Record<string, string> }) {
+function OrderCard({ order: o, onAdvance, token, h, creatorHandle }: { order: any; onAdvance: (id: string, status: string) => void; token: string; h: Record<string, string>; creatorHandle?: string | null }) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [notesText, setNotesText] = useState<string>(o.admin_notes || "");
@@ -841,6 +844,9 @@ function OrderCard({ order: o, onAdvance, token, h }: { order: any; onAdvance: (
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs text-gray-400">#{orderIdShort}</span>
           <div>
+            {creatorHandle && (
+              <span className="text-[10px] font-semibold text-[#C9A84C] bg-[#C9A84C]/10 px-1.5 py-0.5 rounded mr-1">@{creatorHandle}</span>
+            )}
             <span className="font-semibold text-sm">{o.customer_name || "—"}</span>
             <span className="text-xs text-gray-400 ml-2">{o.customer_phone || ""}</span>
             {o.created_at && (
