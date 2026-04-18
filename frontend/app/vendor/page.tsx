@@ -1,4 +1,4 @@
-// Vendor Dashboard — Sprint XX
+// Vendor Dashboard — Sprint XX + Sprint XXXII (image upload)
 // Order queue, product catalog, add/edit products
 "use client";
 import { useState, useEffect } from "react";
@@ -93,6 +93,35 @@ function ProductForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API_URL}/uploads/image`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Upload failed");
+      }
+      const data = await res.json();
+      set("media_url", data.url);
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
 
   const isEdit = !!editProductId;
 
@@ -206,13 +235,39 @@ function ProductForm({
       </div>
 
       <div>
-        <label className={labelCls}>Image URL</label>
+        <label className={labelCls}>Product Image</label>
+        {/* Upload button */}
+        <div className="flex items-center gap-2 mb-2">
+          <label className={`flex items-center gap-1.5 cursor-pointer px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+            uploading ? "bg-gray-50 text-gray-400 border-gray-200" : "bg-black text-white border-black hover:bg-gray-800"
+          }`}>
+            {uploading ? "Uploading…" : "⬆ Upload photo"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              disabled={uploading}
+              onChange={handleImageUpload}
+            />
+          </label>
+          <span className="text-xs text-gray-400">or paste URL below · max 8 MB</span>
+        </div>
+        {uploadError && (
+          <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-1.5 mb-2">{uploadError}</p>
+        )}
+        {/* URL text field (auto-filled by upload, or manual paste) */}
         <input type="url" value={form.media_url} onChange={e => set("media_url", e.target.value)}
           placeholder="https://…/photo.jpg" className={inputCls} />
         {form.media_url && (
-          <div className="mt-2 w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
-            <img src={form.media_url} alt="preview" className="w-full h-full object-cover"
-              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          <div className="mt-2 flex items-start gap-3">
+            <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200 shrink-0">
+              <img src={form.media_url} alt="preview" className="w-full h-full object-cover"
+                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            </div>
+            <button type="button" onClick={() => set("media_url", "")}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors mt-1">
+              Remove
+            </button>
           </div>
         )}
       </div>
