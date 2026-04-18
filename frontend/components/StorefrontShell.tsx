@@ -165,6 +165,8 @@ export default function StorefrontShell({
 }) {
   const [activeTemplate, setActiveTemplate] = useState<TemplateId>(template.id);
   const [cartOpen, setCartOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [activeCategory, setActiveCategory] = useState<string>("all");
   const { count } = useCart();
   const t = TEMPLATES[activeTemplate];
 
@@ -174,6 +176,17 @@ export default function StorefrontShell({
   const isDark = t.id === "noir";
   const textMain = isDark ? "text-white" : "text-gray-900";
   const textSub = isDark ? "text-gray-400" : "text-gray-500";
+
+  // Derive unique categories from products (only if >1 category present)
+  const categories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+  const showFilter = categories.length > 1;
+
+  // Apply search + category filter
+  const displayProducts = products.filter((p) => {
+    const matchCat = activeCategory === "all" || p.category === activeCategory;
+    const matchSearch = !searchQ || p.name.toLowerCase().includes(searchQ.toLowerCase());
+    return matchCat && matchSearch;
+  });
 
   return (
     <main className={`min-h-screen ${t.bg} transition-colors duration-300`}>
@@ -344,18 +357,95 @@ export default function StorefrontShell({
       <div className="max-w-lg mx-auto px-4 py-6">
         {products.length > 0 ? (
           <>
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-4">
               <h2 className={`font-black text-lg ${textMain}`}>
                 {creator.campaign_name || "Featured Products"}
               </h2>
-              <span className={`text-xs font-bold ${textSub}`}>{inStock} in stock</span>
+              <span className={`text-xs font-bold ${textSub}`}>
+                {displayProducts.filter(p => p.inventory_count > 0).length} in stock
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} handle={handle} t={t} />
-              ))}
+            {/* ── Search bar ── */}
+            <div className="relative mb-3">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none opacity-40">🔍</span>
+              <input
+                type="search"
+                placeholder="Search products…"
+                value={searchQ}
+                onChange={e => setSearchQ(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm border focus:outline-none transition-colors"
+                style={{
+                  backgroundColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                  borderColor: isDark ? "rgba(255,255,255,0.1)" : `${t.accentHex}20`,
+                  color: isDark ? "#fff" : "#111",
+                }}
+              />
+              {searchQ && (
+                <button
+                  onClick={() => setSearchQ("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-40 hover:opacity-70"
+                  style={{ color: isDark ? "#fff" : "#111" }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
+
+            {/* ── Category pills ── */}
+            {showFilter && (
+              <div className="flex gap-2 flex-wrap mb-5">
+                <button
+                  onClick={() => setActiveCategory("all")}
+                  className="text-xs font-bold px-3 py-1 rounded-full transition-all"
+                  style={
+                    activeCategory === "all"
+                      ? { backgroundColor: t.accentHex, color: "#0A0A0A" }
+                      : { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : `${t.accentHex}15`, color: isDark ? "rgba(255,255,255,0.6)" : t.accentHex }
+                  }
+                >
+                  All ({products.length})
+                </button>
+                {categories.map(cat => {
+                  const catCount = products.filter(p => p.category === cat).length;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      className="text-xs font-bold px-3 py-1 rounded-full transition-all capitalize"
+                      style={
+                        activeCategory === cat
+                          ? { backgroundColor: t.accentHex, color: "#0A0A0A" }
+                          : { backgroundColor: isDark ? "rgba(255,255,255,0.08)" : `${t.accentHex}15`, color: isDark ? "rgba(255,255,255,0.6)" : t.accentHex }
+                      }
+                    >
+                      {CATEGORY_EMOJI[cat] || ""} {cat} ({catCount})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Product grid or empty-filter state */}
+            {displayProducts.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3">
+                {displayProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} handle={handle} t={t} />
+                ))}
+              </div>
+            ) : (
+              <div className={`text-center py-10 ${t.cardBg} rounded-2xl border ${t.cardBorder}`}>
+                <p className="text-2xl mb-2">🔍</p>
+                <p className={`font-bold text-sm mb-1 ${textMain}`}>No products match</p>
+                <button
+                  onClick={() => { setSearchQ(""); setActiveCategory("all"); }}
+                  className="text-xs underline opacity-50 hover:opacity-80"
+                  style={{ color: t.accentHex }}
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
 
             {/* Bottom CTA after grid */}
             <div className="mt-8 text-center">
