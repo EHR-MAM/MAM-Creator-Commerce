@@ -29,6 +29,7 @@ class InfluencerCreate(BaseModel):
 
 class InfluencerUpdate(BaseModel):
     handle: Optional[str] = None
+    bio: Optional[str] = None
     payout_method: Optional[str] = None
     payout_details_ref: Optional[str] = None
     status: Optional[str] = None

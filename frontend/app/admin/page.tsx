@@ -1396,6 +1396,16 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
   // Status toggle state
   const [creatorStatus, setCreatorStatus] = useState<string>(creator.status || "active");
   const [statusToggling, setStatusToggling] = useState(false);
+  // Profile edit state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    handle: creator.handle || "",
+    bio: creator.bio || "",
+    payout_method: creator.payout_method || "",
+    payout_details_ref: creator.payout_details_ref || "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editMsg, setEditMsg] = useState("");
 
   async function toggleStatus(e: React.MouseEvent) {
     e.stopPropagation();
@@ -1413,6 +1423,33 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
       }
     } catch { /* silent */ }
     setStatusToggling(false);
+  }
+
+  async function saveProfile(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditSaving(true);
+    setEditMsg("");
+    try {
+      const res = await fetch(`${API}/influencers/${creator.id}`, {
+        method: "PATCH",
+        headers: h,
+        body: JSON.stringify({
+          handle: editForm.handle.trim() || undefined,
+          bio: editForm.bio.trim() || undefined,
+          payout_method: editForm.payout_method || undefined,
+          payout_details_ref: editForm.payout_details_ref.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        setEditMsg("Saved ✓");
+        setEditOpen(false);
+        onReload?.();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setEditMsg(err.detail || "Save failed");
+      }
+    } catch { setEditMsg("Network error"); }
+    setEditSaving(false);
   }
 
   async function openPanel() {
@@ -1556,8 +1593,86 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
         >
           {statusToggling ? "…" : creatorStatus === "active" ? "Deactivate" : "Activate"}
         </button>
+        <button
+          onClick={e => { e.stopPropagation(); setEditOpen(v => !v); setEditMsg(""); }}
+          className="text-xs font-bold px-2 py-0.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors shrink-0"
+        >
+          Edit
+        </button>
         <span className="text-gray-300 text-xs ml-1 shrink-0">{open ? "▲" : "▼"}</span>
       </button>
+
+      {/* Inline profile edit panel */}
+      {editOpen && (
+        <div className="border-t border-[#C9A84C]/30 bg-amber-50 p-4 space-y-3" onClick={e => e.stopPropagation()}>
+          <p className="text-xs font-bold text-amber-800 uppercase tracking-wider">Edit Creator Profile</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-500 font-medium block mb-1">Handle</label>
+              <input
+                type="text"
+                value={editForm.handle}
+                onChange={e => setEditForm(f => ({ ...f, handle: e.target.value }))}
+                placeholder="e.g. sweet200723"
+                className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-amber-400 bg-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 font-medium block mb-1">Payout Method</label>
+              <select
+                value={editForm.payout_method}
+                onChange={e => setEditForm(f => ({ ...f, payout_method: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-amber-400 bg-white"
+              >
+                <option value="">— none —</option>
+                <option value="momo_mtn">MTN MoMo</option>
+                <option value="momo_telecel">Telecel Cash</option>
+                <option value="bank_transfer">Bank Transfer</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium block mb-1">MoMo / Account Number</label>
+            <input
+              type="text"
+              value={editForm.payout_details_ref}
+              onChange={e => setEditForm(f => ({ ...f, payout_details_ref: e.target.value }))}
+              placeholder="e.g. 0241234567"
+              className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-mono focus:outline-none focus:border-amber-400 bg-white"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 font-medium block mb-1">Bio</label>
+            <textarea
+              value={editForm.bio}
+              onChange={e => setEditForm(f => ({ ...f, bio: e.target.value }))}
+              placeholder="Short bio shown on storefront…"
+              rows={2}
+              className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-amber-400 bg-white resize-none"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={saveProfile}
+              disabled={editSaving}
+              className="text-sm font-bold px-4 py-1.5 rounded-lg bg-[#C9A84C] text-black hover:bg-[#E8C97A] disabled:opacity-50 transition-colors"
+            >
+              {editSaving ? "Saving…" : "Save Changes"}
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); setEditOpen(false); setEditMsg(""); }}
+              className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+            >
+              Cancel
+            </button>
+            {editMsg && (
+              <span className={`text-xs font-medium ${editMsg.includes("✓") ? "text-green-600" : "text-red-500"}`}>
+                {editMsg}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {open && (
         <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-4">
