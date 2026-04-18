@@ -112,3 +112,55 @@ async def logout(body: dict):
 @router.get("/me", response_model=UserMe)
 async def me(current_user: User = Depends(get_current_user)):
     return UserMe(id=str(current_user.id), role=current_user.role, name=current_user.name, email=current_user.email, status=current_user.status)
+
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+
+
+class VendorRegisterRequest(BaseModel):
+    business_name: str
+    contact_name: str
+    contact_phone: str
+    location: str
+    category: str = "fashion"
+    email: str
+    password: str
+
+
+@router.post("/register-vendor", status_code=201)
+async def register_vendor(body: VendorRegisterRequest, db: AsyncSession = Depends(get_db)):
+    """Public endpoint: self-register a vendor account + vendor record in one call."""
+    from app.models.vendor import Vendor
+    from sqlalchemy import select
+    result = await db.execute(select(User).where(User.email == body.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    user = User(
+        name=body.contact_name,
+        email=body.email,
+        role="vendor",
+        hashed_password=hash_password(body.password),
+        status="active",
+    )
+    db.add(user)
+    await db.flush()
+
+    vendor = Vendor(
+        user_id=user.id,
+        business_name=body.business_name,
+        location=body.location,
+        contact_name=body.contact_name,
+        contact_phone=body.contact_phone,
+    )
+    db.add(vendor)
+    await db.commit()
+    await db.refresh(vendor)
+
+    return {
+        "id": str(user.id),
+        "vendor_id": str(vendor.id),
+        "email": user.email,
+        "role": user.role,
+        "business_name": vendor.business_name,
+    }

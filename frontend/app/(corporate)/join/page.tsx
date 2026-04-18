@@ -204,18 +204,48 @@ function CreatorSignupForm() {
 }
 
 function VendorSignupForm() {
-  const [form, setForm] = useState({ business: "", contact: "", phone: "", category: "fashion" });
+  const [form, setForm] = useState({
+    business: "", contact: "", phone: "", location: "Accra", category: "fashion", email: "", password: "",
+  });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const msg = encodeURIComponent(
-      `Hi! I want to list my products on Yes MAM.\n\nBusiness: ${form.business}\nContact: ${form.contact}\nPhone: ${form.phone}\nCategory: ${form.category}\n\nPlease tell me how to get started!`
-    );
-    window.open(`https://wa.me/13107763650?text=${msg}`, "_blank");
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch(`${API_URL}/auth/register-vendor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business_name: form.business,
+          contact_name: form.contact,
+          contact_phone: form.phone,
+          location: form.location,
+          category: form.category,
+          email: form.email,
+          password: form.password,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError(err.detail || "Registration failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+    } catch {
+      setError("Network error — please try again.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(false);
     setSubmitted(true);
   }
 
@@ -223,14 +253,26 @@ function VendorSignupForm() {
     return (
       <div className="text-center py-8">
         <div className="text-5xl mb-4">🤝</div>
-        <p className="font-bold text-white text-lg mb-2">Message sent!</p>
-        <p className="text-sm text-white/50">Our vendor team will review your application and get back within 48 hours.</p>
+        <p className="font-bold text-white text-lg mb-2">Vendor account created!</p>
+        <p className="text-sm text-white/50 mb-3">Your account is live. Sign in to the vendor portal to add products and track orders.</p>
+        <a
+          href="/mam/login"
+          className="inline-block px-6 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
+          style={{ background: "#F5A623", color: "#0A0A0A" }}
+        >
+          Sign in to vendor portal →
+        </a>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="px-4 py-3 rounded-lg bg-red-900/40 border border-red-700 text-red-300 text-sm">
+          {error}
+        </div>
+      )}
       <div>
         <label className="text-xs text-white/50 font-medium block mb-1.5">Business name</label>
         <input
@@ -252,6 +294,31 @@ function VendorSignupForm() {
         />
       </div>
       <div>
+        <label className="text-xs text-white/50 font-medium block mb-1.5">Email</label>
+        <input
+          required
+          type="email"
+          value={form.email}
+          onChange={set("email")}
+          placeholder="you@example.com"
+          autoComplete="email"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#F5A623]/60 transition-colors"
+        />
+      </div>
+      <div>
+        <label className="text-xs text-white/50 font-medium block mb-1.5">Password</label>
+        <input
+          required
+          type="password"
+          value={form.password}
+          onChange={set("password")}
+          placeholder="Min. 8 characters"
+          minLength={8}
+          autoComplete="new-password"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#F5A623]/60 transition-colors"
+        />
+      </div>
+      <div>
         <label className="text-xs text-white/50 font-medium block mb-1.5">WhatsApp number</label>
         <input
           required
@@ -262,24 +329,39 @@ function VendorSignupForm() {
         />
       </div>
       <div>
+        <label className="text-xs text-white/50 font-medium block mb-1.5">Location</label>
+        <select
+          value={form.location}
+          onChange={set("location")}
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#F5A623]/60 transition-colors"
+        >
+          <option value="Accra">Accra</option>
+          <option value="Kumasi">Kumasi</option>
+          <option value="Tamale">Tamale</option>
+          <option value="Cape Coast">Cape Coast</option>
+          <option value="Other">Other African location</option>
+        </select>
+      </div>
+      <div>
         <label className="text-xs text-white/50 font-medium block mb-1.5">Product category</label>
         <select
           value={form.category}
           onChange={set("category")}
           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#F5A623]/60 transition-colors"
         >
-          <option value="fashion">Fashion & Clothing</option>
-          <option value="hair">Hair & Wigs</option>
-          <option value="beauty">Beauty & Skincare</option>
-          <option value="accessories">Accessories & Jewelry</option>
+          <option value="fashion">Fashion &amp; Clothing</option>
+          <option value="hair">Hair &amp; Wigs</option>
+          <option value="beauty">Beauty &amp; Skincare</option>
+          <option value="accessories">Accessories &amp; Jewelry</option>
           <option value="other">Other</option>
         </select>
       </div>
       <button
         type="submit"
-        className="w-full bg-[#F5A623] text-black font-black py-3.5 rounded-xl text-sm mt-2 hover:opacity-90 transition-opacity"
+        disabled={loading}
+        className="w-full bg-[#F5A623] text-black font-black py-3.5 rounded-xl text-sm mt-2 hover:opacity-90 transition-opacity disabled:opacity-60"
       >
-        Apply as Vendor →
+        {loading ? "Creating account…" : "Apply as Vendor →"}
       </button>
       <p className="text-[11px] text-white/25 text-center">Commission only on successful deliveries. Zero upfront.</p>
     </form>
