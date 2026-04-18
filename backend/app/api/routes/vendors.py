@@ -48,6 +48,26 @@ async def get_my_vendor(
     return vendor
 
 
+@router.patch("/me", response_model=VendorOut)
+async def update_my_vendor(
+    body: VendorUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Vendor: update own profile (business_name, contact_name, contact_phone, location)."""
+    result = await db.execute(select(Vendor).where(Vendor.user_id == current_user.id))
+    vendor = result.scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor profile not found")
+    allowed = {"business_name", "location", "contact_name", "contact_phone"}
+    for field, value in body.model_dump(exclude_unset=True).items():
+        if field in allowed:
+            setattr(vendor, field, value)
+    await db.commit()
+    await db.refresh(vendor)
+    return vendor
+
+
 @router.get("/{vendor_id}", response_model=VendorOut)
 async def get_vendor(
     vendor_id: uuid.UUID,

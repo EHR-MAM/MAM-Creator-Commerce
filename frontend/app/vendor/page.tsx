@@ -318,11 +318,17 @@ export default function VendorDashboard() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [tab, setTab] = useState<"orders" | "products" | "add">("orders");
+  const [tab, setTab] = useState<"orders" | "products" | "add" | "profile">("orders");
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [vendorId, setVendorId] = useState<string>("");
+  const [vendorProfile, setVendorProfile] = useState<{
+    business_name: string; contact_name: string; contact_phone: string; location: string;
+  } | null>(null);
+  const [profileForm, setProfileForm] = useState({ business_name: "", contact_name: "", contact_phone: "", location: "" });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMsg, setProfileMsg] = useState("");
 
   // Redirect if not authenticated or wrong role
   useEffect(() => {
@@ -353,8 +359,40 @@ export default function VendorDashboard() {
       if (res.ok) {
         const data = await res.json();
         setVendorId(data.id);
+        setVendorProfile(data);
+        setProfileForm({
+          business_name: data.business_name || "",
+          contact_name: data.contact_name || "",
+          contact_phone: data.contact_phone || "",
+          location: data.location || "",
+        });
       }
     } catch { /* silently fail */ }
+  }
+
+  async function saveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileMsg("");
+    try {
+      const res = await fetch(`${API_URL}/vendors/me`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(profileForm),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setProfileMsg(err.detail || "Save failed");
+      } else {
+        const updated = await res.json();
+        setVendorProfile(updated);
+        setProfileMsg("Saved!");
+      }
+    } catch {
+      setProfileMsg("Network error — please try again.");
+    } finally {
+      setProfileSaving(false);
+    }
   }
 
   async function fetchProducts() {
@@ -459,13 +497,13 @@ export default function VendorDashboard() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-5">
-          {(["orders", "products", "add"] as const).map(t => (
+        <div className="flex gap-2 mb-5 flex-wrap">
+          {(["orders", "products", "add", "profile"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-colors ${
+              className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-colors min-w-[70px] ${
                 tab === t ? "bg-black text-white" : "bg-white text-gray-600 border border-gray-200 hover:border-gray-400"
               }`}>
-              {t === "orders" ? `Orders (${activeOrders.length})` : t === "products" ? "My Products" : "+ Add Product"}
+              {t === "orders" ? `Orders (${activeOrders.length})` : t === "products" ? "My Products" : t === "add" ? "+ Add" : "Profile"}
             </button>
           ))}
         </div>
@@ -656,6 +694,39 @@ export default function VendorDashboard() {
               </>
             )}
           </div>
+        )}
+
+        {/* ── PROFILE TAB ── */}
+        {tab === "profile" && (
+          <form onSubmit={saveProfile} className="space-y-4 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <h3 className="font-black text-base">Business Profile</h3>
+            <p className="text-xs text-gray-400">Update your business details. Changes are visible to the ops team.</p>
+            {[
+              { label: "Business Name", key: "business_name", placeholder: "e.g. Ghana Wig Queen" },
+              { label: "Contact Name", key: "contact_name", placeholder: "Your full name" },
+              { label: "Contact Phone (WhatsApp)", key: "contact_phone", placeholder: "+233…" },
+              { label: "Location / City", key: "location", placeholder: "e.g. Accra, Ghana" },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key}>
+                <label className="text-sm font-medium text-gray-700 block mb-1">{label}</label>
+                <input
+                  value={profileForm[key as keyof typeof profileForm]}
+                  onChange={e => setProfileForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                />
+              </div>
+            ))}
+            {profileMsg && (
+              <p className={`text-xs rounded-lg px-3 py-2 ${
+                profileMsg === "Saved!" ? "text-green-600 bg-green-50" : "text-red-500 bg-red-50"
+              }`}>{profileMsg}</p>
+            )}
+            <button type="submit" disabled={profileSaving}
+              className="w-full bg-black text-white py-3 rounded-xl font-bold text-sm disabled:opacity-50">
+              {profileSaving ? "Saving…" : "Save Profile"}
+            </button>
+          </form>
         )}
 
         {/* ── ADD PRODUCT TAB ── */}

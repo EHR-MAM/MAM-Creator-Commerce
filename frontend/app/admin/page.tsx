@@ -181,6 +181,8 @@ export default function AdminPage() {
   const token = authToken || "";
   const [tab, setTab] = useState<Tab>("overview");
   const [msg, setMsg] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+  const [vendorSearch, setVendorSearch] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
   const [orderDateFilter, setOrderDateFilter] = useState<string>("all");
@@ -488,50 +490,79 @@ export default function AdminPage() {
         {tab === "vendors" && (
           <div className="space-y-6">
             <div>
-              <h2 className="font-bold text-gray-900 mb-3">Vendors ({vendors.length})</h2>
-              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-50">
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Business</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Contact</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Email</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Location</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Status</th>
-                      <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vendors.map((v: any) => (
-                      <tr key={v.id} className="border-b border-gray-50 last:border-0">
-                        <td className="px-4 py-3 font-semibold">{v.business_name || "—"}</td>
-                        <td className="px-4 py-3 text-gray-500 text-xs">
-                          <div>{v.contact_name || "—"}</div>
-                          {v.contact_phone && <div className="text-gray-400">{v.contact_phone}</div>}
-                        </td>
-                        <td className="px-4 py-3 text-gray-400 text-xs">{v.email || "—"}</td>
-                        <td className="px-4 py-3 text-gray-400">{v.location || "—"}</td>
-                        <td className="px-4 py-3"><StatusBadge status={v.status || "active"} /></td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => toggleVendorStatus(v.id, v.status || "active")}
-                            className={`px-2.5 py-1 text-xs rounded-lg font-medium ${
-                              v.status === "active"
-                                ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                : "bg-green-100 text-green-700 hover:bg-green-200"
-                            }`}
-                          >
-                            {v.status === "active" ? "Deactivate" : "Activate"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {vendors.length === 0 && (
-                      <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">No vendors yet</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              {(() => {
+                const filteredVendors = vendorSearch.trim()
+                  ? vendors.filter((v: any) =>
+                      (v.business_name || "").toLowerCase().includes(vendorSearch.toLowerCase()) ||
+                      (v.contact_name || "").toLowerCase().includes(vendorSearch.toLowerCase()) ||
+                      (v.email || "").toLowerCase().includes(vendorSearch.toLowerCase()) ||
+                      (v.location || "").toLowerCase().includes(vendorSearch.toLowerCase())
+                    )
+                  : vendors;
+                return (
+                  <>
+                    <div className="flex items-center gap-3 mb-3">
+                      <h2 className="font-bold text-gray-900 whitespace-nowrap">Vendors ({filteredVendors.length}{vendorSearch ? ` of ${vendors.length}` : ""})</h2>
+                      <div className="flex-1">
+                        <input
+                          value={vendorSearch}
+                          onChange={e => setVendorSearch(e.target.value)}
+                          placeholder="Search by name, email, or location…"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                        />
+                      </div>
+                      {vendorSearch && (
+                        <button onClick={() => setVendorSearch("")} className="text-xs text-gray-400 hover:text-gray-700 px-2 py-2 border border-gray-200 rounded-lg">✕</button>
+                      )}
+                    </div>
+                    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-50">
+                            <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Business</th>
+                            <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Contact</th>
+                            <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Email</th>
+                            <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Location</th>
+                            <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Status</th>
+                            <th className="text-left px-4 py-3 text-xs text-gray-400 font-semibold uppercase">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredVendors.map((v: any) => (
+                            <tr key={v.id} className="border-b border-gray-50 last:border-0">
+                              <td className="px-4 py-3 font-semibold">{v.business_name || "—"}</td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">
+                                <div>{v.contact_name || "—"}</div>
+                                {v.contact_phone && <div className="text-gray-400">{v.contact_phone}</div>}
+                              </td>
+                              <td className="px-4 py-3 text-gray-400 text-xs">{v.email || "—"}</td>
+                              <td className="px-4 py-3 text-gray-400">{v.location || "—"}</td>
+                              <td className="px-4 py-3"><StatusBadge status={v.status || "active"} /></td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => toggleVendorStatus(v.id, v.status || "active")}
+                                  className={`px-2.5 py-1 text-xs rounded-lg font-medium ${
+                                    v.status === "active"
+                                      ? "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                      : "bg-green-100 text-green-700 hover:bg-green-200"
+                                  }`}
+                                >
+                                  {v.status === "active" ? "Deactivate" : "Activate"}
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {filteredVendors.length === 0 && (
+                            <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">
+                              {vendorSearch ? `No vendors match "${vendorSearch}"` : "No vendors yet"}
+                            </td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
             <AddVendorForm onSubmit={(data) => createUser("vendor", data)} />
           </div>
@@ -541,7 +572,30 @@ export default function AdminPage() {
         {tab === "products" && (
           <div className="space-y-6">
             <div>
-              <h2 className="font-bold text-gray-900 mb-3">Products ({products.length})</h2>
+              {(() => {
+                const filteredProducts = productSearch.trim()
+                  ? products.filter((p: any) =>
+                      (p.name || "").toLowerCase().includes(productSearch.toLowerCase()) ||
+                      (p.sku || "").toLowerCase().includes(productSearch.toLowerCase()) ||
+                      (p.category || "").toLowerCase().includes(productSearch.toLowerCase())
+                    )
+                  : products;
+                return (
+                  <>
+                    <div className="flex items-center gap-3 mb-3">
+                      <h2 className="font-bold text-gray-900">Products ({filteredProducts.length}{productSearch ? ` of ${products.length}` : ""})</h2>
+                      <div className="flex-1">
+                        <input
+                          value={productSearch}
+                          onChange={e => setProductSearch(e.target.value)}
+                          placeholder="Search by name, SKU, or category…"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                        />
+                      </div>
+                      {productSearch && (
+                        <button onClick={() => setProductSearch("")} className="text-xs text-gray-400 hover:text-gray-700 px-2 py-2 border border-gray-200 rounded-lg">✕</button>
+                      )}
+                    </div>
               {/* Low stock summary banner */}
               {(() => {
                 const outOfStock = products.filter((p: any) => p.inventory_count === 0 || p.status === "out_of_stock").length;
@@ -576,7 +630,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {products.map((p: any) => {
+                    {filteredProducts.map((p: any) => {
                       const stockQty = p.inventory_count ?? 0;
                       const stockStyle = stockQty === 0
                         ? "font-bold text-red-500"
@@ -604,12 +658,17 @@ export default function AdminPage() {
                         </tr>
                       );
                     })}
-                    {products.length === 0 && (
-                      <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">No products yet</td></tr>
+                    {filteredProducts.length === 0 && (
+                      <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">
+                        {productSearch ? `No products match "${productSearch}"` : "No products yet"}
+                      </td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
+                  </>
+                );
+              })()}
             </div>
             <AddProductForm vendors={vendors} onSubmit={createProduct} />
           </div>
