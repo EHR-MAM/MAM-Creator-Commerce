@@ -89,8 +89,11 @@ async def create_order(
             unit_price=product.price,
             line_total=line_total,
         ))
-        # Decrement inventory
+        # Decrement inventory; auto-deactivate when stock hits zero
         product.inventory_count -= quantity
+        if product.inventory_count <= 0:
+            product.inventory_count = 0
+            product.status = "out_of_stock"
 
     # Log analytics event
     db.add(AnalyticsEvent(

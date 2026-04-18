@@ -517,6 +517,26 @@ export default function AdminPage() {
           <div className="space-y-6">
             <div>
               <h2 className="font-bold text-gray-900 mb-3">Products ({products.length})</h2>
+              {/* Low stock summary banner */}
+              {(() => {
+                const outOfStock = products.filter((p: any) => p.inventory_count === 0 || p.status === "out_of_stock").length;
+                const lowStock = products.filter((p: any) => p.inventory_count > 0 && p.inventory_count <= 10).length;
+                if (outOfStock === 0 && lowStock === 0) return null;
+                return (
+                  <div className="flex gap-3 flex-wrap mb-1">
+                    {outOfStock > 0 && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-600 font-semibold">
+                        🚫 {outOfStock} product{outOfStock > 1 ? "s" : ""} out of stock
+                      </div>
+                    )}
+                    {lowStock > 0 && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 font-semibold">
+                        ⚠️ {lowStock} product{lowStock > 1 ? "s" : ""} low stock (≤10 units)
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
@@ -531,24 +551,34 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {products.map((p: any) => (
-                      <tr key={p.id} className="border-b border-gray-50 last:border-0">
-                        <td className="px-4 py-3 font-semibold">{p.name}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-gray-400">{p.sku}</td>
-                        <td className="px-4 py-3 text-gray-500 capitalize">{p.category}</td>
-                        <td className="px-4 py-3 font-semibold">{p.currency} {Number(p.price).toFixed(2)}</td>
-                        <td className="px-4 py-3">{p.inventory_count}</td>
-                        <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => toggleProductStatus(p.id, p.status)}
-                            className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg"
-                          >
-                            {p.status === "active" ? "Deactivate" : "Activate"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {products.map((p: any) => {
+                      const stockQty = p.inventory_count ?? 0;
+                      const stockStyle = stockQty === 0
+                        ? "font-bold text-red-500"
+                        : stockQty <= 10
+                          ? "font-semibold text-amber-600"
+                          : "text-gray-700";
+                      return (
+                        <tr key={p.id} className={`border-b border-gray-50 last:border-0 ${stockQty === 0 ? "bg-red-50/30" : stockQty <= 10 ? "bg-amber-50/30" : ""}`}>
+                          <td className="px-4 py-3 font-semibold">{p.name}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-400">{p.sku}</td>
+                          <td className="px-4 py-3 text-gray-500 capitalize">{p.category}</td>
+                          <td className="px-4 py-3 font-semibold">{p.currency} {Number(p.price).toFixed(2)}</td>
+                          <td className={`px-4 py-3 ${stockStyle}`}>
+                            {stockQty === 0 ? "🚫 0" : stockQty <= 10 ? `⚠️ ${stockQty}` : stockQty}
+                          </td>
+                          <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => toggleProductStatus(p.id, p.status)}
+                              className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg"
+                            >
+                              {p.status === "active" ? "Deactivate" : "Activate"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {products.length === 0 && (
                       <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">No products yet</td></tr>
                     )}
