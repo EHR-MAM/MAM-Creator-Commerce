@@ -1169,8 +1169,16 @@ export default function ShopPage() {
                 </div>
                 <div>
                   <h4 className="text-[#C9A84C] text-xs font-bold mb-3">Shop</h4>
-                  {["Fashion", "Hair & Wigs", "Beauty", "Accessories", "Skincare"].map(c => (
-                    <button key={c} onClick={() => filterCat(c.toLowerCase().split(" ")[0])} className="block text-[#555] text-xs mb-2 hover:text-[#C9A84C] transition-colors text-left">{c}</button>
+                  {[
+                    ["Fashion", "fashion"],
+                    ["Hair & Beauty", "hair & beauty"],
+                    ["Skincare", "skincare"],
+                    ["Electronics", "electronics"],
+                    ["Fitness", "fitness"],
+                    ["Home & Living", "home & living"],
+                    ["Jewelry", "jewelry"],
+                  ].map(([label, key]) => (
+                    <button key={key} onClick={() => filterCat(key)} className="block text-[#555] text-xs mb-2 hover:text-[#C9A84C] transition-colors text-left">{label}</button>
                   ))}
                 </div>
                 <div>
