@@ -2,6 +2,9 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+
 // ── Scroll reveal hook ─────────────────────────────────────────────────────────
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null);
@@ -360,6 +363,150 @@ function VendorSignupForm() {
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
+// ── Creator Leaderboard ────────────────────────────────────────────────────────
+const RANK_CONFIG = [
+  { medal: "🥇", bg: "from-[#C9A84C]/20 to-[#C9A84C]/5", border: "border-[#C9A84C]/40", label: "#1" },
+  { medal: "🥈", bg: "from-white/10 to-white/5",           border: "border-white/20",      label: "#2" },
+  { medal: "🥉", bg: "from-[#CD7F32]/15 to-[#CD7F32]/5",  border: "border-[#CD7F32]/30",  label: "#3" },
+];
+
+interface LeaderEntry {
+  handle: string;
+  name?: string;
+  avatar_url?: string;
+  orders_count?: number;
+  earnings?: number;
+  platform_name?: string;
+}
+
+// Placeholder entries shown while loading or when API has no data
+const PLACEHOLDERS: LeaderEntry[] = [
+  { handle: "sweet200723", name: "Christiana A.", orders_count: 24, earnings: 312, platform_name: "tiktok" },
+  { handle: "glowbyakua",  name: "Akua Mensah",   orders_count: 17, earnings: 221, platform_name: "instagram" },
+  { handle: "afrobeautygh", name: "Ama Owusu",    orders_count: 11, earnings: 143, platform_name: "tiktok" },
+];
+
+function CreatorLeaderboard() {
+  const [creators, setCreators] = useState<LeaderEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_URL}/influencers?status=active&limit=10`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        if (data && data.length > 0) {
+          // Sort by orders_count desc, take top 3
+          // Falls back to placeholder when orders_count not available
+          const sorted = [...data]
+            .sort((a, b) => (b.orders_count || 0) - (a.orders_count || 0))
+            .slice(0, 3);
+          const hasMetrics = sorted.some(c => (c.orders_count || 0) > 0);
+          if (hasMetrics) setCreators(sorted);
+          // else: leave creators empty → fallback to PLACEHOLDERS
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const display = (loaded && creators.length >= 1) ? creators : PLACEHOLDERS;
+
+  return (
+    <section className="py-24 px-4 bg-[#0A0A0A]">
+      <div className="max-w-6xl mx-auto">
+        <Reveal className="text-center mb-14">
+          <span className="text-[#C9A84C] text-xs font-bold tracking-[0.2em] uppercase block mb-3">Top Creators</span>
+          <h2 className="font-display text-4xl md:text-5xl font-black text-white mb-4">
+            Meet the{" "}
+            <span className="text-shimmer">leaderboard.</span>
+          </h2>
+          <p className="text-white/40 max-w-lg mx-auto">
+            Our highest-earning creators — turning their audiences into income on Yes MAM.
+          </p>
+        </Reveal>
+
+        <div className="grid md:grid-cols-3 gap-5 mb-10">
+          {display.slice(0, 3).map((creator, i) => {
+            const cfg = RANK_CONFIG[i] || RANK_CONFIG[2];
+            const initial = (creator.name || creator.handle).charAt(0).toUpperCase();
+            const displayName = creator.name || `@${creator.handle}`;
+            const orders = creator.orders_count || 0;
+            const earnings = creator.earnings || 0;
+
+            return (
+              <Reveal key={creator.handle} delay={i * 100}>
+                <div className={`glass bg-gradient-to-b ${cfg.bg} border ${cfg.border} rounded-2xl p-6 flex flex-col h-full hover:border-opacity-80 transition-all hover:-translate-y-1 duration-200`}>
+                  {/* Rank + medal */}
+                  <div className="flex items-center justify-between mb-5">
+                    <span className="text-2xl">{cfg.medal}</span>
+                    <span className="text-[10px] font-black text-white/20 tracking-widest uppercase">{cfg.label} This Month</span>
+                  </div>
+
+                  {/* Avatar + name */}
+                  <div className="flex items-center gap-3 mb-5">
+                    <div
+                      className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center font-black text-xl shrink-0 border-2 border-[#C9A84C]/30"
+                      style={{ background: "linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)" }}
+                    >
+                      {creator.avatar_url ? (
+                        <img src={creator.avatar_url} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <span style={{ color: "#C9A84C" }}>{initial}</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-black text-white text-sm">{displayName}</p>
+                      <p className="text-xs text-white/40">@{creator.handle}</p>
+                      {creator.platform_name && (
+                        <p className="text-[10px] text-white/25 capitalize mt-0.5">{creator.platform_name}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    <div className="bg-white/5 rounded-xl p-3 text-center">
+                      <p className="font-black text-white text-lg">{orders}</p>
+                      <p className="text-[10px] text-white/30 uppercase tracking-wider">Orders</p>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3 text-center">
+                      <p className="font-black text-[#C9A84C] text-lg">GHS {earnings}</p>
+                      <p className="text-[10px] text-white/30 uppercase tracking-wider">Earned</p>
+                    </div>
+                  </div>
+
+                  {/* CTA */}
+                  <div className="mt-auto">
+                    <a
+                      href={`${BASE}/${creator.handle}`}
+                      className="block w-full text-center text-xs font-bold py-2.5 rounded-xl border border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/10 transition-colors"
+                    >
+                      Visit store →
+                    </a>
+                  </div>
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
+
+        {/* Join prompt */}
+        <Reveal>
+          <div className="text-center">
+            <p className="text-white/30 text-sm mb-4">Want to be on the leaderboard?</p>
+            <a
+              href="#creator-signup"
+              className="inline-block bg-gold-gradient text-[#0A0A0A] font-black px-6 py-3 rounded-xl text-sm hover:opacity-90 transition-opacity shadow-gold"
+            >
+              Start your free store →
+            </a>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 export default function YesMAMHomePage() {
   return (
     <div className="bg-[#0A0A0A] text-white min-h-screen">
@@ -777,6 +924,9 @@ export default function YesMAMHomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── CREATOR LEADERBOARD ──────────────────────────────────────────── */}
+      <CreatorLeaderboard />
 
       {/* ── FINAL CTA ────────────────────────────────────────────────────── */}
       <section className="py-28 px-4 relative overflow-hidden bg-[#0d0d0d]">
