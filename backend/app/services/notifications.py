@@ -1,8 +1,8 @@
 """
-MAM Notification Service — Sprint A
+MAM Notification Service — Sprint A + Sprint LXXIX (HTML email templates)
 Sends order notifications via:
 1. WhatsApp (Twilio API) → ops team numbers
-2. Email (SMTP) → ops email
+2. Email (SMTP) → ops email (HTML + plain text)
 3. Influencer notification (stored in DB for dashboard badge)
 
 WhatsApp numbers notified on every order:
@@ -10,6 +10,7 @@ WhatsApp numbers notified on every order:
 - +19492430088 (ops group / test)
 
 WhatsApp provider: Twilio WhatsApp Sandbox / Business API
+Email templates: email_templates.py (HTML + plain text fallback)
 Falls back silently if not configured — order still saves.
 """
 
@@ -21,6 +22,7 @@ from email.mime.multipart import MIMEMultipart
 from typing import Optional
 
 from app.core.config import settings
+from app.services.email_templates import get_order_notification_html, get_payout_notification_html, get_creator_onboarding_html
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +150,7 @@ async def _send_whatsapp_twilio(to_number: str, message: str) -> bool:
 
 
 def _send_email_notification(order_data: dict) -> bool:
-    """Send order notification email to ops. Returns True on success."""
+    """Send order notification email to ops with HTML template. Returns True on success."""
     if not settings.SMTP_HOST or not settings.NOTIFY_EMAIL:
         logger.warning("Email not configured — skipping email notification")
         return False
@@ -157,38 +159,17 @@ def _send_email_notification(order_data: dict) -> bool:
         order_id_short = str(order_data.get("order_id", ""))[:8].upper()
         subject = f"[MAM] New Order #{order_id_short} — GHS {order_data.get('total', 0):.2f}"
 
-        # Plain text body
-        body_lines = [
-            f"New order received on MAM platform.",
-            f"",
-            f"Order ID: {order_data.get('order_id')}",
-            f"Customer: {order_data.get('customer_name')} — {order_data.get('customer_phone')}",
-            f"Email: {order_data.get('customer_email', 'Not provided')}",
-            f"Delivery: {order_data.get('delivery_address')}",
-            f"",
-            f"Items:",
-        ]
-        for item in order_data.get("items", []):
-            size_str = f" ({item['size_variant']})" if item.get("size_variant") else ""
-            body_lines.append(f"  - {item['name']} x{item['qty']}{size_str} = GHS {item['line_total']:.2f}")
-
-        body_lines += [
-            f"",
-            f"Subtotal: GHS {order_data.get('subtotal', 0):.2f}",
-            f"Delivery fee: GHS {order_data.get('delivery_fee', 20):.2f}",
-            f"Total: GHS {order_data.get('total', 0):.2f}",
-            f"",
-            f"Special instructions: {order_data.get('special_instructions', 'None')}",
-            f"",
-            f"Influencer: @{order_data.get('creator_handle', '—')}",
-            f"Source: {order_data.get('source_channel', 'tiktok')}",
-        ]
+        # Get HTML + plain text from template
+        html_body, text_body = get_order_notification_html(order_data)
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = settings.SMTP_USER or settings.NOTIFY_EMAIL
         msg["To"] = settings.NOTIFY_EMAIL
-        msg.attach(MIMEText("\n".join(body_lines), "plain"))
+
+        # Plain text fallback first, then HTML
+        msg.attach(MIMEText(text_body, "plain"))
+        msg.attach(MIMEText(html_body, "html"))
 
         with smtplib.SMTP(settings.SMTP_HOST, int(settings.SMTP_PORT or 587)) as smtp:
             smtp.starttls()
@@ -492,3 +473,66 @@ async def send_creator_order_notification(order_data: dict) -> None:
         handle,
         order_id_short,
     )
+
+
+def _send_payout_notification_email(payout_data: dict, recipient_email: str) -> bool:
+    """Send payout completion email with HTML template. Returns True on success."""
+    if not settings.SMTP_HOST:
+        logger.warning("Email not configured — skipping payout notification")
+        return False
+
+    try:
+        amount = float(payout_data.get("amount", 0))
+        html_body, text_body = get_payout_notification_html(payout_data)
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Payout Sent — GHS {amount:.2f}"
+        msg["From"] = settings.SMTP_USER or settings.NOTIFY_EMAIL
+        msg["To"] = recipient_email
+
+        msg.attach(MIMEText(text_body, "plain"))
+        msg.attach(MIMEText(html_body, "html"))
+
+        with smtplib.SMTP(settings.SMTP_HOST, int(settings.SMTP_PORT or 587)) as smtp:
+            smtp.starttls()
+            if settings.SMTP_USER and settings.SMTP_PASSWORD:
+                smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            smtp.sendmail(msg["From"], [recipient_email], msg.as_string())
+
+        logger.info("Payout email sent to %s", recipient_email)
+        return True
+
+    except Exception as exc:
+        logger.error("Payout email failed: %s", exc)
+        return False
+
+
+def _send_creator_onboarding_email(creator_data: dict, recipient_email: str) -> bool:
+    """Send creator welcome email with HTML template. Returns True on success."""
+    if not settings.SMTP_HOST:
+        logger.warning("Email not configured — skipping onboarding email")
+        return False
+
+    try:
+        html_body, text_body = get_creator_onboarding_html(creator_data)
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Welcome to Yes MAM — Your Creator Store is Live!"
+        msg["From"] = settings.SMTP_USER or settings.NOTIFY_EMAIL
+        msg["To"] = recipient_email
+
+        msg.attach(MIMEText(text_body, "plain"))
+        msg.attach(MIMEText(html_body, "html"))
+
+        with smtplib.SMTP(settings.SMTP_HOST, int(settings.SMTP_PORT or 587)) as smtp:
+            smtp.starttls()
+            if settings.SMTP_USER and settings.SMTP_PASSWORD:
+                smtp.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            smtp.sendmail(msg["From"], [recipient_email], msg.as_string())
+
+        logger.info("Onboarding email sent to %s", recipient_email)
+        return True
+
+    except Exception as exc:
+        logger.error("Onboarding email failed: %s", exc)
+        return False
