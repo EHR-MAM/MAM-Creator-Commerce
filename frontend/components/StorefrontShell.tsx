@@ -31,6 +31,7 @@ interface Product {
   color?: string;
   media_urls?: string[];
   video_url?: string;
+  image_alt_text?: string;
   inventory_count: number;
 }
 
@@ -125,7 +126,7 @@ function ProductCard({ product, handle, t }: { product: Product; handle: string;
           {product.media_urls && product.media_urls[0] ? (
             <Image
               src={product.media_urls[0]}
-              alt={product.name}
+              alt={product.image_alt_text || `${product.name}${product.color ? ` in ${product.color}` : ''} product image`}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="object-cover transition-transform duration-500 group-hover:scale-105"

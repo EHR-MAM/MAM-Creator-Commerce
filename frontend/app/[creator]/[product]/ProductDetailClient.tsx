@@ -47,6 +47,7 @@ interface Product {
   size?: string;
   vendor_id: string;
   affiliate_url?: string;
+  image_alt_text?: string;
   rating?: number;
   review_count?: number;
   creator_handle?: string | null;
@@ -73,7 +74,7 @@ function ImageCarousel({ images, name, category }: { images: string[]; name: str
         {hasImages ? (
           <Image
             src={images[active]}
-            alt={`${name} - image ${active + 1}`}
+            alt={`${name} product image ${active > 0 ? `view ${active + 1}` : ''}`}
             fill
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 50vw"
