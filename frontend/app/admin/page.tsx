@@ -188,6 +188,9 @@ export default function AdminPage() {
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
   const [orderDateFilter, setOrderDateFilter] = useState<string>("all");
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [restockingProduct, setRestockingProduct] = useState<any | null>(null);
+  const [restockQty, setRestockQty] = useState("50");
+  const [restockSaving, setRestockSaving] = useState(false);
 
   // Redirect to login if not authenticated or wrong role
   useEffect(() => {
@@ -242,6 +245,26 @@ export default function AdminPage() {
   async function updateProductPrice(productId: string, price: number) {
     const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify({ price }) });
     if (!r.ok) { setMsg("Error updating price"); return; }
+    reload();
+  }
+
+  async function quickRestock() {
+    if (!restockingProduct) return;
+    const addQty = parseInt(restockQty, 10);
+    if (isNaN(addQty) || addQty <= 0) { setMsg("Enter a positive number"); return; }
+    setRestockSaving(true);
+    const currentQty = restockingProduct.inventory_count ?? 0;
+    const newQty = currentQty + addQty;
+    const r = await fetch(`${API}/products/${restockingProduct.id}`, {
+      method: "PATCH",
+      headers: h,
+      body: JSON.stringify({ inventory_count: newQty }),
+    });
+    setRestockSaving(false);
+    if (!r.ok) { setMsg("Error restocking product"); return; }
+    setMsg(`✓ Restocked +${addQty} units`);
+    setRestockingProduct(null);
+    setRestockQty("50");
     reload();
   }
 
@@ -313,6 +336,50 @@ export default function AdminPage() {
           onClose={() => setEditingProduct(null)}
         />
       )}
+
+      {/* Quick Restock Modal */}
+      {restockingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setRestockingProduct(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <div>
+              <h3 className="font-bold text-lg">{restockingProduct.name}</h3>
+              <p className="text-xs text-gray-500">Current stock: {restockingProduct.inventory_count ?? 0} units</p>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider block mb-2">Units to add</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={restockQty}
+                  onChange={e => setRestockQty(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") quickRestock(); }}
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                  placeholder="e.g. 50"
+                  autoFocus
+                />
+                <span className="text-sm text-gray-500">+ {restockQty && !isNaN(parseInt(restockQty)) ? parseInt(restockQty) + (restockingProduct.inventory_count ?? 0) : "?"} total</span>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-4">
+              <button
+                onClick={() => setRestockingProduct(null)}
+                className="flex-1 text-xs font-semibold px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={quickRestock}
+                disabled={restockSaving}
+                className="flex-1 text-xs font-bold px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white transition-colors"
+              >
+                {restockSaving ? "Saving…" : "Restock"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-[#111111] text-white">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -787,6 +854,14 @@ export default function AdminPage() {
                           <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5">
+                              {(p.inventory_count ?? 0) <= 10 && (
+                                <button
+                                  onClick={() => setRestockingProduct(p)}
+                                  className="text-xs text-amber-600 hover:text-amber-700 border border-amber-200 px-2 py-1 rounded-lg"
+                                >
+                                  Restock
+                                </button>
+                              )}
                               <button
                                 onClick={() => toggleProductStatus(p.id, p.status)}
                                 className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 px-2 py-1 rounded-lg"
