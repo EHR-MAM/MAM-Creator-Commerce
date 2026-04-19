@@ -1,8 +1,9 @@
 "use client";
-// ProductDetailClient — Sprint IV + Sprint XIX (multi-product cart) + Sprint XXVIII (reviews) + Sprint XXXIII (wishlist) + Sprint XXXIV (multi-currency)
+// ProductDetailClient — Sprint IV + Sprint XIX (multi-product cart) + Sprint XXVIII (reviews) + Sprint XXXIII (wishlist) + Sprint XXXIV (multi-currency) + Sprint LXXVIII (image optimization)
 // Image carousel, Add to Cart, cart drawer, affiliate CTA, related products, reviews, save for later
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import WhatsAppFallback from "@/components/WhatsAppFallback";
 import CartDrawer from "@/components/CartDrawer";
 import WishlistDrawer from "@/components/WishlistDrawer";
@@ -70,10 +71,14 @@ function ImageCarousel({ images, name, category }: { images: string[]; name: str
     <div>
       <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden relative">
         {hasImages ? (
-          <img
+          <Image
             src={images[active]}
             alt={`${name} - image ${active + 1}`}
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 50vw"
+            quality={80}
+            priority={active === 0}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
@@ -88,11 +93,11 @@ function ImageCarousel({ images, name, category }: { images: string[]; name: str
             <button
               key={i}
               onClick={() => setActive(i)}
-              className={`w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 transition-all ${
+              className={`w-16 h-16 rounded-xl overflow-hidden border-2 shrink-0 transition-all relative ${
                 active === i ? "border-[#C9A84C]" : "border-transparent opacity-50 hover:opacity-80"
               }`}
             >
-              <img src={img} alt={`${name} view ${i + 1}`} className="w-full h-full object-cover" />
+              <Image src={img} alt={`${name} view ${i + 1}`} fill className="object-cover" sizes="80px" quality={70} />
             </button>
           ))}
         </div>
@@ -126,9 +131,9 @@ function InfluencerBadge({ influencer, handle }: { influencer: Influencer | null
 
   return (
     <Link href={`${BASE}/${displayHandle}`} className="flex items-center gap-3 bg-[#FAF7F2] border border-[#E8D9C0] rounded-xl p-3 hover:border-[#C9A84C]/40 transition-colors group">
-      <div className="w-10 h-10 rounded-full overflow-hidden bg-[#C9A84C]/20 flex items-center justify-center shrink-0">
+      <div className="w-10 h-10 rounded-full overflow-hidden bg-[#C9A84C]/20 flex items-center justify-center shrink-0 relative">
         {influencer?.avatar_url ? (
-          <img src={influencer.avatar_url} alt={displayName} className="w-full h-full object-cover" />
+          <Image src={influencer.avatar_url} alt={displayName} fill className="object-cover" sizes="40px" quality={75} />
         ) : (
           <span className="text-sm font-black text-[#C9A84C]">{initial}</span>
         )}
@@ -150,9 +155,9 @@ function RelatedCard({ product, handle }: { product: Product; handle: string }) 
   return (
     <Link href={`${BASE}/${targetHandle}/${product.id}`} className="block group">
       <div className="rounded-xl overflow-hidden border border-gray-100 bg-white hover:shadow-md transition-shadow">
-        <div className="aspect-square bg-gray-50 overflow-hidden">
+        <div className="aspect-square bg-gray-50 overflow-hidden relative">
           {image ? (
-            <img src={image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <Image src={image} alt={product.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" sizes="150px" quality={70} />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-3xl">
               {CATEGORY_EMOJI[product.category.toLowerCase()] || "🛍️"}

@@ -1,6 +1,7 @@
 "use client";
-// StorefrontShell — Sprint XIX + Sprint XXXI (bio/share) + Sprint XXXIII (wishlist hearts) + Sprint XXXIV (multi-currency)
+// StorefrontShell — Sprint XIX + Sprint XXXI (bio/share) + Sprint XXXIII (wishlist hearts) + Sprint XXXIV (multi-currency) + Sprint LXXVIII (image optimization)
 import Link from "next/link";
+import Image from "next/image";
 import { type TemplateConfig, TEMPLATES, type TemplateId } from "@/lib/templates";
 import { useState, useCallback } from "react";
 import CartDrawer from "@/components/CartDrawer";
@@ -122,11 +123,14 @@ function ProductCard({ product, handle, t }: { product: Product; handle: string;
         {/* Product image / placeholder */}
         <div className={`aspect-[4/5] overflow-hidden relative ${isDark ? "bg-[#222]" : "bg-gradient-to-br from-gray-50 to-gray-100"}`}>
           {product.media_urls && product.media_urls[0] ? (
-            <img
+            <Image
               src={product.media_urls[0]}
               alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
+              quality={75}
             />
           ) : (
             // Rich placeholder when no image
@@ -341,11 +345,13 @@ export default function StorefrontShell({
               }}
             >
               {creator.avatar_url ? (
-                <img
+                <Image
                   src={creator.avatar_url}
                   alt={displayName}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                   loading="eager"
+                  quality={85}
                 />
               ) : (
                 <span style={{ color: t.accentHex }}>{initial}</span>
