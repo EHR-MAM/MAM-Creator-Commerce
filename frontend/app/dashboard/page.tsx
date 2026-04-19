@@ -220,18 +220,31 @@ interface Payout {
   influencer_momo: string | null;
 }
 
+interface DailyEarning {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
 function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commissions: Commission[]; profile: InfluencerProfile | null; token: string }) {
   const pendingCommission = commissions.filter(c => c.commission_status === "payable");
   const pendingTotal = pendingCommission.reduce((s, c) => s + Number(c.influencer_amount), 0);
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [payoutMsg, setPayoutMsg] = useState("");
   const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [dailyEarnings, setDailyEarnings] = useState<DailyEarning[]>([]);
 
   useEffect(() => {
     if (!token) return;
+    // Fetch payouts
     fetch(`${API_URL}/payouts/mine`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
       .then(data => setPayouts(data))
+      .catch(() => {/* silent */});
+    // Fetch daily earnings for trend chart
+    fetch(`${API_URL}/analytics/reports/daily/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setDailyEarnings(data || []))
       .catch(() => {/* silent */});
   }, [token]);
 
@@ -328,6 +341,41 @@ function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commis
           ))}
         </div>
       )}
+
+      {/* Earnings Trend */}
+      {dailyEarnings.length > 0 && (() => {
+        const last14 = dailyEarnings.slice(-14);
+        const totalTrendRevenue = last14.reduce((s, d) => s + d.revenue, 0);
+        const avgDaily = last14.length > 0 ? totalTrendRevenue / last14.length : 0;
+        const maxDaily = Math.max(...last14.map(d => d.revenue), 1);
+        return (
+          <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#C9A84C]/20">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-white">14-Day Earnings</h3>
+              <span className="text-xs text-[#C9A84C] font-semibold">GHS {totalTrendRevenue.toFixed(0)}</span>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">Avg: GHS {avgDaily.toFixed(0)}/day</p>
+            {/* Mini bar chart */}
+            <div className="flex items-end justify-between gap-1 h-12">
+              {last14.map((d, i) => {
+                const height = maxDaily > 0 ? (d.revenue / maxDaily) * 100 : 0;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <div
+                      className="w-full bg-gradient-to-t from-[#C9A84C] to-[#E8C97A] rounded-t-sm transition-all hover:opacity-80"
+                      style={{ height: `${Math.max(height, 4)}%` }}
+                      title={`${new Date(d.date).toLocaleDateString("en-GH", { month: "short", day: "numeric" })}: GHS ${d.revenue.toFixed(0)}`}
+                    />
+                    <span className="text-[8px] text-gray-600 text-center leading-tight">
+                      {new Date(d.date).toLocaleDateString("en-GH", { month: "short", day: "numeric" }).split(" ")[0]}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Payout request card */}
       {pendingTotal > 0 && (
