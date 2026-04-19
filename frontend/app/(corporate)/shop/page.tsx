@@ -386,21 +386,41 @@ function PromoTicker({ productCount }: { productCount: number | null }) {
 }
 
 // ─── CATEGORY ICON ROW ────────────────────────────────────────────────────────
-function CatIconRow({ active, onSelect, isLoading }: { active: string; onSelect: (k: string) => void; isLoading?: boolean }) {
+function CatIconRow({ active, onSelect, isLoading, products = [] }: { active: string; onSelect: (k: string) => void; isLoading?: boolean; products?: Product[] }) {
   const cats = [...CATS, { key: "deals", label: "Deals 🔥", icon: "🔥" }];
+
+  // Count products per category
+  const catCounts: Record<string, number> = {};
+  cats.forEach(c => { catCounts[c.key] = 0; });
+  products.forEach(p => {
+    const pCat = p.cat;
+    if (catCounts.hasOwnProperty(pCat)) catCounts[pCat]++;
+    if (pCat === "all" || p.orig > 0) catCounts["all"]++;
+  });
+  catCounts["all"] = products.length; // All = total products
+  catCounts["deals"] = products.filter(p => p.orig > 0).length;
+
   return (
     <div id="cat-icons-row" className="flex gap-2.5 px-4 py-4 overflow-x-auto bg-[#0a0a0a]" style={{ scrollbarWidth: "none" }}>
-      {cats.map(c => (
-        <button
-          key={c.key}
-          onClick={() => onSelect(c.key)}
-          disabled={isLoading}
-          className={`flex flex-col items-center justify-center gap-1 bg-[#141414] border rounded-xl px-4 py-3 min-w-[76px] flex-shrink-0 transition-all hover:-translate-y-0.5 ${isLoading ? "opacity-50 cursor-wait" : ""} ${active === c.key ? "border-[#C9A84C] bg-[#C9A84C]/8" : "border-[#222] hover:border-[#C9A84C]/60"}`}
-        >
-          <span className={`text-2xl ${isLoading ? "animate-pulse" : ""}`}>{c.icon}</span>
-          <span className="text-[11px] text-[#aaa] font-semibold text-center leading-tight">{c.label}</span>
-        </button>
-      ))}
+      {cats.map(c => {
+        const count = catCounts[c.key] || 0;
+        return (
+          <button
+            key={c.key}
+            onClick={() => onSelect(c.key)}
+            disabled={isLoading}
+            className={`flex flex-col items-center justify-center gap-1 bg-[#141414] border rounded-xl px-4 py-3 min-w-[76px] flex-shrink-0 transition-all hover:-translate-y-0.5 relative ${isLoading ? "opacity-50 cursor-wait" : ""} ${active === c.key ? "border-[#C9A84C] bg-[#C9A84C]/8" : "border-[#222] hover:border-[#C9A84C]/60"}`}
+          >
+            <span className={`text-2xl ${isLoading ? "animate-pulse" : ""}`}>{c.icon}</span>
+            <span className="text-[11px] text-[#aaa] font-semibold text-center leading-tight">{c.label}</span>
+            {count > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#C9A84C] text-black text-[8px] font-black rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                {count > 99 ? "99+" : count}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -1143,7 +1163,7 @@ export default function ShopPage() {
         <>
           <Hero onSignup={() => setView("signup")} />
           <PromoTicker productCount={totalProductCount} />
-          <CatIconRow active={activeCat} onSelect={filterCat} isLoading={apiLoading} />
+          <CatIconRow active={activeCat} onSelect={filterCat} isLoading={apiLoading} products={baseProducts} />
 
           {/* Product section */}
           <div id="product-grid-section">
