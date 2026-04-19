@@ -29,6 +29,9 @@ export default function AdminPayouts() {
   const [actionMsg, setActionMsg] = useState<Record<string, string>>({});
   // Per-payout reference inputs for Mark Completed flow
   const [refInputs, setRefInputs] = useState<Record<string, string>>({});
+  // Bulk select state
+  const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(new Set());
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   // Pick up token from sessionStorage (set by main admin page login)
   useEffect(() => {
@@ -74,6 +77,32 @@ export default function AdminPayouts() {
       }
     } catch {
       setActionMsg(m => ({ ...m, [payoutId]: "Network error" }));
+    }
+  }
+
+  async function bulkMarkCompleted() {
+    if (selectedPayouts.size === 0) return;
+    setBulkSaving(true);
+    const updates = Array.from(selectedPayouts).map(payoutId =>
+      updateStatus(payoutId, "completed", refInputs[payoutId])
+    );
+    await Promise.all(updates);
+    setSelectedPayouts(new Set());
+    setBulkSaving(false);
+  }
+
+  function togglePayoutSelect(payoutId: string) {
+    const next = new Set(selectedPayouts);
+    if (next.has(payoutId)) next.delete(payoutId);
+    else next.add(payoutId);
+    setSelectedPayouts(next);
+  }
+
+  function toggleSelectAll(payouts: Payout[]) {
+    if (selectedPayouts.size === payouts.length) {
+      setSelectedPayouts(new Set());
+    } else {
+      setSelectedPayouts(new Set(payouts.map(p => p.id)));
     }
   }
 
@@ -143,7 +172,44 @@ export default function AdminPayouts() {
 
         {/* Actionable payouts (pending + processing) */}
         <div>
-          <h2 className="font-bold text-base mb-3">Needs Action ({actionable.length})</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-base">Needs Action ({actionable.length})</h2>
+            {actionable.length > 0 && (
+              <label className="text-xs text-gray-600 flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedPayouts.size === actionable.length && actionable.length > 0}
+                  onChange={() => toggleSelectAll(actionable)}
+                  className="w-4 h-4"
+                />
+                Select All
+              </label>
+            )}
+          </div>
+
+          {/* Bulk action toolbar */}
+          {selectedPayouts.size > 0 && (
+            <div className="mb-3 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+              <p className="text-sm font-semibold text-blue-900">
+                {selectedPayouts.size} payout{selectedPayouts.size > 1 ? "s" : ""} selected
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedPayouts(new Set())}
+                  className="text-xs font-medium text-blue-600 hover:text-blue-700 px-3 py-1"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={bulkMarkCompleted}
+                  disabled={bulkSaving}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+                >
+                  {bulkSaving ? "Marking…" : "Mark Selected Paid"}
+                </button>
+              </div>
+            </div>
+          )}
           {loading ? (
             <div className="text-center py-8 text-gray-400">Loading…</div>
           ) : actionable.length === 0 ? (
@@ -153,8 +219,14 @@ export default function AdminPayouts() {
           ) : (
             <div className="space-y-3">
               {actionable.map(p => (
-                <div key={p.id} className={`bg-white rounded-xl p-4 border shadow-sm ${p.status === "processing" ? "border-blue-200 bg-blue-50/30" : "border-gray-100"}`}>
+                <div key={p.id} className={`bg-white rounded-xl p-4 border shadow-sm ${selectedPayouts.has(p.id) ? "border-blue-500 bg-blue-50" : p.status === "processing" ? "border-blue-200 bg-blue-50/30" : "border-gray-100"}`}>
                   <div className="flex items-start gap-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedPayouts.has(p.id)}
+                      onChange={() => togglePayoutSelect(p.id)}
+                      className="w-5 h-5 mt-1 shrink-0 cursor-pointer"
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <p className="font-black text-xl">GHS {Number(p.amount).toFixed(2)}</p>
