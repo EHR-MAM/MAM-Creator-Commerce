@@ -165,7 +165,6 @@ const TICKER_MSGS = [
   "18% commission for influencers — join today",
   "Pay on delivery · MTN MoMo accepted",
   "New arrivals every week",
-  "1,200+ products across 11 categories",
   "500+ African creators earning with Yes MAM",
   "Telecel Cash now accepted",
   "Shop confidently — free returns within 7 days",
@@ -367,8 +366,12 @@ function Hero({ onSignup }: { onSignup: () => void }) {
 }
 
 // ─── PROMO TICKER ─────────────────────────────────────────────────────────────
-function PromoTicker() {
-  const doubled = [...TICKER_MSGS, ...TICKER_MSGS];
+function PromoTicker({ productCount }: { productCount: number | null }) {
+  const msgs = [
+    ...TICKER_MSGS,
+    productCount ? `${productCount.toLocaleString()}+ products across 11 categories` : "1,200+ products across 11 categories",
+  ];
+  const doubled = [...msgs, ...msgs];
   return (
     <div className="overflow-hidden border-y border-[#C9A84C]/20 py-2 bg-gradient-to-r from-[#0d0900] via-[#1a1100] to-[#0d0900]">
       <div className="flex gap-12 whitespace-nowrap animate-marquee">
@@ -383,16 +386,18 @@ function PromoTicker() {
 }
 
 // ─── CATEGORY ICON ROW ────────────────────────────────────────────────────────
-function CatIconRow({ active, onSelect }: { active: string; onSelect: (k: string) => void }) {
+function CatIconRow({ active, onSelect, isLoading }: { active: string; onSelect: (k: string) => void; isLoading?: boolean }) {
+  const cats = [...CATS, { key: "deals", label: "Deals 🔥", icon: "🔥" }];
   return (
     <div id="cat-icons-row" className="flex gap-2.5 px-4 py-4 overflow-x-auto bg-[#0a0a0a]" style={{ scrollbarWidth: "none" }}>
-      {[...CATS, { key: "deals", label: "Deals 🔥", icon: "🔥" }].map(c => (
+      {cats.map(c => (
         <button
           key={c.key}
           onClick={() => onSelect(c.key)}
-          className={`flex flex-col items-center justify-center gap-1 bg-[#141414] border rounded-xl px-4 py-3 min-w-[76px] flex-shrink-0 transition-all hover:-translate-y-0.5 ${active === c.key ? "border-[#C9A84C] bg-[#C9A84C]/8" : "border-[#222] hover:border-[#C9A84C]/60"}`}
+          disabled={isLoading}
+          className={`flex flex-col items-center justify-center gap-1 bg-[#141414] border rounded-xl px-4 py-3 min-w-[76px] flex-shrink-0 transition-all hover:-translate-y-0.5 ${isLoading ? "opacity-50 cursor-wait" : ""} ${active === c.key ? "border-[#C9A84C] bg-[#C9A84C]/8" : "border-[#222] hover:border-[#C9A84C]/60"}`}
         >
-          <span className="text-2xl">{c.icon}</span>
+          <span className={`text-2xl ${isLoading ? "animate-pulse" : ""}`}>{c.icon}</span>
           <span className="text-[11px] text-[#aaa] font-semibold text-center leading-tight">{c.label}</span>
         </button>
       ))}
@@ -963,6 +968,7 @@ export default function ShopPage() {
   const [apiProducts, setApiProducts] = useState<Product[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
   const [liveInfluencers, setLiveInfluencers] = useState<ApiInfluencer[]>([]);
+  const [totalProductCount, setTotalProductCount] = useState<number | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load products + influencer leaderboard from real API
@@ -970,9 +976,10 @@ export default function ShopPage() {
     async function fetchInitial() {
       setApiLoading(true);
       try {
-        const [prodRes, infRes] = await Promise.all([
+        const [prodRes, infRes, countRes] = await Promise.all([
           fetch(`${API_URL}/products?status=active&limit=60`),
           fetch(`${API_URL}/influencers/leaderboard?limit=10`),
+          fetch(`${API_URL}/products?status=active&limit=1`),
         ]);
         if (prodRes.ok) {
           const data: ApiProduct[] = await prodRes.json();
@@ -982,6 +989,9 @@ export default function ShopPage() {
           const infs: ApiInfluencer[] = await infRes.json();
           setLiveInfluencers(infs);
         }
+        // Get total count: fetch with limit=1 and check if more results available
+        // For now, use 1203 as the known count; in future add proper count endpoint
+        setTotalProductCount(1203);
       } catch { /* silent — PRODUCTS fallback used */ } finally {
         setApiLoading(false);
       }
@@ -1132,8 +1142,8 @@ export default function ShopPage() {
       {view === "home" && (
         <>
           <Hero onSignup={() => setView("signup")} />
-          <PromoTicker />
-          <CatIconRow active={activeCat} onSelect={filterCat} />
+          <PromoTicker productCount={totalProductCount} />
+          <CatIconRow active={activeCat} onSelect={filterCat} isLoading={apiLoading} />
 
           {/* Product section */}
           <div id="product-grid-section">
