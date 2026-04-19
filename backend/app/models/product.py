@@ -29,6 +29,7 @@ class Product(Base):
         default="active", index=True,
     )
     media_urls: Mapped[list | None] = mapped_column(JSON)
+    image_alt_text: Mapped[str | None] = mapped_column(String(500))
     metadata_json: Mapped[dict | None] = mapped_column(JSON)
     tags: Mapped[list | None] = mapped_column(JSON)
     rating: Mapped[float | None] = mapped_column(Float)
