@@ -6,7 +6,7 @@ import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const STATUS_STEPS = ["pending", "confirmed", "processing", "shipped", "delivered"];
 

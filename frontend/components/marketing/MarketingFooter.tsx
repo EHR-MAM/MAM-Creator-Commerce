@@ -1,13 +1,13 @@
 import { YesMAMLogo } from "./MarketingNav";
 
 const FOOTER_LINKS = [
-  { label: "Live demo store", href: "/mam/sweet200723" },
-  { label: "Creator login", href: "/mam/dashboard" },
-  { label: "How it works", href: "/mam/how-it-works" },
-  { label: "Admin", href: "/mam/admin" },
-  { label: "Join as creator", href: "/mam/join#creators" },
-  { label: "List products", href: "/mam/join#vendors" },
-  { label: "About", href: "/mam/about" },
+  { label: "Live demo store", href: "/sweet200723" },
+  { label: "Creator login", href: "/dashboard" },
+  { label: "How it works", href: "/how-it-works" },
+  { label: "Admin", href: "/admin" },
+  { label: "Join as creator", href: "/join#creators" },
+  { label: "List products", href: "/join#vendors" },
+  { label: "About", href: "/about" },
   { label: "Contact", href: "mailto:hello@yesmam.shop" },
 ];
 

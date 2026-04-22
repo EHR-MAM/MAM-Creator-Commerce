@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 type Tab = "overview" | "orders" | "creators" | "vendors" | "products" | "campaigns" | "commissions" | "reviews" | "links";
 
@@ -195,7 +195,7 @@ export default function AdminPage() {
   // Redirect to login if not authenticated or wrong role
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace(`${BASE}/login?next=${encodeURIComponent("/mam/admin")}`);
+      router.replace(`${BASE}/login?next=${encodeURIComponent("/admin")}`);
     } else if (!authLoading && user && user.role !== "admin" && user.role !== "operator") {
       router.replace(`${BASE}/dashboard`);
     }
@@ -388,7 +388,7 @@ export default function AdminPage() {
             <span className="text-gray-400 text-sm">Admin Dashboard</span>
           </div>
           <div className="flex items-center gap-3">
-            <a href="/mam/admin/reports" className="text-xs text-[#C9A84C] hover:text-[#E8C97A] font-semibold border border-[#C9A84C]/30 px-3 py-1.5 rounded-lg transition-colors">
+            <a href="/admin/reports" className="text-xs text-[#C9A84C] hover:text-[#E8C97A] font-semibold border border-[#C9A84C]/30 px-3 py-1.5 rounded-lg transition-colors">
               Reports →
             </a>
             <button onClick={() => { logout(); router.replace(`${BASE}/login`); }} className="text-xs text-gray-400 hover:text-white">

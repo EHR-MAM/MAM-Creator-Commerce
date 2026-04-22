@@ -321,13 +321,13 @@ export default function HowItWorksPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <a
-                href="/mam/join#creators"
+                href="/join#creators"
                 className="bg-gold-gradient text-[#0A0A0A] font-black px-7 py-3.5 rounded-2xl text-sm hover:opacity-90 transition-all shadow-gold hover:-translate-y-0.5"
               >
                 I'm a creator →
               </a>
               <a
-                href="/mam/join#vendors"
+                href="/join#vendors"
                 className="glass border border-white/15 text-white font-semibold px-7 py-3.5 rounded-2xl text-sm hover:border-[#C9A84C]/40 transition-all"
               >
                 I'm a vendor

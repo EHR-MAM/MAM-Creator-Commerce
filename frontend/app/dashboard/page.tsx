@@ -8,7 +8,7 @@ import { TEMPLATES, type TemplateId } from "@/lib/templates";
 import { useAuth } from "@/lib/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1603,7 +1603,7 @@ export default function InfluencerDashboard() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace(`${BASE}/login?next=${encodeURIComponent("/mam/dashboard")}`);
+      router.replace(`${BASE}/login?next=${encodeURIComponent("/dashboard")}`);
     }
   }, [user, authLoading, router]);
 

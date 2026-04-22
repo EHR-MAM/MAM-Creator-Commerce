@@ -386,7 +386,7 @@ export default function AdminReportsPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-sm bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           <h1 className="font-bold text-gray-900 text-lg mb-1">MAM Reports</h1>
-          <p className="text-xs text-gray-400 mb-5">Enter your admin token or <a href="/mam/admin" className="text-[#C9A84C] hover:underline">log in via Admin</a> first.</p>
+          <p className="text-xs text-gray-400 mb-5">Enter your admin token or <a href="/admin" className="text-[#C9A84C] hover:underline">log in via Admin</a> first.</p>
           <input
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
@@ -400,7 +400,7 @@ export default function AdminReportsPage() {
             Load Reports
           </button>
           <p className="text-xs text-gray-400 text-center mt-3">
-            Or log in at <a href="/mam/admin" className="text-[#C9A84C]">/admin</a> first — token is saved automatically.
+            Or log in at <a href="/admin" className="text-[#C9A84C]">/admin</a> first — token is saved automatically.
           </p>
         </div>
       </div>
@@ -439,7 +439,7 @@ export default function AdminReportsPage() {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-30 px-4 sm:px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <a href="/mam/admin" className="text-gray-400 hover:text-gray-600 text-sm">← Admin</a>
+            <a href="/admin" className="text-gray-400 hover:text-gray-600 text-sm">← Admin</a>
             <span className="text-gray-200">/</span>
             <h1 className="font-bold text-gray-900 text-base">Reports</h1>
           </div>

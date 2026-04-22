@@ -700,7 +700,7 @@ export default function StorefrontShell({
             Micro-Affiliate Marketing · Africa's Creator Commerce Platform
           </p>
           <a
-            href="/mam/home"
+            href="/home"
             className="text-xs underline underline-offset-2 opacity-40 hover:opacity-70 transition-opacity"
             style={{ color: t.accentHex }}
           >

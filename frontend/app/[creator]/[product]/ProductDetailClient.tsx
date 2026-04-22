@@ -11,7 +11,7 @@ import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
 import { currencySymbol } from "@/lib/currency";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 

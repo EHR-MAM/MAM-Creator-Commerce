@@ -239,7 +239,7 @@ function SiteHeader({
       {/* Top row: logo + search + actions */}
       <div className="flex items-center gap-3 px-4 py-2.5 flex-wrap">
         {/* Logo */}
-        <a href="/mam/shop" className="flex-shrink-0 bg-gradient-to-br from-[#A8832A] to-[#E8C97A] text-black font-black text-base px-3 py-1.5 rounded-lg leading-tight">
+        <a href="/shop" className="flex-shrink-0 bg-gradient-to-br from-[#A8832A] to-[#E8C97A] text-black font-black text-base px-3 py-1.5 rounded-lg leading-tight">
           Yes MAM<span className="block text-[9px] font-normal tracking-widest opacity-80">Creator Commerce</span>
         </a>
 
@@ -279,7 +279,7 @@ function SiteHeader({
           >
             ★ Become an Affiliate
           </button>
-          <a href="/mam/dashboard" className="text-[#C9A84C] border border-[#C9A84C]/30 text-xs px-3 py-2 rounded-md hover:bg-[#C9A84C]/10 transition-colors whitespace-nowrap hidden sm:block">
+          <a href="/dashboard" className="text-[#C9A84C] border border-[#C9A84C]/30 text-xs px-3 py-2 rounded-md hover:bg-[#C9A84C]/10 transition-colors whitespace-nowrap hidden sm:block">
             👤 Creator Login
           </a>
           <button
@@ -307,10 +307,10 @@ function SiteHeader({
             {c.label}
           </a>
         ))}
-        <a href="/mam/shop?view=influencers" className="text-[#C9A84C] text-xs px-3 py-2.5 whitespace-nowrap border-b-2 border-transparent hover:border-[#C9A84C] transition-all">
+        <a href="/shop?view=influencers" className="text-[#C9A84C] text-xs px-3 py-2.5 whitespace-nowrap border-b-2 border-transparent hover:border-[#C9A84C] transition-all">
           ⭐ Top Influencers
         </a>
-        <a href="/mam/shop?cat=deals" className="text-[#999] text-xs px-3 py-2.5 whitespace-nowrap border-b-2 border-transparent hover:text-[#C9A84C] hover:border-[#C9A84C] transition-all">
+        <a href="/shop?cat=deals" className="text-[#999] text-xs px-3 py-2.5 whitespace-nowrap border-b-2 border-transparent hover:text-[#C9A84C] hover:border-[#C9A84C] transition-all">
           🔥 Deals
         </a>
       </nav>
@@ -772,7 +772,7 @@ function SignupPage({ onBack }: { onBack: () => void }) {
       <p className="text-[#777] mb-6 text-sm">Join Yes MAM and earn 18% commission on every sale through your links.</p>
 
       <div className="bg-[#141414] border border-[#C9A84C]/20 rounded-xl p-4 mb-6 text-sm text-[#aaa]">
-        Already an influencer? <a href="/mam/dashboard" className="text-[#C9A84C] font-bold hover:underline">Sign in to your dashboard →</a>
+        Already an influencer? <a href="/dashboard" className="text-[#C9A84C] font-bold hover:underline">Sign in to your dashboard →</a>
       </div>
 
       {/* Tier selector */}
@@ -898,7 +898,7 @@ function InfluencerRow({ liveInfluencers, onGoToStore, onFilter }: {
     <>
       <div className="flex items-center justify-between px-4 pt-6 pb-3">
         <h2 className="text-lg font-black text-white">Top <span className="text-[#C9A84C]">Influencers</span></h2>
-        <a href="/mam/home#join" className="text-xs text-[#C9A84C] hover:underline">Become a creator →</a>
+        <a href="/home#join" className="text-xs text-[#C9A84C] hover:underline">Become a creator →</a>
       </div>
       <div className="flex gap-3 px-4 pb-6 overflow-x-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "#333 transparent" }}>
         {/* Real creators from API */}
@@ -1250,7 +1250,7 @@ export default function ShopPage() {
                 </div>
                 <div>
                   <h4 className="text-[#C9A84C] text-xs font-bold mb-3">Creators</h4>
-                  {[["Become an Affiliate", () => setView("signup")], ["Creator Login", () => window.location.href = "/mam/dashboard"]].map(([l, fn]) => (
+                  {[["Become an Affiliate", () => setView("signup")], ["Creator Login", () => window.location.href = "/dashboard"]].map(([l, fn]) => (
                     <button key={l as string} onClick={fn as () => void} className="block text-[#555] text-xs mb-2 hover:text-[#C9A84C] transition-colors text-left">{l as string}</button>
                   ))}
                   <p className="text-[10px] text-[#444] mt-1">18% commission · MoMo payouts</p>

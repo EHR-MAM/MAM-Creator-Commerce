@@ -101,7 +101,7 @@ function CreatorSignupForm() {
         <p className="font-bold text-white text-lg mb-2">You&apos;re in!</p>
         <p className="text-sm text-white/50 mb-3">Account created. Check WhatsApp — our team will set up your store within 24 hours.</p>
         <a
-          href="/mam/login"
+          href="/login"
           className="inline-block px-6 py-2.5 rounded-xl text-sm font-bold"
           style={{ background: "#C9A84C", color: "#0A0A0A" }}
         >
@@ -256,7 +256,7 @@ function VendorSignupForm() {
         <p className="font-bold text-white text-lg mb-2">Vendor account created!</p>
         <p className="text-sm text-white/50 mb-3">Your account is live. Sign in to the vendor portal to add products and track orders.</p>
         <a
-          href="/mam/login"
+          href="/login"
           className="inline-block px-6 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
           style={{ background: "#F5A623", color: "#0A0A0A" }}
         >
@@ -476,7 +476,7 @@ export default function JoinPage() {
                 </p>
               </div>
               <a
-                href="/mam/sweet200723"
+                href="/sweet200723"
                 target="_blank"
                 className="shrink-0 bg-gold-gradient text-black font-bold px-5 py-2.5 rounded-xl text-sm hover:opacity-90 transition-opacity shadow-gold-sm"
               >

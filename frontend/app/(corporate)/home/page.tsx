@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // ── Scroll reveal hook ─────────────────────────────────────────────────────────
 function useReveal() {
@@ -62,7 +62,7 @@ function Nav() {
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-[#0A0A0A]/95 backdrop-blur-md shadow-[0_2px_20px_rgba(0,0,0,0.5)]" : "bg-transparent"}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
         {/* Logo */}
-        <a href="/mam/home" className="flex items-center gap-2.5 group">
+        <a href="/home" className="flex items-center gap-2.5 group">
           <div className="group-hover:scale-105 transition-transform drop-shadow-[0_2px_8px_rgba(201,168,76,0.4)]">
             <YesMAMLogo size={36} />
           </div>
@@ -76,18 +76,18 @@ function Nav() {
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white/60">
-          <a href="/mam/how-it-works" className="hover:text-white transition-colors hover:text-[#C9A84C]">How it works</a>
-          <a href="/mam/about" className="hover:text-white transition-colors hover:text-[#C9A84C]">About</a>
-          <a href="/mam/join#creators" className="hover:text-white transition-colors hover:text-[#C9A84C]">For Creators</a>
-          <a href="/mam/join#vendors" className="hover:text-white transition-colors hover:text-[#C9A84C]">For Vendors</a>
+          <a href="/how-it-works" className="hover:text-white transition-colors hover:text-[#C9A84C]">How it works</a>
+          <a href="/about" className="hover:text-white transition-colors hover:text-[#C9A84C]">About</a>
+          <a href="/join#creators" className="hover:text-white transition-colors hover:text-[#C9A84C]">For Creators</a>
+          <a href="/join#vendors" className="hover:text-white transition-colors hover:text-[#C9A84C]">For Vendors</a>
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <Link href="/mam/dashboard" className="text-sm font-semibold text-white/60 hover:text-white transition-colors px-4 py-2">
+          <Link href="/dashboard" className="text-sm font-semibold text-white/60 hover:text-white transition-colors px-4 py-2">
             Creator Login
           </Link>
           <a
-            href="/mam/join#creators"
+            href="/join#creators"
             className="bg-gold-gradient text-[#0A0A0A] text-sm font-black px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity shadow-gold-sm"
           >
             Start for free →
@@ -114,7 +114,7 @@ function Nav() {
             );
           })}
           <div className="pt-3 border-t border-white/10 space-y-3">
-            <Link href="/mam/dashboard" className="block text-center text-white/60 py-2 border border-white/15 rounded-xl" onClick={() => setOpen(false)}>
+            <Link href="/dashboard" className="block text-center text-white/60 py-2 border border-white/15 rounded-xl" onClick={() => setOpen(false)}>
               Creator Login
             </Link>
             <a href="#creator-signup" className="block text-center bg-gold-gradient text-[#0A0A0A] font-black py-3 rounded-xl" onClick={() => setOpen(false)}>
@@ -563,7 +563,7 @@ export default function YesMAMHomePage() {
                   Start your free store →
                 </a>
                 <a
-                  href="/mam/sweet200723"
+                  href="/sweet200723"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="glass border border-white/15 text-white font-semibold px-8 py-4 rounded-2xl text-base hover:border-[#C9A84C]/40 transition-all hover:-translate-y-0.5 duration-200 text-center"
@@ -678,7 +678,7 @@ export default function YesMAMHomePage() {
             ))}
           </div>
           <Reveal delay={200} className="text-center mt-8">
-            <a href="/mam/sweet200723" className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A84C] hover:text-[#E8C97A] transition-colors">
+            <a href="/sweet200723" className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A84C] hover:text-[#E8C97A] transition-colors">
               Browse all products in Christiana&apos;s store ↗
             </a>
           </Reveal>
@@ -721,7 +721,7 @@ export default function YesMAMHomePage() {
 
           <Reveal delay={400} className="text-center mt-10">
             <a
-              href="/mam/sweet200723?t=glow"
+              href="/sweet200723?t=glow"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A84C] hover:text-[#E8C97A] transition-colors"
@@ -981,10 +981,10 @@ export default function YesMAMHomePage() {
 
             {/* Links */}
             <div className="grid grid-cols-2 gap-x-16 gap-y-3 text-sm text-white/40">
-              <a href="/mam/sweet200723" className="hover:text-[#C9A84C] transition-colors">Live demo store</a>
-              <a href="/mam/dashboard" className="hover:text-[#C9A84C] transition-colors">Creator login</a>
+              <a href="/sweet200723" className="hover:text-[#C9A84C] transition-colors">Live demo store</a>
+              <a href="/dashboard" className="hover:text-[#C9A84C] transition-colors">Creator login</a>
               <a href="#how-it-works" className="hover:text-[#C9A84C] transition-colors">How it works</a>
-              <a href="/mam/admin" className="hover:text-[#C9A84C] transition-colors">Admin</a>
+              <a href="/admin" className="hover:text-[#C9A84C] transition-colors">Admin</a>
               <a href="#creator-signup" className="hover:text-[#C9A84C] transition-colors">Join as creator</a>
               <a href="#vendor-signup" className="hover:text-[#C9A84C] transition-colors">List products</a>
             </div>

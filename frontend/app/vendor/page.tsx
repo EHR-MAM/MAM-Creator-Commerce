@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const CATEGORIES = ["hair", "beauty", "fashion", "accessories", "skincare", "wellness", "electronics", "footwear"];
 
@@ -333,7 +333,7 @@ export default function VendorDashboard() {
   // Redirect if not authenticated or wrong role
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace(`${BASE}/login?next=${encodeURIComponent("/mam/vendor")}`);
+      router.replace(`${BASE}/login?next=${encodeURIComponent("/vendor")}`);
     } else if (!authLoading && user && user.role !== "vendor" && user.role !== "admin") {
       router.replace(`${BASE}/dashboard`);
     }

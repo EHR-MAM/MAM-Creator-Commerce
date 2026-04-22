@@ -3,7 +3,7 @@
 // Slide-up panel showing saved/wishlisted items with links to buy and remove options.
 import { useWishlist } from "@/lib/wishlist";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export default function WishlistDrawer({
   open,

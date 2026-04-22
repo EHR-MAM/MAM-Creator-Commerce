@@ -6,7 +6,7 @@ import { useEffect, ComponentType } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "/mam";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 interface WithAuthOptions {
   // If provided, only these roles can access the page. Others are redirected.

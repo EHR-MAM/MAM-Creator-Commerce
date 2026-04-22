@@ -25,10 +25,10 @@ interface NavLink {
 }
 
 const NAV_LINKS: NavLink[] = [
-  { label: "How it works", href: "/mam/how-it-works" },
-  { label: "About", href: "/mam/about" },
-  { label: "For Creators", href: "/mam/join#creators" },
-  { label: "For Vendors", href: "/mam/join#vendors" },
+  { label: "How it works", href: "/how-it-works" },
+  { label: "About", href: "/about" },
+  { label: "For Creators", href: "/join#creators" },
+  { label: "For Vendors", href: "/join#vendors" },
 ];
 
 export default function MarketingNav({ activePage = "" }: { activePage?: string }) {
@@ -44,7 +44,7 @@ export default function MarketingNav({ activePage = "" }: { activePage?: string 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? "bg-[#0A0A0A]/95 backdrop-blur-md shadow-[0_2px_20px_rgba(0,0,0,0.5)]" : "bg-transparent"}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        <a href="/mam/home" className="flex items-center gap-2.5 group">
+        <a href="/home" className="flex items-center gap-2.5 group">
           <div className="group-hover:scale-105 transition-transform drop-shadow-[0_2px_8px_rgba(201,168,76,0.4)]">
             <YesMAMLogo size={36} />
           </div>
@@ -75,13 +75,13 @@ export default function MarketingNav({ activePage = "" }: { activePage?: string 
 
         <div className="hidden md:flex items-center gap-3">
           <Link
-            href="/mam/dashboard"
+            href="/dashboard"
             className="text-sm font-semibold text-white/60 hover:text-white transition-colors px-4 py-2"
           >
             Creator Login
           </Link>
           <a
-            href="/mam/join#creators"
+            href="/join#creators"
             className="bg-gold-gradient text-[#0A0A0A] text-sm font-black px-5 py-2.5 rounded-xl hover:opacity-90 transition-opacity shadow-gold-sm"
           >
             Start for free →
@@ -113,14 +113,14 @@ export default function MarketingNav({ activePage = "" }: { activePage?: string 
           ))}
           <div className="pt-3 border-t border-white/10 space-y-3">
             <Link
-              href="/mam/dashboard"
+              href="/dashboard"
               className="block text-center text-white/60 py-2 border border-white/15 rounded-xl"
               onClick={() => setOpen(false)}
             >
               Creator Login
             </Link>
             <a
-              href="/mam/join#creators"
+              href="/join#creators"
               className="block text-center bg-gold-gradient text-[#0A0A0A] font-black py-3 rounded-xl"
               onClick={() => setOpen(false)}
             >
