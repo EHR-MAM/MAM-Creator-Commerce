@@ -7,8 +7,6 @@ import { useRouter } from "next/navigation";
 import { TEMPLATES, type TemplateId } from "@/lib/templates";
 import { useAuth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,100 +110,6 @@ const ORDER_STATUS_LABEL: Record<string, string> = {
 
 // ─── Login Screen ──────────────────────────────────────────────────────────────
 
-function LoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    const form = e.currentTarget;
-    try {
-      const res = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: (form.elements.namedItem("email") as HTMLInputElement).value,
-          password: (form.elements.namedItem("password") as HTMLInputElement).value,
-        }),
-      });
-      if (!res.ok) throw new Error("bad_creds");
-      const data = await res.json();
-      sessionStorage.setItem("mam_creator_token", data.access_token);
-      onLogin(data.access_token);
-    } catch {
-      setError("Incorrect email or password. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <main className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        {/* Logo mark */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#C9A84C] rounded-2xl mb-4 shadow-lg">
-            <span className="text-2xl font-black text-black">M</span>
-          </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Creator Hub</h1>
-          <p className="text-gray-400 text-sm mt-1">MAM — Micro-Affiliate Marketing</p>
-        </div>
-
-        <div className="bg-[#1A1A1A] rounded-2xl p-6 border border-white/10">
-          {error && (
-            <div className="bg-red-900/40 border border-red-500/30 text-red-300 text-sm px-4 py-3 rounded-xl mb-5">
-              {error}
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs text-gray-400 font-medium block mb-1.5">Email</label>
-              <input
-                name="email"
-                type="email"
-                required
-                placeholder="you@example.com"
-                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 font-medium block mb-1.5">Password</label>
-              <input
-                name="password"
-                type="password"
-                required
-                placeholder="••••••••"
-                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#C9A84C] text-black py-3.5 rounded-xl font-bold text-sm mt-2 disabled:opacity-60 hover:bg-[#E8C97A] transition-colors"
-            >
-              {loading ? "Signing in…" : "Sign In"}
-            </button>
-          </form>
-        </div>
-
-        <p className="text-center text-xs text-gray-600 mt-6">
-          Need access?{" "}
-          <a
-            href={`https://wa.me/13107763650?text=Hi%2C%20I%27m%20a%20creator%20and%20need%20my%20login%20details`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#C9A84C]"
-          >
-            WhatsApp us
-          </a>
-        </p>
-      </div>
-    </main>
-  );
-}
-
 // ─── Tab: Home ─────────────────────────────────────────────────────────────────
 
 interface Payout {
@@ -226,7 +130,7 @@ interface DailyEarning {
   orders: number;
 }
 
-function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commissions: Commission[]; profile: InfluencerProfile | null; token: string }) {
+function HomeTab({ kpi, commissions, profile }: { kpi: KPI | null; commissions: Commission[]; profile: InfluencerProfile | null }) {
   const pendingCommission = commissions.filter(c => c.commission_status === "payable");
   const pendingTotal = pendingCommission.reduce((s, c) => s + Number(c.influencer_amount), 0);
   const [payoutLoading, setPayoutLoading] = useState(false);
@@ -235,18 +139,17 @@ function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commis
   const [dailyEarnings, setDailyEarnings] = useState<DailyEarning[]>([]);
 
   useEffect(() => {
-    if (!token) return;
     // Fetch payouts
-    fetch(`${API_URL}/payouts/mine`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`/api/payouts/mine`, { credentials: "include" })
       .then(r => r.ok ? r.json() : [])
       .then(data => setPayouts(data))
       .catch(() => {/* silent */});
     // Fetch daily earnings for trend chart
-    fetch(`${API_URL}/analytics/reports/daily/me`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`/api/analytics/reports/daily/me`, { credentials: "include" })
       .then(r => r.ok ? r.json() : [])
       .then(data => setDailyEarnings(data || []))
       .catch(() => {/* silent */});
-  }, [token]);
+  }, []);
 
   // Onboarding checklist — items checked against profile state
   const onboardingItems = [
@@ -403,9 +306,9 @@ function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commis
                 setPayoutLoading(true);
                 setPayoutMsg("");
                 try {
-                  const res = await fetch(`${API_URL}/payouts/request`, {
+                  const res = await fetch(`/api/payouts/request`, {
                     method: "POST",
-                    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                    headers: { "Content-Type": "application/json" }, credentials: "include",
                   });
                   const data = await res.json();
                   if (res.ok) {
@@ -507,8 +410,8 @@ function HomeTab({ kpi, commissions, profile, token }: { kpi: KPI | null; commis
       {/* Your Store Link */}
       {profile?.handle && (() => {
         const storeUrl = typeof window !== "undefined"
-          ? `${window.location.origin}${BASE}/${profile.handle}`
-          : `${BASE}/${profile.handle}`;
+          ? `${window.location.origin}/${profile.handle}`
+          : `/${profile.handle}`;
         return (
           <div className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#C9A84C]/20">
             <p className="text-sm font-bold text-white mb-1">Your Store Link</p>
@@ -730,8 +633,7 @@ function OrdersTab({ orders }: { orders: Order[] }) {
 
 // ─── Tab: Links ────────────────────────────────────────────────────────────────
 
-function LinksTab({ token, profile }: {
-  token: string;
+function LinksTab({ profile }: {
   profile: InfluencerProfile | null;
 }) {
   const [links, setLinks] = useState<TrackingLink[]>([]);
@@ -749,8 +651,8 @@ function LinksTab({ token, profile }: {
   const fetchLinks = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/tracking/links`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`/api/tracking/links`, {
+        credentials: "include",
       });
       if (res.ok) setLinks(await res.json());
     } catch {
@@ -758,18 +660,17 @@ function LinksTab({ token, profile }: {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => { fetchLinks(); }, [fetchLinks]);
 
   // Load influencer's assigned products for destination picker
   useEffect(() => {
-    if (!token) return;
-    fetch(`${API_URL}/products/mine`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`/api/products/mine`, { credentials: "include" })
       .then(r => r.ok ? r.json() : [])
       .then(data => setProducts(data))
       .catch(() => {/* silent */});
-  }, [token]);
+  }, []);
 
   async function createLink(e: React.FormEvent) {
     e.preventDefault();
@@ -779,9 +680,9 @@ function LinksTab({ token, profile }: {
       const destination = destProduct
         ? `/${handle}/${destProduct}`
         : `/${handle}`;
-      const res = await fetch(`${API_URL}/tracking/links`, {
+      const res = await fetch(`/api/tracking/links`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({
           label: label || undefined,
           destination_path: destination,
@@ -800,9 +701,9 @@ function LinksTab({ token, profile }: {
 
   async function deactivateLink(id: string) {
     try {
-      await fetch(`${API_URL}/tracking/links/${id}/deactivate`, {
+      await fetch(`/api/tracking/links/${id}/deactivate`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       await fetchLinks();
     } catch { /* silent */ }
@@ -980,7 +881,7 @@ function LinksTab({ token, profile }: {
 
 // ─── Tab: Catalog ──────────────────────────────────────────────────────────────
 
-function CatalogTab({ token, handle }: { token: string; handle: string }) {
+function CatalogTab({ handle }: { handle: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -989,8 +890,8 @@ function CatalogTab({ token, handle }: { token: string; handle: string }) {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${API_URL}/products/mine`, {
-          headers: { Authorization: `Bearer ${token}` },
+        const res = await fetch(`/api/products/mine`, {
+          credentials: "include",
         });
         if (res.ok) setProducts(await res.json());
         else setError("Could not load products.");
@@ -1001,15 +902,15 @@ function CatalogTab({ token, handle }: { token: string; handle: string }) {
       }
     }
     load();
-  }, [token]);
+  }, []);
 
   async function shareProduct(product: Product) {
     setShareState(prev => ({ ...prev, [product.id]: "loading" }));
     try {
       let shareUrl = `https://sensedirector.com/mam/${handle}/${product.id}`;
-      const res = await fetch(`${API_URL}/tracking/links`, {
+      const res = await fetch(`/api/tracking/links`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ destination_path: `/${handle}/${product.id}` }),
       });
       if (res.ok) {
@@ -1139,8 +1040,7 @@ function CatalogTab({ token, handle }: { token: string; handle: string }) {
 
 // ─── Tab: Store (template + bio + avatar) ──────────────────────────────────────
 
-function StoreTab({ token, profile, onProfileUpdate }: {
-  token: string;
+function StoreTab({ profile, onProfileUpdate }: {
   profile: InfluencerProfile | null;
   onProfileUpdate: (p: InfluencerProfile) => void;
 }) {
@@ -1168,9 +1068,9 @@ function StoreTab({ token, profile, onProfileUpdate }: {
   async function saveTemplate() {
     setSavingTemplate(true);
     try {
-      const res = await fetch(`${API_URL}/influencers/me/template`, {
+      const res = await fetch(`/api/influencers/me/template`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ template_id: selectedTemplate }),
       });
       if (res.ok) {
@@ -1188,9 +1088,9 @@ function StoreTab({ token, profile, onProfileUpdate }: {
     setSavingProfile(true);
     setProfileError("");
     try {
-      const res = await fetch(`${API_URL}/influencers/me/profile`, {
+      const res = await fetch(`/api/influencers/me/profile`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({
           bio: bio || null,
           avatar_url: avatarUrl || null,
@@ -1237,7 +1137,7 @@ function StoreTab({ token, profile, onProfileUpdate }: {
             </button>
           </div>
           <a
-            href={`${BASE}/${handle}`}
+            href={`/${handle}`}
             target="_blank"
             rel="noopener noreferrer"
             className="block text-center mt-3 text-xs text-gray-400 border border-white/10 rounded-xl py-2 hover:border-white/20 transition-colors"
@@ -1256,7 +1156,7 @@ function StoreTab({ token, profile, onProfileUpdate }: {
           </div>
           {handle && (
             <a
-              href={`${BASE}/${handle}?t=${selectedTemplate}`}
+              href={`/${handle}?t=${selectedTemplate}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-[#C9A84C] border border-[#C9A84C]/30 px-3 py-1.5 rounded-lg font-semibold"
@@ -1421,20 +1321,20 @@ function StoreTab({ token, profile, onProfileUpdate }: {
 
 // ─── Tab: Analytics ────────────────────────────────────────────────────────────
 
-function AnalyticsTab({ token }: { token: string }) {
+function AnalyticsTab() {
   const [daily, setDaily] = useState<{ date: string; orders: number; gmv_GHS: string }[]>([]);
   const [attribution, setAttribution] = useState<{ source: string; views: number }[]>([]);
   const [linkTotal, setLinkTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const h = { Authorization: `Bearer ${token}` };
+    const opts = { credentials: "include" as const };
     Promise.all([
-      fetch(`${API_URL}/analytics/reports/daily/me?days=14`, { headers: h })
+      fetch(`/api/analytics/reports/daily/me?days=14`, opts)
         .then(r => r.ok ? r.json() : []),
-      fetch(`${API_URL}/analytics/reports/attribution/me`, { headers: h })
+      fetch(`/api/analytics/reports/attribution/me`, opts)
         .then(r => r.ok ? r.json() : []),
-      fetch(`${API_URL}/tracking/links`, { headers: h })
+      fetch(`/api/tracking/links`, opts)
         .then(r => r.ok ? r.json() : []),
     ]).then(([d, a, links]) => {
       setDaily(d);
@@ -1443,7 +1343,7 @@ function AnalyticsTab({ token }: { token: string }) {
       setLinkTotal(total);
       setLoading(false);
     });
-  }, [token]);
+  }, []);
 
   const maxOrders = Math.max(...daily.map(d => d.orders), 1);
   const totalOrders = daily.reduce((s, d) => s + d.orders, 0);
@@ -1590,7 +1490,7 @@ function BottomNav({ tab, setTab, newOrderCount }: { tab: Tab; setTab: (t: Tab) 
 // ─── Main App ──────────────────────────────────────────────────────────────────
 
 export default function InfluencerDashboard() {
-  const { user, token, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("home");
   const [loading, setLoading] = useState(false);
@@ -1603,19 +1503,20 @@ export default function InfluencerDashboard() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace(`${BASE}/login?next=${encodeURIComponent("/dashboard")}`);
+      router.replace(`/login?next=${encodeURIComponent("/dashboard")}`);
     }
   }, [user, authLoading, router]);
 
-  const fetchData = useCallback(async (t: string) => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const h = { Authorization: `Bearer ${t}` };
+      const h = { "Content-Type": "application/json" };
+      const opts = { headers: h, credentials: "include" as const };
       const [cRes, kpiRes, ordRes, meRes] = await Promise.all([
-        fetch(`${API_URL}/commissions/me`, { headers: h }),
-        fetch(`${API_URL}/analytics/reports/kpis/me`, { headers: h }),
-        fetch(`${API_URL}/orders/mine`, { headers: h }),
-        fetch(`${API_URL}/influencers/me`, { headers: h }),
+        fetch(`/api/commissions/me`, opts),
+        fetch(`/api/analytics/reports/kpis/me`, opts),
+        fetch(`/api/orders/mine`, opts),
+        fetch(`/api/influencers/me`, opts),
       ]);
       if (cRes.ok) setCommissions(await cRes.json());
       if (kpiRes.ok) setKpi(await kpiRes.json());
@@ -1627,12 +1528,12 @@ export default function InfluencerDashboard() {
   }, []);
 
   useEffect(() => {
-    if (user && token) fetchData(token);
-  }, [user, token, fetchData]);
+    if (user) fetchData();
+  }, [user, fetchData]);
 
   function handleLogout() {
     logout();
-    router.replace(`${BASE}/login`);
+    router.replace("/login");
   }
 
   // Show spinner while auth loads or redirecting
@@ -1668,7 +1569,7 @@ export default function InfluencerDashboard() {
             )}
             {profile?.handle && (
               <a
-                href={`${BASE}/${profile.handle}`}
+                href={`/${profile.handle}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-[#C9A84C] hover:text-[#E8C97A] font-semibold border border-[#C9A84C]/30 px-2.5 py-1 rounded-lg transition-colors"
@@ -1688,14 +1589,13 @@ export default function InfluencerDashboard() {
 
       {/* Tab content */}
       <div className="max-w-lg mx-auto px-4 py-6">
-        {tab === "home" && <HomeTab kpi={kpi} commissions={commissions} profile={profile} token={token ?? ""} />}
+        {tab === "home" && <HomeTab kpi={kpi} commissions={commissions} profile={profile} />}
         {tab === "orders" && <OrdersTab orders={orders} />}
-        {tab === "catalog" && <CatalogTab token={token ?? ""} handle={profile?.handle ?? ""} />}
-        {tab === "analytics" && <AnalyticsTab token={token ?? ""} />}
-        {tab === "links" && <LinksTab token={token ?? ""} profile={profile} />}
+        {tab === "catalog" && <CatalogTab handle={profile?.handle ?? ""} />}
+        {tab === "analytics" && <AnalyticsTab />}
+        {tab === "links" && <LinksTab profile={profile} />}
         {tab === "store" && (
           <StoreTab
-            token={token ?? ""}
             profile={profile}
             onProfileUpdate={setProfile}
           />

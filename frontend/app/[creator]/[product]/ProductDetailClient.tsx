@@ -11,10 +11,7 @@ import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
 import { currencySymbol } from "@/lib/currency";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const WHATSAPP = process.env.NEXT_PUBLIC_CREATOR_WHATSAPP || "13107763650";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-
 const CATEGORY_EMOJI: Record<string, string> = {
   hair: "💆‍♀️",
   "hair & beauty": "💆‍♀️",
@@ -131,7 +128,7 @@ function InfluencerBadge({ influencer, handle }: { influencer: Influencer | null
   const initial = displayName.charAt(0).toUpperCase();
 
   return (
-    <Link href={`${BASE}/${displayHandle}`} className="flex items-center gap-3 bg-[#FAF7F2] border border-[#E8D9C0] rounded-xl p-3 hover:border-[#C9A84C]/40 transition-colors group">
+    <Link href={`/${displayHandle}`} className="flex items-center gap-3 bg-[#FAF7F2] border border-[#E8D9C0] rounded-xl p-3 hover:border-[#C9A84C]/40 transition-colors group">
       <div className="w-10 h-10 rounded-full overflow-hidden bg-[#C9A84C]/20 flex items-center justify-center shrink-0 relative">
         {influencer?.avatar_url ? (
           <Image src={influencer.avatar_url} alt={displayName} fill className="object-cover" sizes="40px" quality={75} />
@@ -154,7 +151,7 @@ function RelatedCard({ product, handle }: { product: Product; handle: string }) 
   const image = product.media_urls?.[0];
   const targetHandle = product.creator_handle || handle;
   return (
-    <Link href={`${BASE}/${targetHandle}/${product.id}`} className="block group">
+    <Link href={`/${targetHandle}/${product.id}`} className="block group">
       <div className="rounded-xl overflow-hidden border border-gray-100 bg-white hover:shadow-md transition-shadow">
         <div className="aspect-square bg-gray-50 overflow-hidden relative">
           {image ? (
@@ -215,7 +212,7 @@ function ReviewsSection({ productId }: { productId: string }) {
   const [body, setBody] = useState("");
 
   useEffect(() => {
-    fetch(`${API_URL}/products/${productId}/reviews`)
+    fetch(`/api/products/${productId}/reviews`)
       .then(r => r.ok ? r.json() : [])
       .then((data: Review[]) => setReviews(Array.isArray(data) ? data : []))
       .catch(() => setReviews([]))
@@ -228,7 +225,7 @@ function ReviewsSection({ productId }: { productId: string }) {
     setSubmitting(true);
     setSubmitError("");
     try {
-      const res = await fetch(`${API_URL}/products/${productId}/reviews`, {
+      const res = await fetch(`/api/products/${productId}/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customer_name: name.trim(), rating, headline: headline.trim() || null, body: body.trim() || null }),
@@ -427,23 +424,18 @@ export default function ProductDetailClient({
   async function handleShareProduct() {
     setShareState("loading");
     try {
-      // Try to generate an affiliate-tracked short link if creator token exists
-      const token = typeof window !== "undefined"
-        ? localStorage.getItem("mam_token") || sessionStorage.getItem("mam_token")
-        : null;
-
       let shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
-      if (token) {
-        const res = await fetch(`${API_URL}/tracking/links`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ destination_path: `/${creatorHandle}/${product.id}` }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          shareUrl = data.short_url || shareUrl;
-        }
+      // Try to generate an affiliate-tracked short link (uses cookie auth)
+      const res = await fetch(`/api/tracking/links`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ destination_path: `/${creatorHandle}/${product.id}` }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        shareUrl = data.short_url || shareUrl;
       }
 
       const shareText = `Check out ${product.name} on Yes MAM! 🛍️\n\n${shareUrl}\n\n#YesMAM #Ghana #ShopNow`;
@@ -493,7 +485,7 @@ export default function ProductDetailClient({
       {/* Back nav + cart icon */}
       <div className="bg-black px-4 py-3 sticky top-0 z-10">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <Link href={`${BASE}/${creatorHandle}`} className="text-[#C9A84C] text-sm font-semibold">
+          <Link href={`/${creatorHandle}`} className="text-[#C9A84C] text-sm font-semibold">
             ← @{creatorHandle}
           </Link>
           <div className="flex items-center gap-3">
@@ -788,7 +780,7 @@ export default function ProductDetailClient({
 
         {/* ── Footer badge ── */}
         <div className="border-t border-gray-100 pt-4 pb-2 text-center">
-          <Link href={`${BASE}/home`} className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+          <Link href={`/home`} className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
             <span className="w-4 h-4 rounded bg-[#C9A84C] flex items-center justify-center text-[8px] font-black text-black">Y</span>
             Powered by Yes MAM · Africa&apos;s Creator Commerce Platform
           </Link>

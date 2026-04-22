@@ -4,8 +4,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 interface Influencer {
   id: string;
@@ -997,9 +995,9 @@ export default function ShopPage() {
       setApiLoading(true);
       try {
         const [prodRes, infRes, countRes] = await Promise.all([
-          fetch(`${API_URL}/products?status=active&limit=60`),
-          fetch(`${API_URL}/influencers/leaderboard?limit=10`),
-          fetch(`${API_URL}/products?status=active&limit=1`),
+          fetch(`/api/products?status=active&limit=60`),
+          fetch(`/api/influencers/leaderboard?limit=10`),
+          fetch(`/api/products?status=active&limit=1`),
         ]);
         if (prodRes.ok) {
           const data: ApiProduct[] = await prodRes.json();
@@ -1028,7 +1026,7 @@ export default function ShopPage() {
         const params = new URLSearchParams({ status: "active", limit: "60" });
         if (q.trim()) params.set("search", q.trim());
         if (effectiveCat && effectiveCat !== "all" && effectiveCat !== "deals") params.set("category", effectiveCat);
-        const res = await fetch(`${API_URL}/products?${params}`);
+        const res = await fetch(`/api/products?${params}`);
         if (res.ok) setApiProducts((await res.json()).map(mapApiProduct));
       } catch { /* silent */ }
     }, 400);

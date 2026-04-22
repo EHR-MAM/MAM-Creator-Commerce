@@ -7,17 +7,15 @@ import AnalyticsCapture from "@/components/AnalyticsCapture";
 import StorefrontShell from "@/components/StorefrontShell";
 import { getTemplate, type TemplateId } from "@/lib/templates";
 
-// Server-side: use internal URL to avoid Cloudflare loopback; client-side uses public URL
-const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 async function getCreatorData(handle: string) {
   try {
-    const res = await fetch(API_URL + "/influencers?handle=" + handle, {
+    const res = await fetch(`${BASE_URL}/api/influencers?handle=${handle}`, {
       next: { revalidate: 60 },
     });
     if (!res.ok) return null;
     const data = await res.json();
-    // API returns array when filtering by handle
     const creator = Array.isArray(data) ? data[0] : data;
     if (!creator || !creator.id) return null;
     return creator;
@@ -29,7 +27,7 @@ async function getCreatorData(handle: string) {
 async function getInfluencerProducts(influencerId: string) {
   try {
     const res = await fetch(
-      API_URL + "/products?influencer_id=" + influencerId + "&status=active&limit=100",
+      `${BASE_URL}/api/products?influencer_id=${influencerId}&status=active&limit=100`,
       { next: { revalidate: 60 } }
     );
     if (!res.ok) return [];

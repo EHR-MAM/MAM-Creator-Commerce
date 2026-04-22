@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import { useCart } from "@/lib/cart";
 import { currencySymbol } from "@/lib/currency";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
 const DELIVERY_FEE = 20;
 
 // Payment methods fetched from backend — typed inline
@@ -51,7 +50,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
   // Fetch payment methods on mount
   useEffect(() => {
-    fetch(`${API_URL}/payments/methods?country=GH`)
+    fetch(`/api/payments/methods?country=GH`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.methods) {
@@ -88,7 +87,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
     try {
       // Step 1: Create the order
       const res = await fetch(
-        `${API_URL}/orders?vendor_id=${vendorId}${influencerParam}`,
+        `/orders?vendor_id=${vendorId}${influencerParam}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -123,7 +122,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
 
       // Step 2: Initiate payment if not COD
       if (methodId !== "pay_on_delivery") {
-        const payRes = await fetch(`${API_URL}/orders/${orderData.id}/pay`, {
+        const payRes = await fetch(`/api/orders/${orderData.id}/pay`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

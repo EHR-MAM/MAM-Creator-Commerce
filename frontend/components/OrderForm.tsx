@@ -1,8 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-
 const ICON_MAP: Record<string, string> = {
   home: "🏠",
   mobile: "📱",
@@ -58,7 +56,7 @@ export default function OrderForm({
 
   // Load payment methods from API on mount
   useEffect(() => {
-    fetch(`${API_URL}/payments/methods?country=GH`)
+    fetch(`/api/payments/methods?country=GH`)
       .then((r) => r.json())
       .then((data) => {
         const methods: PaymentMethod[] = (data.methods || []).map((m: {id: string; name: string; icon: string; provider: string}) => ({
@@ -87,7 +85,7 @@ export default function OrderForm({
     try {
       const influencerParam = influencerId ? `&influencer_id=${influencerId}` : "";
       const res = await fetch(
-        `${API_URL}/orders?vendor_id=${product.vendor_id}${influencerParam}`,
+        `/orders?vendor_id=${product.vendor_id}${influencerParam}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -1,8 +1,10 @@
 // MAM Admin — Back-office Reporting Dashboard (Sprint G)
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
+const API = "/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface KpiData {
@@ -335,8 +337,8 @@ function filterByRange(orders: Order[], range: DateRange) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AdminReportsPage() {
-  const [token, setToken] = useState("");
-  const [tokenInput, setTokenInput] = useState("");
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [creators, setCreators] = useState<Creator[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -347,25 +349,24 @@ export default function AdminReportsPage() {
   const [range, setRange] = useState<DateRange>("30d");
   const [activeSection, setActiveSection] = useState<"overview" | "creators" | "products" | "commissions">("overview");
 
-  // Restore token from sessionStorage
-  useEffect(() => {
-    const t = sessionStorage.getItem("mam_admin_token");
-    if (t) setToken(t);
-  }, []);
+  const h = { "Content-Type": "application/json" };
+  const opts = { headers: h, credentials: "include" as const };
 
-  const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  useEffect(() => {
+    if (!authLoading && !user) router.replace("/login?next=/admin/reports");
+    else if (!authLoading && user && user.role !== "admin" && user.role !== "operator") router.replace("/dashboard");
+  }, [user, authLoading, router]);
 
   const load = useCallback(async () => {
-    if (!token) return;
     setLoading(true);
     setError("");
     try {
       const [ordRes, crRes, prRes, cmRes, kpiRes] = await Promise.all([
-        fetch(`${API}/orders`, { headers: h }),
-        fetch(`${API}/influencers`, { headers: h }),
-        fetch(`${API}/products`, { headers: h }),
-        fetch(`${API}/commissions`, { headers: h }),
-        fetch(`${API}/analytics/kpis`, { headers: h }),
+        fetch(`${API}/orders`, opts),
+        fetch(`${API}/influencers`, opts),
+        fetch(`${API}/products`, opts),
+        fetch(`${API}/commissions`, opts),
+        fetch(`${API}/analytics/reports/kpis`, opts),
       ]);
       if (ordRes.ok) setOrders(await ordRes.json());
       if (crRes.ok) setCreators(await crRes.json());
@@ -376,33 +377,14 @@ export default function AdminReportsPage() {
       setError(e.message);
     }
     setLoading(false);
-  }, [token]);
+  }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (user) load(); }, [user, load]);
 
-  // ── Login screen ────────────────────────────────────────────────────────────
-  if (!token) {
+  if (authLoading || !user || (user.role !== "admin" && user.role !== "operator")) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <h1 className="font-bold text-gray-900 text-lg mb-1">MAM Reports</h1>
-          <p className="text-xs text-gray-400 mb-5">Enter your admin token or <a href="/admin" className="text-[#C9A84C] hover:underline">log in via Admin</a> first.</p>
-          <input
-            value={tokenInput}
-            onChange={(e) => setTokenInput(e.target.value)}
-            placeholder="Paste admin token..."
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mb-3"
-          />
-          <button
-            onClick={() => { sessionStorage.setItem("mam_admin_token", tokenInput); setToken(tokenInput); }}
-            className="w-full bg-[#C9A84C] text-black font-bold py-2.5 rounded-xl text-sm"
-          >
-            Load Reports
-          </button>
-          <p className="text-xs text-gray-400 text-center mt-3">
-            Or log in at <a href="/admin" className="text-[#C9A84C]">/admin</a> first — token is saved automatically.
-          </p>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }

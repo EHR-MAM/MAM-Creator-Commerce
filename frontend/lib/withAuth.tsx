@@ -6,7 +6,6 @@ import { useEffect, ComponentType } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 interface WithAuthOptions {
   // If provided, only these roles can access the page. Others are redirected.
@@ -27,16 +26,16 @@ export function withAuth<P extends object>(
 
       if (!user) {
         // Not logged in — redirect to login with return path
-        router.replace(`${BASE}/login?next=${encodeURIComponent(pathname)}`);
+        router.replace(`/login?next=${encodeURIComponent(pathname)}`);
         return;
       }
 
       if (options.roles && !options.roles.includes(user.role)) {
         // Wrong role — redirect to appropriate dashboard
         if (user.role === "admin" || user.role === "operator") {
-          router.replace(`${BASE}/admin`);
+          router.replace("/admin");
         } else {
-          router.replace(`${BASE}/dashboard`);
+          router.replace("/dashboard");
         }
       }
     }, [user, loading, router, pathname]);

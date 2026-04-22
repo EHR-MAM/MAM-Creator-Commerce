@@ -3,7 +3,6 @@
 // Slide-up panel showing saved/wishlisted items with links to buy and remove options.
 import { useWishlist } from "@/lib/wishlist";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 export default function WishlistDrawer({
   open,
@@ -89,7 +88,7 @@ export default function WishlistDrawer({
 
                   <div className="flex flex-col gap-1.5 shrink-0">
                     <a
-                      href={`${BASE}/${item.creatorHandle}/${item.productId}`}
+                      href={"/${item.creatorHandle}/${item.productId}"}
                       onClick={onClose}
                       className="text-xs font-black bg-black text-white px-3 py-1.5 rounded-lg text-center"
                     >

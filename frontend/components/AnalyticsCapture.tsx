@@ -6,8 +6,6 @@
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-
 interface Props {
   eventName?: string;
   entityType?: string;
@@ -29,7 +27,7 @@ export default function AnalyticsCapture({
     const utm_medium = searchParams.get("utm_medium");
     const utm_campaign = searchParams.get("utm_campaign");
 
-    fetch(`${API_URL}/analytics/events`, {
+    fetch(`/api/analytics/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

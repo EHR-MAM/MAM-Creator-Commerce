@@ -3,8 +3,6 @@ import { useRef, useEffect, useState } from "react";
 import MarketingNav from "@/components/marketing/MarketingNav";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -63,7 +61,7 @@ function CreatorSignupForm() {
 
     // Register account via API
     try {
-      const res = await fetch(`${API_URL}/auth/register`, {
+      const res = await fetch(`/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -220,7 +218,7 @@ function VendorSignupForm() {
     setError("");
 
     try {
-      const res = await fetch(`${API_URL}/auth/register-vendor`, {
+      const res = await fetch(`/api/auth/register-vendor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

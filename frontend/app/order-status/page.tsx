@@ -5,8 +5,6 @@
 import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const STATUS_STEPS = ["pending", "confirmed", "processing", "shipped", "delivered"];
 
@@ -59,7 +57,7 @@ export default function OrderStatusPage() {
 
     try {
       const res = await fetch(
-        `${API_URL}/orders/track?order_id=${encodeURIComponent(orderId.trim())}&phone=${encodeURIComponent(phone.trim())}`
+        `/api/orders/track?order_id=${encodeURIComponent(orderId.trim())}&phone=${encodeURIComponent(phone.trim())}`
       );
       if (res.status === 404) {
         setError("Order not found. Please check your order ID and phone number.");
@@ -94,7 +92,7 @@ export default function OrderStatusPage() {
       {/* Header */}
       <div className="bg-[#111111] text-white px-4 py-4">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <Link href={`${BASE}/home`} className="flex items-center gap-2">
+          <Link href={"/home"} className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center"
               style={{ background: "linear-gradient(135deg, #A8832A 0%, #C9A84C 40%, #E8C97A 100%)" }}>
               <span className="text-[11px] font-black text-[#0A0A0A]">Y</span>
@@ -241,7 +239,7 @@ export default function OrderStatusPage() {
                   <div className="col-span-2">
                     <p className="text-xs text-gray-400 mb-0.5">Store</p>
                     <Link
-                      href={`${BASE}/${result.creator_handle}`}
+                      href={"/${result.creator_handle}"}
                       className="text-[#C9A84C] font-semibold text-sm hover:underline"
                     >
                       @{result.creator_handle}

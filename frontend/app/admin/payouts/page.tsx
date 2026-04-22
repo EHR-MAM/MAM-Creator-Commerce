@@ -5,9 +5,8 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
 interface Payout {
   id: string;
@@ -23,57 +22,52 @@ interface Payout {
 }
 
 export default function AdminPayouts() {
-  const [token, setToken] = useState("");
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState<Record<string, string>>({});
-  // Per-payout reference inputs for Mark Completed flow
   const [refInputs, setRefInputs] = useState<Record<string, string>>({});
-  // Bulk select state
   const [selectedPayouts, setSelectedPayouts] = useState<Set<string>>(new Set());
   const [bulkSaving, setBulkSaving] = useState(false);
 
-  // Pick up token from sessionStorage (set by main admin page login)
   useEffect(() => {
-    const stored = sessionStorage.getItem("mam_admin_token");
-    if (stored) setToken(stored);
-  }, []);
+    if (!authLoading && !user) router.replace("/login?next=/admin/payouts");
+    else if (!authLoading && user && user.role !== "admin" && user.role !== "operator") router.replace("/dashboard");
+  }, [user, authLoading, router]);
 
-  const fetchPayouts = useCallback(async (t: string) => {
-    if (!t) return;
+  const fetchPayouts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/payouts`, {
-        headers: { Authorization: `Bearer ${t}` },
-      });
+      const res = await fetch("/api/payouts", { credentials: "include" });
       if (res.ok) setPayouts(await res.json());
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    if (token) fetchPayouts(token);
-  }, [token, fetchPayouts]);
+    if (user) fetchPayouts();
+  }, [user, fetchPayouts]);
 
   async function updateStatus(payoutId: string, status: string, externalRef?: string) {
     setActionMsg(m => ({ ...m, [payoutId]: "…" }));
     try {
       const body: Record<string, string> = { status };
       if (externalRef?.trim()) body.external_reference = externalRef.trim();
-      const res = await fetch(`${API_URL}/payouts/${payoutId}/status`, {
+      const res = await fetch(`/api/payouts/${payoutId}/status`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
       if (res.ok) {
         const label = status === "completed" ? "Marked paid ✓" : status === "processing" ? "Marked processing ✓" : "Marked failed";
         setActionMsg(m => ({ ...m, [payoutId]: label }));
-        // Clear reference input after successful action
         setRefInputs(r => { const next = { ...r }; delete next[payoutId]; return next; });
-        await fetchPayouts(token);
+        await fetchPayouts();
       } else {
         const err = await res.json();
-        setActionMsg(m => ({ ...m, [payoutId]: `Error: ${err.detail || "Failed"}` }));
+        setActionMsg(m => ({ ...m, [payoutId]: `Error: ${err.error || "Failed"}` }));
       }
     } catch {
       setActionMsg(m => ({ ...m, [payoutId]: "Network error" }));
@@ -83,10 +77,7 @@ export default function AdminPayouts() {
   async function bulkMarkCompleted() {
     if (selectedPayouts.size === 0) return;
     setBulkSaving(true);
-    const updates = Array.from(selectedPayouts).map(payoutId =>
-      updateStatus(payoutId, "completed", refInputs[payoutId])
-    );
-    await Promise.all(updates);
+    await Promise.all(Array.from(selectedPayouts).map(id => updateStatus(id, "completed", refInputs[id])));
     setSelectedPayouts(new Set());
     setBulkSaving(false);
   }
@@ -113,15 +104,10 @@ export default function AdminPayouts() {
   const actionable = [...pending, ...processing]; // shown in the "needs action" list
   const totalPending = actionable.reduce((s, p) => s + Number(p.amount), 0);
 
-  if (!token) {
+  if (authLoading || !user || (user.role !== "admin" && user.role !== "operator")) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl p-8 shadow-sm w-full max-w-sm text-center">
-          <p className="text-gray-600 mb-4">Please sign in via the admin dashboard first.</p>
-          <Link href={`${BASE}/admin`} className="bg-black text-white px-6 py-3 rounded-xl font-bold text-sm">
-            Go to Admin
-          </Link>
-        </div>
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#C9A84C] border-t-transparent rounded-full animate-spin" />
       </main>
     );
   }
@@ -134,7 +120,7 @@ export default function AdminPayouts() {
           <h1 className="font-bold text-lg">Payout Management</h1>
           <p className="text-gray-400 text-xs mt-0.5">Yes MAM — Admin</p>
         </div>
-        <Link href={`${BASE}/admin`} className="text-[#C9A84C] text-sm font-medium">
+        <Link href={"/admin"} className="text-[#C9A84C] text-sm font-medium">
           ← Back to Admin
         </Link>
       </div>

@@ -6,7 +6,6 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 function LoginForm() {
   const { login, user, loading } = useAuth();
@@ -23,9 +22,9 @@ function LoginForm() {
   useEffect(() => {
     if (!loading && user) {
       const dest = next || (
-        user.role === "admin" || user.role === "operator" ? `${BASE}/admin` :
-        user.role === "vendor" ? `${BASE}/vendor` :
-        `${BASE}/dashboard`
+        user.role === "admin" || user.role === "operator" ? "/admin" :
+        user.role === "vendor" ? "/vendor" :
+        "/dashboard"
       );
       router.replace(dest);
     }
@@ -117,7 +116,7 @@ function LoginForm() {
 
           <p className="text-center text-gray-500 text-xs mt-6">
             Want to join as a creator?{" "}
-            <a href={`${BASE}/join`} className="text-yellow-400 hover:underline">
+            <a href={"/join"} className="text-yellow-400 hover:underline">
               Apply here
             </a>
           </p>

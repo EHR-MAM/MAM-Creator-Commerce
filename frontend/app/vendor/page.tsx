@@ -5,8 +5,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const CATEGORIES = ["hair", "beauty", "fashion", "accessories", "skincare", "wellness", "electronics", "footwear"];
 
@@ -106,9 +104,9 @@ function ProductForm({
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch(`${API_URL}/uploads/image`, {
+      const res = await fetch(`/api/uploads/image`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
         body: fd,
       });
       if (!res.ok) {
@@ -142,9 +140,9 @@ function ProductForm({
     try {
       let res: Response;
       if (isEdit) {
-        res = await fetch(`${API_URL}/products/${editProductId}`, {
+        res = await fetch(`/api/products/${editProductId}`, {
           method: "PATCH",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" }, credentials: "include",
           body: JSON.stringify({
             name: form.name,
             description: form.description || undefined,
@@ -156,9 +154,9 @@ function ProductForm({
           }),
         });
       } else {
-        res = await fetch(`${API_URL}/products?vendor_id=${vendorId}`, {
+        res = await fetch(`/api/products?vendor_id=${vendorId}`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" }, credentials: "include",
           body: JSON.stringify({
             sku: form.sku,
             name: form.name,
@@ -333,16 +331,16 @@ export default function VendorDashboard() {
   // Redirect if not authenticated or wrong role
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace(`${BASE}/login?next=${encodeURIComponent("/vendor")}`);
+      router.replace(`/login?next=${encodeURIComponent("/vendor")}`);
     } else if (!authLoading && user && user.role !== "vendor" && user.role !== "admin") {
-      router.replace(`${BASE}/dashboard`);
+      router.replace("/dashboard");
     }
   }, [user, authLoading, router]);
 
   async function fetchOrders() {
     try {
-      const res = await fetch(`${API_URL}/orders/mine`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`/api/orders/mine`, {
+        credentials: "include",
       });
       if (res.ok) {
         const data = await res.json();
@@ -353,8 +351,8 @@ export default function VendorDashboard() {
 
   async function fetchVendorProfile() {
     try {
-      const res = await fetch(`${API_URL}/vendors/me`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`/api/vendors/me`, {
+        credentials: "include",
       });
       if (res.ok) {
         const data = await res.json();
@@ -375,9 +373,9 @@ export default function VendorDashboard() {
     setProfileSaving(true);
     setProfileMsg("");
     try {
-      const res = await fetch(`${API_URL}/vendors/me`, {
+      const res = await fetch(`/api/vendors/me`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify(profileForm),
       });
       if (!res.ok) {
@@ -397,8 +395,8 @@ export default function VendorDashboard() {
 
   async function fetchProducts() {
     try {
-      const res = await fetch(`${API_URL}/products/mine`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`/api/products/mine`, {
+        credentials: "include",
       });
       if (res.ok) {
         const data: Product[] = await res.json();
@@ -442,9 +440,9 @@ export default function VendorDashboard() {
     if (!next) return;
     setUpdatingId(order.id);
     try {
-      const res = await fetch(`${API_URL}/orders/${order.id}/status`, {
+      const res = await fetch(`/api/orders/${order.id}/status`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ status: next }),
       });
       if (!res.ok) throw new Error();
@@ -456,9 +454,9 @@ export default function VendorDashboard() {
   async function toggleStatus(product: Product) {
     const newStatus = product.status === "active" ? "inactive" : "active";
     try {
-      const res = await fetch(`${API_URL}/products/${product.id}`, {
+      const res = await fetch(`/api/products/${product.id}`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) await fetchProducts();
@@ -490,7 +488,7 @@ export default function VendorDashboard() {
             <h1 className="text-lg font-black leading-tight">Vendor Dashboard</h1>
           </div>
           <button
-            onClick={() => { logout(); router.replace(`${BASE}/login`); }}
+            onClick={() => { logout(); router.replace("/login"); }}
             className="text-xs text-gray-400 hover:text-white border border-gray-700 rounded-lg px-3 py-1.5 transition-colors"
           >
             Sign out

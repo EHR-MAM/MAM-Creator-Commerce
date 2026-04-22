@@ -6,12 +6,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const API = "/api";
 
 type Tab = "overview" | "orders" | "creators" | "vendors" | "products" | "campaigns" | "commissions" | "reviews" | "links";
 
-function useAdminData(token: string) {
+function useAdminData() {
   const [kpis, setKpis] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [creators, setCreators] = useState<any[]>([]);
@@ -22,20 +21,20 @@ function useAdminData(token: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const h = { "Content-Type": "application/json" };
+  const opts = { headers: h, credentials: "include" as const };
 
   const load = useCallback(async () => {
-    if (!token) return;
     setLoading(true);
     try {
       const [kpiRes, ordRes, crRes, vnRes, prRes, cpRes, cmRes] = await Promise.all([
-        fetch(`${API}/analytics/reports/kpis`, { headers: h }),
-        fetch(`${API}/orders`, { headers: h }),
-        fetch(`${API}/influencers`, { headers: h }),
-        fetch(`${API}/vendors`, { headers: h }),
-        fetch(`${API}/products?status=active&limit=200`, { headers: h }),
-        fetch(`${API}/campaigns`, { headers: h }),
-        fetch(`${API}/commissions`, { headers: h }),
+        fetch(`${API}/analytics/reports/kpis`, opts),
+        fetch(`${API}/orders`, opts),
+        fetch(`${API}/influencers`, opts),
+        fetch(`${API}/vendors`, opts),
+        fetch(`${API}/products?status=active&limit=200`, opts),
+        fetch(`${API}/campaigns`, opts),
+        fetch(`${API}/commissions`, opts),
       ]);
       if (kpiRes.ok) setKpis(await kpiRes.json());
       if (ordRes.ok) setOrders(await ordRes.json());
@@ -46,7 +45,7 @@ function useAdminData(token: string) {
       if (cmRes.ok) setCommissions(await cmRes.json());
     } catch (e: any) { setError(e.message); }
     setLoading(false);
-  }, [token]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
   return { kpis, orders, creators, vendors, products, campaigns, commissions, loading, error, reload: load };
@@ -80,105 +79,9 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function AdminLoginScreen({ onLogin }: { onLogin: (token: string) => void }) {
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    const form = e.currentTarget;
-    try {
-      const res = await fetch(`${API}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: (form.elements.namedItem("email") as HTMLInputElement).value,
-          password: (form.elements.namedItem("password") as HTMLInputElement).value,
-        }),
-      });
-      if (!res.ok) throw new Error("bad_creds");
-      const data = await res.json();
-      // Verify role
-      const meRes = await fetch(`${API}/auth/me`, {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      });
-      if (meRes.ok) {
-        const me = await meRes.json();
-        if (me.role !== "admin" && me.role !== "operator") {
-          setError("Access denied — admin accounts only.");
-          setLoading(false);
-          return;
-        }
-      }
-      sessionStorage.setItem("mam_admin_token", data.access_token);
-      onLogin(data.access_token);
-    } catch {
-      setError("Incorrect email or password.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#C9A84C] rounded-2xl mb-4 shadow-lg">
-            <span className="text-2xl font-black text-black">M</span>
-          </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">MAM Admin</h1>
-          <p className="text-gray-400 text-sm mt-1">Operations Dashboard</p>
-        </div>
-
-        <div className="bg-[#1A1A1A] rounded-2xl p-6 border border-white/10">
-          {error && (
-            <div className="bg-red-900/40 border border-red-500/30 text-red-300 text-sm px-4 py-3 rounded-xl mb-5">
-              {error}
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs text-gray-400 font-medium block mb-1.5">Email</label>
-              <input
-                name="email"
-                type="email"
-                required
-                autoComplete="username"
-                placeholder="admin@example.com"
-                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 font-medium block mb-1.5">Password</label>
-              <input
-                name="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className="w-full bg-[#111] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#C9A84C]/60 transition-colors"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#C9A84C] text-black py-3.5 rounded-xl font-bold text-sm mt-2 disabled:opacity-60 hover:bg-[#E8C97A] transition-colors"
-            >
-              {loading ? "Signing in…" : "Sign In"}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function AdminPage() {
-  const { user, token: authToken, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
-  const token = authToken || "";
   const [tab, setTab] = useState<Tab>("overview");
   const [msg, setMsg] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -192,38 +95,40 @@ export default function AdminPage() {
   const [restockQty, setRestockQty] = useState("50");
   const [restockSaving, setRestockSaving] = useState(false);
 
+  const h = { "Content-Type": "application/json" };
+  const fetchOpts = { headers: h, credentials: "include" as const };
+
   // Redirect to login if not authenticated or wrong role
   useEffect(() => {
     if (!authLoading && !user) {
-      router.replace(`${BASE}/login?next=${encodeURIComponent("/admin")}`);
+      router.replace(`/login?next=${encodeURIComponent("/admin")}`);
     } else if (!authLoading && user && user.role !== "admin" && user.role !== "operator") {
-      router.replace(`${BASE}/dashboard`);
+      router.replace("/dashboard");
     }
   }, [user, authLoading, router]);
 
   const { kpis, orders, creators, vendors, products, campaigns, commissions, loading, error, reload } =
-    useAdminData(token);
-
-  const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+    useAdminData();
 
   async function advanceOrder(orderId: string, newStatus: string) {
     await fetch(`${API}/orders/${orderId}/status`, {
       method: "PATCH",
       headers: h,
+      credentials: "include",
       body: JSON.stringify({ status: newStatus }),
     });
     reload();
   }
 
   async function createUser(role: string, body: object) {
-    const r = await fetch(`${API}/auth/register`, { method: "POST", headers: h, body: JSON.stringify({ ...body, role }) });
+    const r = await fetch(`${API}/auth/register`, { method: "POST", headers: h, credentials: "include", body: JSON.stringify({ ...body, role }) });
     if (!r.ok) { setMsg("Error: " + (await r.text())); return; }
     setMsg("Created successfully");
     reload();
   }
 
   async function createProduct(body: object) {
-    const r = await fetch(`${API}/products`, { method: "POST", headers: h, body: JSON.stringify(body) });
+    const r = await fetch(`${API}/products`, { method: "POST", headers: h, credentials: "include", body: JSON.stringify(body) });
     if (!r.ok) { setMsg("Error creating product: " + (await r.text())); return; }
     setMsg("Product created successfully");
     reload();
@@ -231,19 +136,19 @@ export default function AdminPage() {
 
   async function toggleProductStatus(productId: string, currentStatus: string) {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
-    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: newStatus }) });
+    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, credentials: "include", body: JSON.stringify({ status: newStatus }) });
     if (!r.ok) { setMsg("Error updating product"); return; }
     reload();
   }
 
   async function updateProductStock(productId: string, qty: number) {
-    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify({ inventory_count: qty }) });
+    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, credentials: "include", body: JSON.stringify({ inventory_count: qty }) });
     if (!r.ok) { setMsg("Error updating stock"); return; }
     reload();
   }
 
   async function updateProductPrice(productId: string, price: number) {
-    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify({ price }) });
+    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, credentials: "include", body: JSON.stringify({ price }) });
     if (!r.ok) { setMsg("Error updating price"); return; }
     reload();
   }
@@ -258,6 +163,7 @@ export default function AdminPage() {
     const r = await fetch(`${API}/products/${restockingProduct.id}`, {
       method: "PATCH",
       headers: h,
+      credentials: "include",
       body: JSON.stringify({ inventory_count: newQty }),
     });
     setRestockSaving(false);
@@ -273,7 +179,7 @@ export default function AdminPage() {
     if (ids.length === 0) return;
     setMsg(`Updating ${ids.length} products…`);
     await Promise.all(
-      ids.map(id => fetch(`${API}/products/${id}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: newStatus }) }))
+      ids.map(id => fetch(`${API}/products/${id}`, { method: "PATCH", headers: h, credentials: "include", body: JSON.stringify({ status: newStatus }) }))
     );
     setSelectedProducts(new Set());
     setMsg(`${ids.length} products set to ${newStatus}`);
@@ -287,7 +193,7 @@ export default function AdminPage() {
       affiliate_url: fields.affiliateUrl.trim() || undefined,
     };
     if (fields.imageUrl.trim()) body.media_urls = [fields.imageUrl.trim()];
-    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, body: JSON.stringify(body) });
+    const r = await fetch(`${API}/products/${productId}`, { method: "PATCH", headers: h, credentials: "include", body: JSON.stringify(body) });
     if (!r.ok) { setMsg("Error saving product"); return; }
     setEditingProduct(null);
     setMsg("Product updated");
@@ -296,7 +202,7 @@ export default function AdminPage() {
 
   async function toggleVendorStatus(vendorId: string, currentStatus: string) {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
-    const r = await fetch(`${API}/vendors/${vendorId}`, { method: "PATCH", headers: h, body: JSON.stringify({ status: newStatus }) });
+    const r = await fetch(`${API}/vendors/${vendorId}`, { method: "PATCH", headers: h, credentials: "include", body: JSON.stringify({ status: newStatus }) });
     if (!r.ok) { setMsg("Error updating vendor"); return; }
     reload();
   }
@@ -391,7 +297,7 @@ export default function AdminPage() {
             <a href="/admin/reports" className="text-xs text-[#C9A84C] hover:text-[#E8C97A] font-semibold border border-[#C9A84C]/30 px-3 py-1.5 rounded-lg transition-colors">
               Reports →
             </a>
-            <button onClick={() => { logout(); router.replace(`${BASE}/login`); }} className="text-xs text-gray-400 hover:text-white">
+            <button onClick={() => { logout(); router.replace("/login"); }} className="text-xs text-gray-400 hover:text-white">
               Sign out
             </button>
           </div>
@@ -589,7 +495,7 @@ export default function AdminPage() {
               const handleMap: Record<string, string> = {};
               creators.forEach((c: any) => { if (c.id && c.handle) handleMap[c.id] = c.handle; });
               return filtered.map((o: any) => (
-                <OrderCard key={o.id} order={o} onAdvance={advanceOrder} token={token} h={h} creatorHandle={o.influencer_id ? (handleMap[o.influencer_id] || null) : null} />
+                <OrderCard key={o.id} order={o} onAdvance={advanceOrder} h={h} creatorHandle={o.influencer_id ? (handleMap[o.influencer_id] || null) : null} />
               ));
             })()}
           </div>
@@ -601,7 +507,6 @@ export default function AdminPage() {
             creators={creators}
             products={products}
             commissions={commissions}
-            token={token}
             h={h}
             onCreateCreator={(data) => createUser("influencer", data)}
             onReload={reload}
@@ -949,9 +854,9 @@ export default function AdminPage() {
         )}
 
         {/* COMMISSIONS */}
-        {tab === "reviews" && <ReviewsTab token={token} h={h} />}
+        {tab === "reviews" && <ReviewsTab h={h} />}
 
-        {tab === "links" && <AdminLinksTab token={token} h={h} creators={creators} />}
+        {tab === "links" && <AdminLinksTab h={h} creators={creators} />}
 
         {tab === "commissions" && (
           <div className="space-y-4">
@@ -1004,7 +909,7 @@ export default function AdminPage() {
 
 // ─── Sprint XXX: Reviews Moderation Tab ──────────────────────────────────────
 
-function ReviewsTab({ token, h }: { token: string; h: Record<string, string> }) {
+function ReviewsTab({ h }: { h: Record<string, string> }) {
   const [statusFilter, setStatusFilter] = useState<"pending" | "approved" | "rejected">("pending");
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1013,18 +918,18 @@ function ReviewsTab({ token, h }: { token: string; h: Record<string, string> }) 
   async function fetchReviews(st: "pending" | "approved" | "rejected") {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/products/reviews/admin?status=${st}&limit=50`, { headers: h });
+      const res = await fetch(`${API}/products/reviews/admin?status=${st}&limit=50`, { headers: h, credentials: "include" });
       setReviews(res.ok ? await res.json() : []);
     } catch { setReviews([]); }
     setLoading(false);
   }
 
-  useEffect(() => { fetchReviews(statusFilter); }, [statusFilter, token]);
+  useEffect(() => { fetchReviews(statusFilter); }, [statusFilter]);
 
   async function setStatus(reviewId: string, newStatus: "approved" | "rejected") {
     setActionMsg(prev => ({ ...prev, [reviewId]: "Saving…" }));
     try {
-      const res = await fetch(`${API}/products/reviews/${reviewId}/status?new_status=${newStatus}`, { method: "PATCH", headers: h });
+      const res = await fetch(`${API}/products/reviews/${reviewId}/status?new_status=${newStatus}`, { method: "PATCH", headers: h, credentials: "include" });
       if (res.ok) {
         setReviews(prev => prev.filter(r => r.id !== reviewId));
         setActionMsg(prev => ({ ...prev, [reviewId]: newStatus === "approved" ? "Approved!" : "Rejected" }));
@@ -1127,7 +1032,7 @@ function ReviewsTab({ token, h }: { token: string; h: Record<string, string> }) 
   );
 }
 
-function OrderCard({ order: o, onAdvance, token, h, creatorHandle }: { order: any; onAdvance: (id: string, status: string) => void; token: string; h: Record<string, string>; creatorHandle?: string | null }) {
+function OrderCard({ order: o, onAdvance, h, creatorHandle }: { order: any; onAdvance: (id: string, status: string) => void; h: Record<string, string>; creatorHandle?: string | null }) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [notesText, setNotesText] = useState<string>(o.admin_notes || "");
@@ -1381,11 +1286,10 @@ function OrderCard({ order: o, onAdvance, token, h, creatorHandle }: { order: an
 }
 
 // ─── Sprint XXIII: Full Creators Tab ─────────────────────────────────────────
-function CreatorsTab({ creators, products, commissions, token, h, onCreateCreator, onReload }: {
+function CreatorsTab({ creators, products, commissions, h, onCreateCreator, onReload }: {
   creators: any[];
   products: any[];
   commissions: any[];
-  token: string;
   h: Record<string, string>;
   onCreateCreator: (data: object) => void;
   onReload?: () => void;
@@ -1401,7 +1305,7 @@ function CreatorsTab({ creators, products, commissions, token, h, onCreateCreato
   async function handleInvite(data: object) {
     onCreateCreator(data);
     const d = data as any;
-    const loginUrl = `${window.location.origin}${BASE}/login`;
+    const loginUrl = `${window.location.origin}/login`;
     setInviteResult({ handle: d.handle, email: d.email, loginUrl });
   }
 
@@ -1462,7 +1366,6 @@ function CreatorsTab({ creators, products, commissions, token, h, onCreateCreato
               key={c.id}
               creator={c}
               allProducts={products}
-              token={token}
               h={h}
               earnedTotal={earned}
               commissionCount={creatorCommissions.length}
@@ -1478,10 +1381,9 @@ function CreatorsTab({ creators, products, commissions, token, h, onCreateCreato
   );
 }
 
-function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCount, onReload }: {
+function CreatorRow({ creator, allProducts, h, earnedTotal, commissionCount, onReload }: {
   creator: any;
   allProducts: any[];
-  token: string;
   h: Record<string, string>;
   earnedTotal: number;
   commissionCount: number;
@@ -1524,6 +1426,7 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
       const res = await fetch(`${API}/influencers/${creator.id}`, {
         method: "PATCH",
         headers: h,
+        credentials: "include",
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {
@@ -1542,6 +1445,7 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
       const res = await fetch(`${API}/influencers/${creator.id}`, {
         method: "PATCH",
         headers: h,
+        credentials: "include",
         body: JSON.stringify({
           handle: editForm.handle.trim() || undefined,
           bio: editForm.bio.trim() || undefined,
@@ -1574,14 +1478,15 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
       const cpRes = await fetch(`${API}/campaigns/ensure-for-influencer`, {
         method: "POST",
         headers: h,
+        credentials: "include",
         body: JSON.stringify({ influencer_id: creator.id, name: `${creator.handle} Default Campaign` }),
       });
       if (!cpRes.ok) { setMsg("Could not load campaign"); setLoadingCamp(false); return; }
       const cp = await cpRes.json();
       setCampaignId(cp.id);
       const [prRes, catRes] = await Promise.all([
-        fetch(`${API}/campaigns/${cp.id}/products`, { headers: h }),
-        fetch(`${API}/campaigns/product-categories`, { headers: h }),
+        fetch(`${API}/campaigns/${cp.id}/products`, { headers: h, credentials: "include" }),
+        fetch(`${API}/campaigns/product-categories`, { headers: h, credentials: "include" }),
       ]);
       if (prRes.ok) setAssigned(await prRes.json());
       if (catRes.ok) setCategories(await catRes.json());
@@ -1594,10 +1499,11 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
     const res = await fetch(`${API}/campaigns/${campaignId}/products`, {
       method: "POST",
       headers: h,
+      credentials: "include",
       body: JSON.stringify({ product_id: productId, featured_rank: 0 }),
     });
     if (res.ok) {
-      const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h });
+      const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h, credentials: "include" });
       if (prRes.ok) setAssigned(await prRes.json());
     }
   }
@@ -1611,11 +1517,12 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
       const res = await fetch(`${API}/campaigns/${campaignId}/products`, {
         method: "POST",
         headers: h,
+        credentials: "include",
         body: JSON.stringify({ product_id: pid, featured_rank: 0 }),
       });
       if (res.ok) count++;
     }
-    const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h });
+    const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h, credentials: "include" });
     if (prRes.ok) setAssigned(await prRes.json());
     setSelected(new Set());
     setMsg(`${count} product${count !== 1 ? "s" : ""} assigned`);
@@ -1628,6 +1535,7 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
     const res = await fetch(`${API}/campaigns/${campaignId}/products/${productId}`, {
       method: "DELETE",
       headers: h,
+      credentials: "include",
     });
     if (res.ok) {
       setAssigned((prev) => prev.filter((p: any) => p.id !== productId));
@@ -1643,12 +1551,13 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
       const res = await fetch(`${API}/campaigns/${campaignId}/products/bulk-category`, {
         method: "POST",
         headers: h,
+        credentials: "include",
         body: JSON.stringify({ category: selectedCat }),
       });
       if (res.ok) {
         const data = await res.json();
         // Refresh assigned list
-        const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h });
+        const prRes = await fetch(`${API}/campaigns/${campaignId}/products`, { headers: h, credentials: "include" });
         if (prRes.ok) setAssigned(await prRes.json());
         setCatMsg(`Assigned ${data.assigned} product${data.assigned !== 1 ? "s" : ""} (${data.skipped} already linked)`);
         setSelectedCat("");
@@ -1933,8 +1842,7 @@ function CreatorRow({ creator, allProducts, token, h, earnedTotal, commissionCou
   );
 }
 
-function AdminLinksTab({ token, h, creators }: {
-  token: string;
+function AdminLinksTab({ h, creators }: {
   h: Record<string, string>;
   creators: any[];
 }) {
@@ -1944,15 +1852,15 @@ function AdminLinksTab({ token, h, creators }: {
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    fetch(`${API}/tracking/links/all`, { headers: h })
+    fetch(`${API}/tracking/links/all`, { headers: h, credentials: "include" })
       .then(r => r.ok ? r.json() : [])
       .then(data => { setLinks(data); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   async function deactivate(linkId: string) {
     setDeactivating(linkId);
-    const r = await fetch(`${API}/tracking/links/${linkId}/deactivate`, { method: "PATCH", headers: h });
+    const r = await fetch(`${API}/tracking/links/${linkId}/deactivate`, { method: "PATCH", headers: h, credentials: "include" });
     if (r.ok) {
       setLinks(prev => prev.map(l => l.id === linkId ? { ...l, is_active: false } : l));
       setMsg("Link deactivated");
@@ -2263,9 +2171,7 @@ function AddVendorForm({ onSubmit }: { onSubmit: (data: object) => void }) {
   );
 }
 
-const SCRAPER_URL = process.env.NEXT_PUBLIC_BASE_PATH
-  ? `${process.env.NEXT_PUBLIC_BASE_PATH.replace(/\/mam$/, "")}/mam-scraper`
-  : "https://sensedirector.com/mam-scraper";
+const SCRAPER_URL = "/mam-scraper";
 
 function AddProductForm({ vendors, onSubmit }: { vendors: any[]; onSubmit: (data: object) => void }) {
   const [form, setForm] = useState({

@@ -5,11 +5,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import ProductDetailClient from "./ProductDetailClient";
 
-const API_URL = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 async function getProduct(productId: string) {
   try {
-    const res = await fetch(`${API_URL}/products/${productId}`, {
+    const res = await fetch(`${BASE_URL}/api/products/${productId}`, {
       next: { revalidate: 60 },
     });
     if (!res.ok) return null;
@@ -21,7 +21,7 @@ async function getProduct(productId: string) {
 
 async function getInfluencer(handle: string) {
   try {
-    const res = await fetch(`${API_URL}/influencers?handle=${handle}`, {
+    const res = await fetch(`${BASE_URL}/api/influencers?handle=${handle}`, {
       next: { revalidate: 300 },
     });
     if (!res.ok) return null;
@@ -35,7 +35,7 @@ async function getInfluencer(handle: string) {
 async function getRelatedProducts(category: string, excludeId: string) {
   try {
     const res = await fetch(
-      `${API_URL}/products?status=active&limit=4&category=${encodeURIComponent(category)}`,
+      `${BASE_URL}/api/products?status=active&limit=4&category=${encodeURIComponent(category)}`,
       { next: { revalidate: 60 } }
     );
     if (!res.ok) return [];

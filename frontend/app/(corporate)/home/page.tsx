@@ -2,8 +2,6 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8200";
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 // ── Scroll reveal hook ─────────────────────────────────────────────────────────
 function useReveal() {
@@ -392,7 +390,7 @@ function CreatorLeaderboard() {
 
   useEffect(() => {
     // Sprint XXIX: use dedicated leaderboard endpoint with real earnings aggregation
-    fetch(`${API_URL}/influencers/leaderboard?limit=10`)
+    fetch(`/api/influencers/leaderboard?limit=10`)
       .then(r => r.ok ? r.json() : [])
       .then((data: any[]) => {
         if (data && data.length > 0) {
@@ -479,7 +477,7 @@ function CreatorLeaderboard() {
                   {/* CTA */}
                   <div className="mt-auto">
                     <a
-                      href={`${BASE}/${creator.handle}`}
+                      href={"/${creator.handle}"}
                       className="block w-full text-center text-xs font-bold py-2.5 rounded-xl border border-[#C9A84C]/30 text-[#C9A84C] hover:bg-[#C9A84C]/10 transition-colors"
                     >
                       Visit store →
