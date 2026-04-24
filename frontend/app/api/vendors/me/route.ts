@@ -5,7 +5,7 @@ import { withAuth, AuthedRequest } from "@/lib/auth/middleware";
 export const dynamic = "force-dynamic";
 
 async function getMe(req: AuthedRequest) {
-  const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
+  const vendor = await prisma.vendor.findFirst({ where: { userId: req.user.id } });
   if (!vendor) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(vendor);
 }
@@ -14,7 +14,7 @@ async function updateMe(req: AuthedRequest) {
   try {
     const body = await req.json();
     const { businessName, location, contactName, contactPhone } = body;
-    const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
+    const vendor = await prisma.vendor.findFirst({ where: { userId: req.user.id } });
     if (!vendor) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const updated = await prisma.vendor.update({
       where: { id: vendor.id },

@@ -56,7 +56,6 @@ export async function POST(req: NextRequest) {
           where: { id: item.productId },
           data: {
             inventoryCount: { decrement: item.quantity },
-            salesCount: { increment: item.quantity },
           },
         });
         const updated = await tx.product.findUnique({ where: { id: item.productId }, select: { inventoryCount: true } });
@@ -86,7 +85,7 @@ export async function POST(req: NextRequest) {
 async function listOrders(req: AuthedRequest) {
   const { searchParams } = new URL(req.url);
   const statusFilter = searchParams.get("status");
-  const where = statusFilter ? { status: statusFilter } : {};
+  const where = statusFilter ? { status: statusFilter as any } : {};
   const orders = await prisma.order.findMany({
     where,
     orderBy: { createdAt: "desc" },

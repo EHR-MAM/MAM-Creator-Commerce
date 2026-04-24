@@ -5,7 +5,7 @@ import { withAuth, AuthedRequest } from "@/lib/auth/middleware";
 export const dynamic = "force-dynamic";
 
 async function get(_req: AuthedRequest, { params }: { params: { id: string } }) {
-  const influencer = await prisma.influencer.findUnique({
+  const influencer = await prisma.influencer.findFirst({
     where: { id: params.id },
     include: { user: { select: { name: true, email: true } } },
   });

@@ -9,7 +9,7 @@ async function handler(req: AuthedRequest, { params }: { params: { id: string } 
   if (!link) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (req.user.role === "influencer") {
-    const influencer = await prisma.influencer.findUnique({ where: { userId: req.user.id } });
+    const influencer = await prisma.influencer.findFirst({ where: { userId: req.user.id } });
     if (!influencer || influencer.id !== link.influencerId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

@@ -6,13 +6,13 @@ export const dynamic = "force-dynamic";
 
 async function handler(req: AuthedRequest) {
   if (req.user.role === "vendor") {
-    const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
+    const vendor = await prisma.vendor.findFirst({ where: { userId: req.user.id } });
     if (!vendor) return NextResponse.json([]);
     const products = await prisma.product.findMany({ where: { vendorId: vendor.id } });
     return NextResponse.json(products);
   }
   if (req.user.role === "influencer") {
-    const influencer = await prisma.influencer.findUnique({ where: { userId: req.user.id } });
+    const influencer = await prisma.influencer.findFirst({ where: { userId: req.user.id } });
     if (!influencer) return NextResponse.json([]);
     const products = await prisma.product.findMany({
       where: {

@@ -11,7 +11,7 @@ function randomCode(len = 8): string {
 
 async function createLink(req: AuthedRequest) {
   try {
-    const influencer = await prisma.influencer.findUnique({ where: { userId: req.user.id } });
+    const influencer = await prisma.influencer.findFirst({ where: { userId: req.user.id } });
     if (!influencer) return NextResponse.json({ error: "Influencer not found" }, { status: 404 });
 
     const { label, destinationPath, campaignId, expiresAt } = await req.json();
@@ -44,7 +44,7 @@ async function createLink(req: AuthedRequest) {
 }
 
 async function listLinks(req: AuthedRequest) {
-  const influencer = await prisma.influencer.findUnique({ where: { userId: req.user.id } });
+  const influencer = await prisma.influencer.findFirst({ where: { userId: req.user.id } });
   if (!influencer) return NextResponse.json([]);
   const links = await prisma.trackingLink.findMany({
     where: { influencerId: influencer.id },

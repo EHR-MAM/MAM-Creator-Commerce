@@ -9,7 +9,7 @@ async function handler(req: AuthedRequest) {
   const days = Math.min(parseInt(searchParams.get("days") || "14"), 90);
   const since = new Date(Date.now() - days * 86400000);
 
-  const influencer = await prisma.influencer.findUnique({ where: { userId: req.user.id } });
+  const influencer = await prisma.influencer.findFirst({ where: { userId: req.user.id } });
   if (!influencer) return NextResponse.json([]);
 
   const orders = await prisma.order.findMany({

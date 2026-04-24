@@ -6,16 +6,17 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const limit = 20;
 
-  // Tier 1: influencers with earnings
+  // Tier 1: influencers with earnings (via orders -> commissions)
   const withEarnings = await prisma.influencer.findMany({
     where: {
       status: "active",
-      commissions: { some: { commissionStatus: { in: ["payable", "paid"] } } },
+      orders: { some: { commission: { commissionStatus: { in: ["payable", "paid"] } } } },
     },
     include: {
-      commissions: {
-        where: { commissionStatus: { in: ["payable", "paid"] } },
-        select: { influencerAmount: true },
+      orders: {
+        include: {
+          commission: { select: { influencerAmount: true, commissionStatus: true } },
+        },
       },
       _count: { select: { orders: true } },
     },
@@ -30,7 +31,12 @@ export async function GET() {
       avatarUrl: inf.avatarUrl,
       bio: inf.bio,
       templateId: inf.templateId,
-      totalEarned: inf.commissions.reduce((s, c) => s + Number(c.influencerAmount), 0),
+      totalEarned: inf.orders.reduce((s, o) => {
+        if (o.commission && ["payable", "paid"].includes(o.commission.commissionStatus)) {
+          return s + Number(o.commission.influencerAmount);
+        }
+        return s;
+      }, 0),
       ordersCount: inf._count.orders,
     }))
     .sort((a, b) => b.totalEarned - a.totalEarned);

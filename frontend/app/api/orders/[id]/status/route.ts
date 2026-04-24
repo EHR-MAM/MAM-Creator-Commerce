@@ -17,7 +17,7 @@ async function handler(req: AuthedRequest, { params }: { params: { id: string } 
 
     // Vendor can only update their own orders
     if (req.user.role === "vendor") {
-      const vendor = await prisma.vendor.findUnique({ where: { userId: req.user.id } });
+      const vendor = await prisma.vendor.findFirst({ where: { userId: req.user.id } });
       if (!vendor || vendor.id !== order.vendorId) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
@@ -38,7 +38,6 @@ async function handler(req: AuthedRequest, { params }: { params: { id: string } 
         await tx.commission.create({
           data: {
             orderId: order.id,
-            influencerId: order.influencerId,
             influencerAmount,
             platformAmount,
             vendorAmount,

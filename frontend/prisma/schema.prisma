@@ -4,69 +4,319 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
-enum UserRole {
-  admin
-  operator
-  influencer
-  vendor
-  customer
+model User {
+  id                                                 String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  role                                               user_role
+  name                                               String            @db.VarChar(255)
+  email                                              String            @unique @db.VarChar(255)
+  phone                                              String?           @db.VarChar(50)
+  hashedPassword                                     String            @map("hashed_password") @db.VarChar(255)
+  status                                             user_status       @default(active)
+  createdAt                                          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                                          DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  influencer                                         Influencer[]
+  orders                                             Order[]           @relation("CustomerOrders")
+  support_tickets_support_tickets_customer_idTousers support_tickets[] @relation("support_tickets_customer_idTousers")
+  support_tickets_support_tickets_owner_idTousers    support_tickets[] @relation("support_tickets_owner_idTousers")
+  vendor                                             Vendor[]
+
+  @@index([email], map: "idx_users_email")
+  @@index([role], map: "idx_users_role")
+  @@map("users")
 }
 
-enum UserStatus {
-  active
-  inactive
-  suspended
+model RefreshToken {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
-enum VendorStatus {
-  active
-  inactive
-  suspended
+model Vendor {
+  id                  String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId              String        @map("user_id") @db.Uuid
+  businessName        String        @map("business_name") @db.VarChar(255)
+  location            String        @db.VarChar(255)
+  contactName         String?       @map("contact_name") @db.VarChar(255)
+  contactPhone        String?       @map("contact_phone") @db.VarChar(50)
+  fulfillmentSlaHours Int           @default(72) @map("fulfillment_sla_hours")
+  status              vendor_status @default(active)
+  orders              Order[]
+  products            Product[]
+  user                User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("vendors")
 }
 
-enum InfluencerStatus {
-  active
-  inactive
-  suspended
+model Influencer {
+  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  handle           String            @db.VarChar(100)
+  platformName     String            @default("tiktok") @map("platform_name") @db.VarChar(50)
+  audienceRegion   String?           @default("Ghana") @map("audience_region") @db.VarChar(100)
+  payoutMethod     String?           @map("payout_method") @db.VarChar(50)
+  payoutDetailsRef String?           @map("payout_details_ref") @db.VarChar(255)
+  status           influencer_status @default(active)
+  templateId       String?           @default("glow") @map("template_id") @db.VarChar(50)
+  bio              String?           @db.VarChar(500)
+  avatarUrl        String?           @map("avatar_url") @db.VarChar(500)
+  campaigns        Campaign[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders           Order[]
+  trackingLinks    TrackingLink[]
+
+  @@map("influencers")
 }
 
-enum ProductStatus {
-  active
-  inactive
-  out_of_stock
+model Product {
+  id             String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  vendorId       String                @map("vendor_id") @db.Uuid
+  sku            String                @db.VarChar(100)
+  name           String                @db.VarChar(255)
+  description    String?
+  category       String                @db.VarChar(100)
+  color          String?               @db.VarChar(50)
+  size           String?               @db.VarChar(50)
+  price          Decimal               @db.Decimal(10, 2)
+  costBasis      Decimal?              @map("cost_basis") @db.Decimal(10, 2)
+  currency       String                @default("GHS") @db.VarChar(3)
+  inventoryCount Int                   @default(0) @map("inventory_count")
+  status         product_status        @default(active)
+  mediaUrls      Json?                 @map("media_urls")
+  metadataJson   Json?                 @map("metadata_json")
+  orderItems     OrderItem[]
+  campaignLinks  ProductCampaignLink[]
+  vendor         Vendor                @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([category], map: "idx_products_category")
+  @@index([vendorId, status], map: "idx_products_vendor_status")
+  @@map("products")
 }
 
-enum CampaignStatus {
+model Campaign {
+  id                   String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  influencerId         String                @map("influencer_id") @db.Uuid
+  name                 String                @db.VarChar(255)
+  startAt              DateTime?             @map("start_at") @db.Timestamptz(6)
+  endAt                DateTime?             @map("end_at") @db.Timestamptz(6)
+  status               campaign_status       @default(draft)
+  attributionRulesJson Json?                 @map("attribution_rules_json")
+  influencer           Influencer            @relation(fields: [influencerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders               Order[]
+  productLinks         ProductCampaignLink[]
+  trackingLinks        TrackingLink[]
+
+  @@map("campaigns")
+}
+
+model ProductCampaignLink {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  campaignId   String   @map("campaign_id") @db.Uuid
+  productId    String   @map("product_id") @db.Uuid
+  featuredRank Int?     @default(0) @map("featured_rank")
+  active       Boolean? @default(true)
+  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product      Product  @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("product_campaign_links")
+}
+
+model Order {
+  id                  String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  customerId          String?            @map("customer_id") @db.Uuid
+  influencerId        String?            @map("influencer_id") @db.Uuid
+  vendorId            String             @map("vendor_id") @db.Uuid
+  campaignId          String?            @map("campaign_id") @db.Uuid
+  status              order_status       @default(pending)
+  subtotal            Decimal            @db.Decimal(10, 2)
+  deliveryFee         Decimal            @default(0) @map("delivery_fee") @db.Decimal(10, 2)
+  total               Decimal            @db.Decimal(10, 2)
+  currency            String             @default("GHS") @db.VarChar(3)
+  paymentStatus       payment_status     @default(unpaid) @map("payment_status")
+  fulfillmentStatus   fulfillment_status @default(unfulfilled) @map("fulfillment_status")
+  sourceChannel       String?            @default("tiktok") @map("source_channel") @db.VarChar(50)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customerName        String?            @map("customer_name") @db.VarChar(255)
+  customerPhone       String?            @map("customer_phone") @db.VarChar(50)
+  customerEmail       String?            @map("customer_email") @db.VarChar(255)
+  deliveryAddress     String?            @map("delivery_address") @db.VarChar(500)
+  sizeVariant         String?            @map("size_variant") @db.VarChar(100)
+  specialInstructions String?            @map("special_instructions") @db.VarChar(1000)
+  commission          Commission?
+  items               OrderItem[]
+  campaign            Campaign?          @relation(fields: [campaignId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customer            User?              @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  influencer          Influencer?        @relation(fields: [influencerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendor              Vendor             @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payments            Payment[]
+  support_tickets     support_tickets[]
+
+  @@index([influencerId, createdAt], map: "idx_orders_influencer_created")
+  @@index([status], map: "idx_orders_status")
+  @@index([vendorId], map: "idx_orders_vendor")
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orderId   String  @map("order_id") @db.Uuid
+  productId String  @map("product_id") @db.Uuid
+  quantity  Int
+  unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
+  lineTotal Decimal @map("line_total") @db.Decimal(10, 2)
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product   Product @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("order_items")
+}
+
+model Commission {
+  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orderId          String            @unique @map("order_id") @db.Uuid
+  influencerAmount Decimal           @map("influencer_amount") @db.Decimal(10, 2)
+  platformAmount   Decimal           @map("platform_amount") @db.Decimal(10, 2)
+  vendorAmount     Decimal           @map("vendor_amount") @db.Decimal(10, 2)
+  commissionStatus commission_status @default(pending) @map("commission_status")
+  payoutBatchId    String?           @map("payout_batch_id") @db.Uuid
+  calculatedAt     DateTime          @default(now()) @map("calculated_at") @db.Timestamptz(6)
+  order            Order             @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  payout           Payout?           @relation(fields: [payoutBatchId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([commissionStatus, calculatedAt], map: "idx_commissions_status")
+  @@map("commissions")
+}
+
+model Payout {
+  id                String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  payeeType         payee_type    @map("payee_type")
+  payeeId           String        @map("payee_id") @db.Uuid
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("GHS") @db.VarChar(3)
+  status            payout_status @default(pending)
+  paymentMethod     String?       @map("payment_method") @db.VarChar(50)
+  externalReference String?       @map("external_reference") @db.VarChar(255)
+  periodStart       DateTime?     @map("period_start") @db.Timestamptz(6)
+  periodEnd         DateTime?     @map("period_end") @db.Timestamptz(6)
+  commissions       Commission[]
+
+  @@map("payouts")
+}
+
+model Payment {
+  id                String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orderId           String                  @map("order_id") @db.Uuid
+  provider          String                  @db.VarChar(50)
+  providerReference String?                 @unique @map("provider_reference") @db.VarChar(255)
+  amount            Decimal                 @db.Decimal(10, 2)
+  currency          String                  @default("GHS") @db.VarChar(3)
+  status            payment_provider_status @default(initiated)
+  rawPayloadJson    Json?                   @map("raw_payload_json")
+  order             Order                   @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("payments")
+}
+
+model TrackingLink {
+  id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String     @unique @db.VarChar(20)
+  influencerId    String     @map("influencer_id") @db.Uuid
+  campaignId      String?    @map("campaign_id") @db.Uuid
+  label           String?    @db.VarChar(200)
+  destinationPath String     @default("/") @map("destination_path") @db.VarChar(500)
+  clickCount      Int        @default(0) @map("click_count")
+  isActive        Boolean    @default(true) @map("is_active")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt       DateTime?  @map("expires_at") @db.Timestamptz(6)
+  campaign        Campaign?  @relation(fields: [campaignId], references: [id], onUpdate: NoAction)
+  influencer      Influencer @relation(fields: [influencerId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([isActive], map: "idx_tracking_links_active")
+  @@index([code], map: "idx_tracking_links_code")
+  @@index([influencerId], map: "idx_tracking_links_influencer")
+  @@map("tracking_links")
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  actorType   String?  @map("actor_type") @db.VarChar(50)
+  actorId     String?  @map("actor_id") @db.Uuid
+  eventName   String   @map("event_name") @db.VarChar(100)
+  entityType  String?  @map("entity_type") @db.VarChar(50)
+  entityId    String?  @map("entity_id") @db.Uuid
+  payloadJson Json?    @map("payload_json")
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  @@index([eventName, occurredAt], map: "idx_analytics_event_name")
+  @@map("analytics_events")
+}
+
+model support_tickets {
+  id                                       String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  order_id                                 String?       @db.Uuid
+  customer_id                              String?       @db.Uuid
+  issue_type                               String        @db.VarChar(100)
+  status                                   ticket_status @default(open)
+  owner_id                                 String?       @db.Uuid
+  resolution_notes                         String?
+  users_support_tickets_customer_idTousers User?         @relation("support_tickets_customer_idTousers", fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders                                   Order?        @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users_support_tickets_owner_idTousers    User?         @relation("support_tickets_owner_idTousers", fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+enum campaign_status {
   draft
   active
   paused
   ended
 }
 
-enum CommissionStatus {
+enum commission_status {
   pending
   payable
   paid
   reversed
 }
 
-enum PayoutStatus {
-  pending
+enum fulfillment_status {
+  unfulfilled
   processing
-  completed
+  shipped
+  delivered
   failed
 }
 
-enum PayoutPayeeType {
+enum influencer_status {
+  active
+  inactive
+  suspended
+}
+
+enum order_status {
+  pending
+  confirmed
+  processing
+  shipped
+  delivered
+  cancelled
+  refunded
+}
+
+enum payee_type {
   influencer
   platform
 }
 
-enum PaymentStatus {
+enum payment_provider_status {
   initiated
   pending
   success
@@ -74,319 +324,49 @@ enum PaymentStatus {
   refunded
 }
 
-enum ReviewStatus {
+enum payment_status {
+  unpaid
   pending
-  approved
-  rejected
+  paid
+  refunded
 }
 
-model User {
-  id             String     @id @default(uuid())
-  role           UserRole
-  name           String     @db.VarChar(255)
-  email          String     @unique @db.VarChar(255)
-  phone          String?    @db.VarChar(50)
-  hashedPassword String     @map("hashed_password") @db.VarChar(255)
-  status         UserStatus @default(active)
-  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz
-
-  vendor      Vendor?
-  influencer  Influencer?
-  orders      Order[]       @relation("CustomerOrders")
-  refreshTokens RefreshToken[]
-
-  @@map("users")
+enum payout_status {
+  pending
+  processing
+  completed
+  failed
 }
 
-model RefreshToken {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  token     String   @unique @db.VarChar(512)
-  expiresAt DateTime @map("expires_at") @db.Timestamptz
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("refresh_tokens")
+enum product_status {
+  active
+  inactive
+  out_of_stock
 }
 
-model Vendor {
-  id               String       @id @default(uuid())
-  userId           String       @unique @map("user_id")
-  businessName     String       @map("business_name") @db.VarChar(255)
-  location         String       @db.VarChar(255)
-  contactName      String?      @map("contact_name") @db.VarChar(255)
-  contactPhone     String?      @map("contact_phone") @db.VarChar(50)
-  fulfillmentSlaHours Int       @default(72) @map("fulfillment_sla_hours")
-  status           VendorStatus @default(active)
-
-  user     User      @relation(fields: [userId], references: [id])
-  products Product[]
-  orders   Order[]
-
-  @@map("vendors")
+enum ticket_status {
+  open
+  in_progress
+  resolved
+  escalated
 }
 
-model Influencer {
-  id               String           @id @default(uuid())
-  userId           String           @unique @map("user_id")
-  handle           String           @db.VarChar(100)
-  platformName     String           @default("tiktok") @map("platform_name") @db.VarChar(50)
-  audienceRegion   String           @default("Ghana") @map("audience_region") @db.VarChar(100)
-  payoutMethod     String?          @map("payout_method") @db.VarChar(50)
-  payoutDetailsRef String?          @map("payout_details_ref") @db.VarChar(255)
-  status           InfluencerStatus @default(active)
-  templateId       String           @default("glow") @map("template_id") @db.VarChar(50)
-  bio              String?          @db.VarChar(500)
-  avatarUrl        String?          @map("avatar_url") @db.VarChar(500)
-
-  user          User                   @relation(fields: [userId], references: [id])
-  campaigns     Campaign[]
-  orders        Order[]
-  commissions   Commission[]           @relation("InfluencerCommissions")
-  trackingLinks TrackingLink[]
-
-  @@map("influencers")
+enum user_role {
+  admin
+  influencer
+  vendor
+  customer
+  operator
 }
 
-model Product {
-  id                   String        @id @default(uuid())
-  vendorId             String        @map("vendor_id")
-  sku                  String        @db.VarChar(100)
-  name                 String        @db.VarChar(255)
-  description          String?       @db.Text
-  category             String        @db.VarChar(100)
-  subcategory          String?       @db.VarChar(100)
-  brand                String?       @db.VarChar(100)
-  color                String?       @db.VarChar(50)
-  size                 String?       @db.VarChar(50)
-  price                Decimal       @db.Decimal(10, 2)
-  originalPrice        Decimal?      @map("original_price") @db.Decimal(10, 2)
-  costBasis            Decimal?      @map("cost_basis") @db.Decimal(10, 2)
-  currency             String        @default("GHS") @db.VarChar(3)
-  inventoryCount       Int           @default(0) @map("inventory_count")
-  status               ProductStatus @default(active)
-  mediaUrls            Json?         @map("media_urls")
-  imageAltText         String?       @map("image_alt_text") @db.VarChar(500)
-  metadataJson         Json?         @map("metadata_json")
-  tags                 Json?
-  rating               Float?
-  reviewCount          Int           @default(0) @map("review_count")
-  salesCount           Int           @default(0) @map("sales_count")
-  badge                String?       @db.VarChar(20)
-  countryAvailability  Json?         @map("country_availability")
-  affiliateSource      String?       @map("affiliate_source") @db.VarChar(50)
-  affiliateProductId   String?       @map("affiliate_product_id") @db.VarChar(255)
-  affiliateUrl         String?       @map("affiliate_url") @db.VarChar(1000)
-  videoUrl             String?       @map("video_url") @db.VarChar(1000)
-  affiliateCommissionRate Float?     @map("affiliate_commission_rate")
-  lastSyncedAt         DateTime?     @map("last_synced_at")
-  syncEnabled          Boolean       @default(true) @map("sync_enabled")
-  sourcePriceUsd       Decimal?      @map("source_price_usd") @db.Decimal(10, 2)
-  deliveryDaysMin      Int?          @map("delivery_days_min")
-  deliveryDaysMax      Int?          @map("delivery_days_max")
-  shipsFrom            String?       @map("ships_from") @db.VarChar(100)
-  createdAt            DateTime      @default(now()) @map("created_at")
-  updatedAt            DateTime      @updatedAt @map("updated_at")
-
-  vendor         Vendor                @relation(fields: [vendorId], references: [id])
-  campaignLinks  ProductCampaignLink[]
-  orderItems     OrderItem[]
-  reviews        ProductReview[]
-
-  @@index([vendorId])
-  @@index([status])
-  @@index([affiliateSource])
-  @@index([affiliateProductId])
-  @@map("products")
+enum user_status {
+  active
+  inactive
+  suspended
 }
 
-model Campaign {
-  id                  String         @id @default(uuid())
-  influencerId        String         @map("influencer_id")
-  name                String         @db.VarChar(255)
-  startAt             DateTime?      @map("start_at") @db.Timestamptz
-  endAt               DateTime?      @map("end_at") @db.Timestamptz
-  status              CampaignStatus @default(draft)
-  attributionRulesJson Json?         @map("attribution_rules_json")
-
-  influencer    Influencer            @relation(fields: [influencerId], references: [id])
-  productLinks  ProductCampaignLink[]
-  orders        Order[]
-  trackingLinks TrackingLink[]
-
-  @@map("campaigns")
-}
-
-model ProductCampaignLink {
-  id           String  @id @default(uuid())
-  campaignId   String  @map("campaign_id")
-  productId    String  @map("product_id")
-  featuredRank Int     @default(0) @map("featured_rank")
-  active       Boolean @default(true)
-
-  campaign Campaign @relation(fields: [campaignId], references: [id])
-  product  Product  @relation(fields: [productId], references: [id])
-
-  @@map("product_campaign_links")
-}
-
-model Order {
-  id                  String   @id @default(uuid())
-  customerId          String?  @map("customer_id")
-  influencerId        String?  @map("influencer_id")
-  vendorId            String   @map("vendor_id")
-  campaignId          String?  @map("campaign_id")
-  customerName        String?  @map("customer_name") @db.VarChar(255)
-  customerPhone       String?  @map("customer_phone") @db.VarChar(50)
-  customerEmail       String?  @map("customer_email") @db.VarChar(255)
-  deliveryAddress     String?  @map("delivery_address") @db.VarChar(500)
-  sizeVariant         String?  @map("size_variant") @db.VarChar(100)
-  specialInstructions String?  @map("special_instructions") @db.VarChar(1000)
-  adminNotes          String?  @map("admin_notes") @db.VarChar(2000)
-  status              String   @default("pending")
-  subtotal            Decimal  @db.Decimal(10, 2)
-  deliveryFee         Decimal  @default(0) @map("delivery_fee") @db.Decimal(10, 2)
-  total               Decimal  @db.Decimal(10, 2)
-  currency            String   @default("GHS") @db.VarChar(3)
-  paymentStatus       String   @default("unpaid") @map("payment_status")
-  fulfillmentStatus   String   @default("unfulfilled") @map("fulfillment_status")
-  sourceChannel       String   @default("tiktok") @map("source_channel") @db.VarChar(50)
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
-
-  customer   User?       @relation("CustomerOrders", fields: [customerId], references: [id])
-  influencer Influencer? @relation(fields: [influencerId], references: [id])
-  vendor     Vendor      @relation(fields: [vendorId], references: [id])
-  campaign   Campaign?   @relation(fields: [campaignId], references: [id])
-  items      OrderItem[]
-  commission Commission?
-  payments   Payment[]
-  reviews    ProductReview[]
-
-  @@index([influencerId])
-  @@index([createdAt])
-  @@map("orders")
-}
-
-model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String  @map("order_id")
-  productId String  @map("product_id")
-  quantity  Int
-  unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
-  lineTotal Decimal @map("line_total") @db.Decimal(10, 2)
-
-  order   Order   @relation(fields: [orderId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
-
-  @@map("order_items")
-}
-
-model Commission {
-  id               String           @id @default(uuid())
-  orderId          String           @unique @map("order_id")
-  influencerId     String           @map("influencer_id")
-  influencerAmount Decimal          @map("influencer_amount") @db.Decimal(10, 2)
-  platformAmount   Decimal          @map("platform_amount") @db.Decimal(10, 2)
-  vendorAmount     Decimal          @map("vendor_amount") @db.Decimal(10, 2)
-  commissionStatus CommissionStatus @default(pending) @map("commission_status")
-  payoutBatchId    String?          @map("payout_batch_id")
-  calculatedAt     DateTime         @default(now()) @map("calculated_at") @db.Timestamptz
-
-  order    Order    @relation(fields: [orderId], references: [id])
-  influencer Influencer @relation("InfluencerCommissions", fields: [influencerId], references: [id])
-  payout   Payout?  @relation(fields: [payoutBatchId], references: [id])
-
-  @@index([commissionStatus])
-  @@index([calculatedAt])
-  @@map("commissions")
-}
-
-model Payout {
-  id              String          @id @default(uuid())
-  payeeType       PayoutPayeeType @map("payee_type")
-  payeeId         String          @map("payee_id")
-  amount          Decimal         @db.Decimal(10, 2)
-  currency        String          @default("GHS") @db.VarChar(3)
-  status          PayoutStatus    @default(pending)
-  paymentMethod   String?         @map("payment_method") @db.VarChar(50)
-  externalReference String?       @map("external_reference") @db.VarChar(255)
-  periodStart     DateTime?       @map("period_start") @db.Timestamptz
-  periodEnd       DateTime?       @map("period_end") @db.Timestamptz
-
-  commissions Commission[]
-
-  @@map("payouts")
-}
-
-model Payment {
-  id                String        @id @default(uuid())
-  orderId           String        @map("order_id")
-  provider          String        @db.VarChar(50)
-  providerReference String?       @unique @map("provider_reference") @db.VarChar(255)
-  amount            Decimal       @db.Decimal(10, 2)
-  currency          String        @default("GHS") @db.VarChar(3)
-  status            PaymentStatus @default(initiated)
-  rawPayloadJson    Json?         @map("raw_payload_json")
-
-  order Order @relation(fields: [orderId], references: [id])
-
-  @@map("payments")
-}
-
-model TrackingLink {
-  id              String    @id @default(uuid())
-  code            String    @unique @db.VarChar(20)
-  influencerId    String    @map("influencer_id")
-  campaignId      String?   @map("campaign_id")
-  label           String?   @db.VarChar(200)
-  destinationPath String    @map("destination_path") @db.VarChar(500)
-  clickCount      Int       @default(0) @map("click_count")
-  isActive        Boolean   @default(true) @map("is_active")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  expiresAt       DateTime? @map("expires_at") @db.Timestamptz
-
-  influencer Influencer @relation(fields: [influencerId], references: [id])
-  campaign   Campaign?  @relation(fields: [campaignId], references: [id])
-
-  @@index([code])
-  @@map("tracking_links")
-}
-
-model AnalyticsEvent {
-  id         String   @id @default(uuid())
-  actorType  String   @map("actor_type") @db.VarChar(50)
-  actorId    String?  @map("actor_id")
-  eventName  String   @map("event_name") @db.VarChar(100)
-  entityType String?  @map("entity_type") @db.VarChar(50)
-  entityId   String?  @map("entity_id")
-  payloadJson Json?   @map("payload_json")
-  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz
-
-  @@index([eventName])
-  @@index([occurredAt])
-  @@map("analytics_events")
-}
-
-model ProductReview {
-  id                 String       @id @default(uuid())
-  productId          String       @map("product_id")
-  orderId            String?      @map("order_id")
-  customerName       String       @map("customer_name") @db.VarChar(100)
-  customerPhoneLast4 String?      @map("customer_phone_last4") @db.VarChar(4)
-  rating             Int
-  headline           String?      @db.VarChar(150)
-  body               String?      @db.Text
-  status             ReviewStatus @default(pending)
-  createdAt          DateTime     @default(now()) @map("created_at")
-
-  product Product @relation(fields: [productId], references: [id])
-  order   Order?  @relation(fields: [orderId], references: [id])
-
-  @@index([productId])
-  @@index([status])
-  @@map("product_reviews")
+enum vendor_status {
+  active
+  inactive
+  suspended
 }

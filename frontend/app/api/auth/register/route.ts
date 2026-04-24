@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { signAccessToken, signRefreshToken, refreshExpiresAt } from "@/lib/auth/jwt";
-import { UserRole } from "@/lib/generated/prisma";
+import { user_role as UserRole } from "@/lib/generated/prisma";
 
 export const dynamic = "force-dynamic";
 

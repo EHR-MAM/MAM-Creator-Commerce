@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy: { id: "desc" },
         include: {
           vendor: { select: { businessName: true } },
           campaignLinks: {

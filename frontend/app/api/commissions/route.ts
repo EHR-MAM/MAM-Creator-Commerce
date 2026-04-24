@@ -14,8 +14,7 @@ async function handler(req: AuthedRequest) {
     orderBy: { calculatedAt: "desc" },
     take: 200,
     include: {
-      influencer: { select: { handle: true } },
-      order: { select: { customerName: true, total: true, createdAt: true } },
+      order: { select: { customerName: true, total: true, createdAt: true, influencer: { select: { handle: true } } } },
     },
   });
   return NextResponse.json(commissions);

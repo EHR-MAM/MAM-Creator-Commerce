@@ -5,11 +5,11 @@ import { withAuth, AuthedRequest } from "@/lib/auth/middleware";
 export const dynamic = "force-dynamic";
 
 async function handler(req: AuthedRequest) {
-  const influencer = await prisma.influencer.findUnique({ where: { userId: req.user.id } });
+  const influencer = await prisma.influencer.findFirst({ where: { userId: req.user.id } });
   if (!influencer) return NextResponse.json([]);
 
   const commissions = await prisma.commission.findMany({
-    where: { influencerId: influencer.id },
+    where: { order: { influencerId: influencer.id } },
     orderBy: { calculatedAt: "desc" },
     include: { order: { select: { customerName: true, total: true, createdAt: true, status: true } } },
   });

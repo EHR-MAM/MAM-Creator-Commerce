@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "./jwt";
 import { prisma } from "../db/prisma";
-import { UserRole } from "../generated/prisma";
+import { user_role as UserRole } from "../generated/prisma";
 
 export type AuthedRequest = NextRequest & {
   user: { id: string; role: UserRole; email: string; name: string };

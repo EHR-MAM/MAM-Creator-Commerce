@@ -6,11 +6,11 @@ export const dynamic = "force-dynamic";
 
 async function handler(req: AuthedRequest) {
   try {
-    const influencer = await prisma.influencer.findUnique({ where: { userId: req.user.id } });
+    const influencer = await prisma.influencer.findFirst({ where: { userId: req.user.id } });
     if (!influencer) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const payableCommissions = await prisma.commission.findMany({
-      where: { influencerId: influencer.id, commissionStatus: "payable" },
+      where: { order: { influencerId: influencer.id }, commissionStatus: "payable" },
     });
 
     if (!payableCommissions.length) {

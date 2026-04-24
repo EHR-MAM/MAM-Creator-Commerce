@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 async function handler(req: AuthedRequest) {
   const { bio, avatarUrl } = await req.json();
-  const influencer = await prisma.influencer.findUnique({ where: { userId: req.user.id } });
+  const influencer = await prisma.influencer.findFirst({ where: { userId: req.user.id } });
   if (!influencer) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const updated = await prisma.influencer.update({
     where: { id: influencer.id },

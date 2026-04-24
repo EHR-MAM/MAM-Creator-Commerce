@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 async function handler(_req: AuthedRequest) {
   const payouts = await prisma.payout.findMany({
     orderBy: { id: "desc" },
-    include: { commissions: { select: { influencerId: true, influencer: { select: { handle: true, payoutDetailsRef: true } } }, take: 1 } },
+    include: { commissions: { select: { order: { select: { influencer: { select: { handle: true, payoutDetailsRef: true } } } } }, take: 1 } },
   });
   return NextResponse.json(payouts);
 }

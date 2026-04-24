@@ -11,7 +11,7 @@ async function handler(req: AuthedRequest) {
   if (!VALID_TEMPLATES.includes(templateId)) {
     return NextResponse.json({ error: `templateId must be one of: ${VALID_TEMPLATES.join(", ")}` }, { status: 400 });
   }
-  const influencer = await prisma.influencer.findUnique({ where: { userId: req.user.id } });
+  const influencer = await prisma.influencer.findFirst({ where: { userId: req.user.id } });
   if (!influencer) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const updated = await prisma.influencer.update({ where: { id: influencer.id }, data: { templateId } });
   return NextResponse.json(updated);
